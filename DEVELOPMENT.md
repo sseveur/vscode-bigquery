@@ -119,6 +119,7 @@ To quickly rebuild and install after making changes:
 ```bash
 # Package and install in one go
 npx @vscode/vsce package && code --install-extension vscode-bigquery-*.vsix --force
+npx @vscode/vsce package && code --install-extension vscode-bigquery-v2-0.2.6.vsix --force
 ```
 
 Then reload VS Code: `Cmd+Shift+P` → "Developer: Reload Window"
@@ -415,6 +416,26 @@ curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 ```powershell
 cargo install wasm-pack
 ```
+
+### Concurrent versions 
+
+VS Code caching issue. Try these steps:
+
+  1. Close VS Code completely
+  2. Uninstall the extension:
+  code --uninstall-extension sseveur.vscode-bigquery-v2
+  3. Reinstall:
+  code --install-extension vscode-bigquery-v2-0.2.6.vsix --force
+  4. Restart VS Code
+
+Or try running this:
+
+   1. List the different applications in VS Code 
+   code --list-extensions | grep -i bigquery
+   2. Uninstall the original one:
+   ⏺ Bash(code --uninstall-extension bstruct.vscode-bigquery)
+   ⎿  Uninstalling bstruct.vscode-bigquery
+
 
 ---
 

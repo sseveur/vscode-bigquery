@@ -69,10 +69,35 @@ export class BqsqlDiagnostics {
                         const totalBytesProcessed = response[0];
                         const error = response[1];
 
-                        if (totalBytesProcessed) {
-                            const mb = (totalBytesProcessed / 1024 / 1024).toFixed(2);
+                        if (totalBytesProcessed !== undefined && totalBytesProcessed !== null) {
+                            const bytes = totalBytesProcessed;
+                            const mb = (bytes / 1024 / 1024).toFixed(2);
+
+                            // Get configurable cost per TB (default $6.25 on-demand pricing)
+                            const costPerTB = vscode.workspace.getConfiguration('vscode-bigquery').get<number>('costPerTB', 6.25);
+                            const tb = bytes / (1024 ** 4);
+                            const cost = tb * costPerTB;
+
                             if (statusBarInfo) {
-                                statusBarInfo.text = `This query will process ${mb} MB when run.`;
+                                // Format display based on whether cost estimation is enabled
+                                if (costPerTB === 0) {
+                                    // Cost estimation disabled - show bytes only
+                                    statusBarInfo.text = `$(database) ${mb} MB`;
+                                    statusBarInfo.tooltip = `Bytes to process: ${bytes.toLocaleString()}\nCost estimation disabled (set costPerTB > 0 to enable)`;
+                                } else {
+                                    // Format cost display
+                                    let costDisplay: string;
+                                    if (cost === 0) {
+                                        costDisplay = '< $0.01';
+                                    } else if (cost < 0.01) {
+                                        costDisplay = `~$${cost.toFixed(4)}`;
+                                    } else {
+                                        costDisplay = `~$${cost.toFixed(2)}`;
+                                    }
+
+                                    statusBarInfo.text = `$(database) ${mb} MB (${costDisplay})`;
+                                    statusBarInfo.tooltip = `Bytes to process: ${bytes.toLocaleString()}\nEstimated cost: $${cost.toFixed(4)}\nPricing: $${costPerTB}/TB`;
+                                }
                                 statusBarInfo.show();
                             }
                         }

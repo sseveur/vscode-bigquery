@@ -2,7 +2,7 @@
 	"name": "vscode-bigquery-v2",
 	"displayName": "BigQuery Data View v2",
 	"description": "Google BigQuery extension for Visual Studio Code. List datasets and tables, view table contents, and run queries. Fork of bstruct/vscode-bigquery.",
-	"version": "0.2.6",
+	"version": "0.2.7",
 	"publisher": "sseveur",
 	"icon": "logo.png",
 	"repository": {
@@ -70,6 +70,15 @@
 					"scope": "machine-overridable",
 					"title": "Clipboard Copy Size Limit (KB)",
 					"description": "Maximum size of data (in KB) to copy to clipboard. When exceeded, you will be prompted to truncate or cancel."
+				},
+				"vscode-bigquery.costPerTB": {
+					"type": "number",
+					"default": 6.25,
+					"minimum": 0,
+					"maximum": 100,
+					"scope": "machine-overridable",
+					"title": "Cost per TB ($)",
+					"description": "BigQuery cost per terabyte for query cost estimation. Default is $6.25 (on-demand pricing). Set to 0 to hide cost estimates."
 				}
 			}
 		},
