@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { getExtensionUri } from '../extension';
-import { COMMAND_DOWNLOAD_CSV, COMMAND_DOWNLOAD_JSONL, COMMAND_SEND_PUBSUB } from '../extensionCommands';
+import { COMMAND_DOWNLOAD_CSV, COMMAND_DOWNLOAD_JSONL, COMMAND_SEND_PUBSUB, COMMAND_COPY_CLIPBOARD } from '../extensionCommands';
 import { ResultsGridRenderRequestV2 } from './resultsGridRenderRequestV2';
 
 //https://github.com/microsoft/vscode-webview-ui-toolkit/blob/main/docs/getting-started.md
@@ -29,9 +29,10 @@ export class ResultsGridRender {
             };
 
             switch (command) {
-                case "download_csv": { vscode.commands.executeCommand(COMMAND_DOWNLOAD_CSV, data); }
-                case "download_jsonl": { vscode.commands.executeCommand(COMMAND_DOWNLOAD_JSONL, data); }
-                case "send_pubsub": { vscode.commands.executeCommand(COMMAND_SEND_PUBSUB, data); }
+                case "download_csv": { vscode.commands.executeCommand(COMMAND_DOWNLOAD_CSV, data); break; }
+                case "download_jsonl": { vscode.commands.executeCommand(COMMAND_DOWNLOAD_JSONL, data); break; }
+                case "send_pubsub": { vscode.commands.executeCommand(COMMAND_SEND_PUBSUB, data); break; }
+                case "copy_to_clipboard": { vscode.commands.executeCommand(COMMAND_COPY_CLIPBOARD, data); break; }
             }
         }
     }

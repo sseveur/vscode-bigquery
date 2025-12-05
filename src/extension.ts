@@ -210,6 +210,13 @@ export function activate(context: ExtensionContext) {
 
 	context.subscriptions.push(
 		vscode.commands.registerCommand(
+			commands.COMMAND_COPY_CLIPBOARD,
+			commands.commandCopyToClipboard
+		),
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand(
 			commands.COMMAND_PROJECT_PIN,
 			commands.commandPinOrUnpinProject
 		)

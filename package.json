@@ -1,17 +1,17 @@
 {
-	"name": "vscode-bigquery",
-	"displayName": "Bigquery Data View",
-	"description": "Google BigQuery extension for Visual Studio Code. List datasets and tables, view table contents, and run queries.",
-	"version": "0.2.5",
-	"publisher": "bstruct",
+	"name": "vscode-bigquery-v2",
+	"displayName": "BigQuery Data View v2",
+	"description": "Google BigQuery extension for Visual Studio Code. List datasets and tables, view table contents, and run queries. Fork of bstruct/vscode-bigquery.",
+	"version": "0.2.6",
+	"publisher": "sseveur",
 	"icon": "logo.png",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/bstruct/vscode-bigquery.git"
+		"url": "https://github.com/badiay-s/vscode-bigquery.git"
 	},
-	"homepage": "https://github.com/bstruct/vscode-bigquery",
+	"homepage": "https://github.com/badiay-s/vscode-bigquery",
 	"bugs": {
-		"url": "https://github.com/bstruct/vscode-bigquery/issues"
+		"url": "https://github.com/badiay-s/vscode-bigquery/issues"
 	},
 	"engines": {
 		"vscode": "^1.63.0"
@@ -61,6 +61,15 @@
 					"scope": "machine-overridable",
 					"title": "Associate .sql files",
 					"description": "When enabled, .sql files are automatically treated as BigQuery SQL with all extension features"
+				},
+				"vscode-bigquery.clipboardSizeLimitKb": {
+					"type": "number",
+					"default": 1024,
+					"minimum": 1,
+					"maximum": 102400,
+					"scope": "machine-overridable",
+					"title": "Clipboard Copy Size Limit (KB)",
+					"description": "Maximum size of data (in KB) to copy to clipboard. When exceeded, you will be prompted to truncate or cancel."
 				}
 			}
 		},

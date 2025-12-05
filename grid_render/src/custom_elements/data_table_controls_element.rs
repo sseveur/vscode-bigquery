@@ -13,6 +13,7 @@ const BTN_LAST_PAGE: &str = "btn_last_page";
 const BTN_DOWNLOAD_CSV: &str = "btn_download_csv";
 const BTN_DOWNLOAD_JSONL: &str = "btn_download_json";
 const BTN_SEND_PUBSUB: &str = "btn_send_pubsub";
+const BTN_COPY_CLIPBOARD: &str = "btn_copy_clipboard";
 
 pub(crate) const EVENT_GO_TO_FIRST_PAGE: &str = "go_to_first_page";
 pub(crate) const EVENT_GO_TO_PREVIOUS_PAGE: &str = "go_to_previous_page";
@@ -63,6 +64,7 @@ impl BaseElementTrait for DataTableControls {
             .append_sibling_fn("button", BTN_LAST_PAGE, &modify_controls, self)
             .append_sibling_fn("button", BTN_DOWNLOAD_CSV, &modify_controls, self)
             .append_sibling_fn("button", BTN_DOWNLOAD_JSONL, &modify_controls, self)
+            .append_sibling_fn("button", BTN_COPY_CLIPBOARD, &modify_controls, self)
             .append_sibling_fn("button", BTN_SEND_PUBSUB, &modify_controls, self)
     }
 }
@@ -173,6 +175,11 @@ fn modify_controls(base_element: &BaseElement, settings: &DataTableControls) {
                 element.set_attribute("style", "display: none;").unwrap();
             }
         }
+        BTN_COPY_CLIPBOARD => {
+            let element = &base_element.element();
+            add_event_listener_command(element, BTN_COPY_CLIPBOARD, settings);
+            element.set_inner_html("Copy to Clipboard");
+        }
         _ => {}
     }
 }
@@ -205,6 +212,7 @@ fn add_event_listener_command(
             BTN_DOWNLOAD_CSV => "download_csv",
             BTN_DOWNLOAD_JSONL => "download_jsonl",
             BTN_SEND_PUBSUB => "send_pubsub",
+            BTN_COPY_CLIPBOARD => "copy_to_clipboard",
             _ => panic!("unexpected button"),
         };
 

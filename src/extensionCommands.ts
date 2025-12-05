@@ -21,6 +21,7 @@ import { QueryResultsVisualizationType } from './services/queryResultsVisualizat
 import { TroubleshootSerializer } from './activitybar/troubleshootSerializer';
 import { DownloadJsonl } from './tableResultsPanel/downloadJsonl';
 import { SendToPubsub } from './tableResultsPanel/sendToPubsub';
+import { CopyToClipboard } from './tableResultsPanel/copyToClipboard';
 // import { Job } from '@google-cloud/bigquery';
 import { ResultsGridRenderRequestV2, ResultsGridRenderRequestV2Type } from './tableResultsPanel/resultsGridRenderRequestV2';
 import { AuthenticationTreeItem, AuthenticationTreeItemType } from './activitybar/authenticationTreeItem';
@@ -46,6 +47,7 @@ export const COMMAND_PROJECT_PIN = "vscode-bigquery.project-pin";
 export const COMMAND_DOWNLOAD_CSV = "vscode-bigquery.download-csv";
 export const COMMAND_DOWNLOAD_JSONL = "vscode-bigquery.download-jsonl";
 export const COMMAND_SEND_PUBSUB = "vscode-bigquery.send-pubsub";
+export const COMMAND_COPY_CLIPBOARD = "vscode-bigquery.copy-to-clipboard";
 export const COMMAND_PLOT_CHART = "vscode-bigquery.plot-chart";
 export const SETTING_PINNED_PROJECTS = "vscode-bigquery.pinned-projects";
 export const SETTING_PROJECTS = "vscode-bigquery.projects";
@@ -731,6 +733,32 @@ export const commandSendPubsub = async function (this: any, ...args: any[]) {
 			// };
 
 			// getTelemetryReporter()?.sendTelemetryEvent('commandSendPubsub', telemetryProperties);
+		}
+	}
+};
+
+export const commandCopyToClipboard = async function (this: any, ...args: any[]) {
+
+	if (args.length > 0) {
+
+		let data = args[0];
+		if (data.command === "copy_to_clipboard") {
+
+			if (data.jobReference || data.tableReference) {
+
+				const bqClient = await getBigQueryClient();
+
+				if (data.jobReference) {
+					let jobReference = data.jobReference;
+					await CopyToClipboard.copy(bqClient, jobReference);
+				} else {
+					let tableReference = data.tableReference;
+
+					const table = bqClient.getTable(tableReference.projectId, tableReference.datasetId, tableReference.tableId);
+
+					await CopyToClipboard.copyTable(bqClient, table);
+				}
+			}
 		}
 	}
 };
