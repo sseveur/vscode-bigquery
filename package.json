@@ -26,7 +26,8 @@
 		"onWebviewPanel:bigquery-query-results",
 		"onWebviewPanel:bigquery-table-results",
 		"onWebviewPanel:authentication-troubleshoot",
-		"onLanguage:bqsql"
+		"onLanguage:bqsql",
+		"onLanguage:sql"
 	],
 	"main": "./dist/extension.js",
 	"contributes": {
@@ -53,6 +54,13 @@
 					"scope": "machine-overridable",
 					"title": "Table full name",
 					"description": "Tables that need to be listed, but there's no explicit permission to the project nor dataset, only the table"
+				},
+				"vscode-bigquery.associateSqlFiles": {
+					"type": "boolean",
+					"default": false,
+					"scope": "machine-overridable",
+					"title": "Associate .sql files",
+					"description": "When enabled, .sql files are automatically treated as BigQuery SQL with all extension features"
 				}
 			}
 		},
@@ -64,7 +72,8 @@
 				],
 				"configuration": "./resources/language/bqsql-language-configuration.json",
 				"extensions": [
-					"bqsql"
+					"bqsql",
+					"sql"
 				],
 				"icon": {
 					"light": "./resources/google-bigquery.svg",
@@ -87,6 +96,9 @@
 		],
 		"configurationDefaults": {
 			"[bqsql]": {
+				"editor.semanticHighlighting.enabled": true
+			},
+			"[sql]": {
 				"editor.semanticHighlighting.enabled": true
 			}
 		},
@@ -187,12 +199,12 @@
 				{
 					"command": "vscode-bigquery.run-query",
 					"group": "navigation@-3",
-					"when": "editorLangId == bqsql"
+					"when": "editorLangId == bqsql || editorLangId == sql"
 				},
 				{
 					"command": "vscode-bigquery.run-selected-query",
 					"group": "navigation@-2",
-					"when": "editorLangId == bqsql"
+					"when": "editorLangId == bqsql || editorLangId == sql"
 				}
 			],
 			"view/title": [
@@ -271,12 +283,12 @@
 			{
 				"command": "vscode-bigquery.run-query",
 				"key": "Ctrl+Enter",
-				"when": "editorLangId == bqsql"
+				"when": "editorLangId == bqsql || editorLangId == sql"
 			},
 			{
 				"command": "vscode-bigquery.run-selected-query",
 				"key": "Ctrl+E",
-				"when": "editorLangId == bqsql"
+				"when": "editorLangId == bqsql || editorLangId == sql"
 			}
 		],
 		"viewsWelcome": [

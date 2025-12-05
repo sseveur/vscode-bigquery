@@ -2,12 +2,15 @@ import { parse } from "@bstruct/bqsql-parser";
 import { CancellationToken, DocumentSemanticTokensProvider, Event, Position, Range, ProviderResult, SemanticTokens, SemanticTokensBuilder, TextDocument, SemanticTokensLegend } from "vscode";
 import { bigqueryTableSchemaService } from "../extension";
 import { BqsqlDocument, BqsqlDocumentItem } from "./bqsqlDocument";
+import { isBigQueryLanguage } from "../services/languageUtils";
 
 export class BqsqlDocumentSemanticTokensProvider implements DocumentSemanticTokensProvider {
 
     onDidChangeSemanticTokens?: Event<void> | undefined;
 
     provideDocumentSemanticTokens(document: TextDocument, token: CancellationToken): ProviderResult<SemanticTokens> {
+
+        if (!isBigQueryLanguage(document.languageId)) { return null; }
 
         const tokensBuilder = new SemanticTokensBuilder(BqsqlDocumentSemanticTokensProvider.getSemanticTokensLegend());
 

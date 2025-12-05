@@ -697,11 +697,20 @@ impl Jobs {
             request.project_id, request.job_id
         );
 
-        // if (request.location) { url.searchParams.append("location", request.location); }
-        if request.max_results.is_some() {
-            url = format!("{}?maxResults={}", url, request.max_results.unwrap());
+        // Add location parameter first (required for regional jobs)
+        if request.location.is_some() {
+            url = format!("{}?location={}", url, request.location.as_ref().unwrap());
+            if request.max_results.is_some() {
+                url = format!("{}&maxResults={}", url, request.max_results.unwrap());
+            } else {
+                url = format!("{}&maxResults=50", url);
+            }
         } else {
-            url = format!("{}?maxResults=50", url);
+            if request.max_results.is_some() {
+                url = format!("{}?maxResults={}", url, request.max_results.unwrap());
+            } else {
+                url = format!("{}?maxResults=50", url);
+            }
         }
         if request.start_index.is_some() {
             url = format!("{}&startIndex={}", url, request.start_index.unwrap());

@@ -358,3 +358,19 @@ MigrationBackup/
 
 # source compile & watch
 dist/
+
+# Claude Code
+CLAUDE.md
+.claude/
+
+# macOS
+.DS_Store
+
+# Build artifacts
+*.vsix
+
+# Cargo lock files
+bqsql_parser/Cargo.lock
+grid_render/Cargo.lock
+**/.DS_Store
+**/Cargo.lock

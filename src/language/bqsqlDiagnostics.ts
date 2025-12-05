@@ -5,6 +5,7 @@ import { BigqueryJobErrorItem } from "../services/bigqueryJobError";
 import { parse } from "@bstruct/bqsql-parser";
 import { BqsqlDocument, BqsqlDocumentItem } from "./bqsqlDocument";
 import { getStatusBarInfo } from "../extension";
+import { isBigQueryLanguage } from "../services/languageUtils";
 
 export class BqsqlDiagnostics {
 
@@ -17,7 +18,7 @@ export class BqsqlDiagnostics {
             statusBarInfo.hide();
         }
 
-        if (document.languageId !== 'bqsql') { return; }
+        if (!isBigQueryLanguage(document.languageId)) { return; }
 
         const documentContent = document.getText();
         const parsed = parse(documentContent) as BqsqlDocument;
@@ -96,13 +97,13 @@ export class BqsqlDiagnostics {
 
         if (vscode.window.activeTextEditor) {
             if (vscode.window.activeTextEditor.document
-                && vscode.window.activeTextEditor.document.languageId === 'bqsql') {
+                && isBigQueryLanguage(vscode.window.activeTextEditor.document.languageId)) {
                 BqsqlDiagnostics.refreshDiagnostics(vscode.window.activeTextEditor.document, diagnosticsCollection);
             }
         }
         context.subscriptions.push(
             vscode.window.onDidChangeActiveTextEditor(editor => {
-                if (editor && editor.document && editor.document.languageId === 'bqsql') {
+                if (editor && editor.document && isBigQueryLanguage(editor.document.languageId)) {
                     BqsqlDiagnostics.refreshDiagnostics(editor.document, diagnosticsCollection);
                 }
             })

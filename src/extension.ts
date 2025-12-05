@@ -18,6 +18,7 @@ import { ResultsRender } from './services/resultsRender';
 import { QueryResultsVisualizationType } from './services/queryResultsVisualizationType';
 import { TroubleshootSerializer } from './activitybar/troubleshootSerializer';
 import { GcpAuthenticationTreeDataProvider } from './activitybar/gcpAuthenticationTreeDataProvider';
+import { isBigQueryLanguage } from './services/languageUtils';
 
 export const bigqueryWebviewViewProvider = new WebviewViewProvider();
 // export const authenticationWebviewProvider = new BigqueryAuthenticationWebviewViewProvider();
@@ -313,17 +314,35 @@ export function activate(context: ExtensionContext) {
 	context.subscriptions.push(baseDiagnostics);
 	BqsqlDiagnostics.subscribeToDocumentChanges(context, baseDiagnostics);
 
+	// Register language providers for both bqsql and sql languages
+	const completionProvider = new BqsqlCompletionItemProvider();
+	const semanticTokensProvider = new BqsqlDocumentSemanticTokensProvider();
+	const inlayHintsProvider = new BqsqlInlayHintsProvider();
+
 	context.subscriptions.push(
 		vscode.languages.registerCompletionItemProvider(
 			{ language: 'bqsql' },
-			new BqsqlCompletionItemProvider()
+			completionProvider
+		)
+	);
+	context.subscriptions.push(
+		vscode.languages.registerCompletionItemProvider(
+			{ language: 'sql' },
+			completionProvider
 		)
 	);
 
 	context.subscriptions.push(
 		vscode.languages.registerDocumentSemanticTokensProvider(
 			{ language: 'bqsql' },
-			new BqsqlDocumentSemanticTokensProvider(),
+			semanticTokensProvider,
+			BqsqlDocumentSemanticTokensProvider.getSemanticTokensLegend()
+		)
+	);
+	context.subscriptions.push(
+		vscode.languages.registerDocumentSemanticTokensProvider(
+			{ language: 'sql' },
+			semanticTokensProvider,
 			BqsqlDocumentSemanticTokensProvider.getSemanticTokensLegend()
 		)
 	);
@@ -331,7 +350,13 @@ export function activate(context: ExtensionContext) {
 	context.subscriptions.push(
 		vscode.languages.registerInlayHintsProvider(
 			{ language: 'bqsql' },
-			new BqsqlInlayHintsProvider()
+			inlayHintsProvider
+		)
+	);
+	context.subscriptions.push(
+		vscode.languages.registerInlayHintsProvider(
+			{ language: 'sql' },
+			inlayHintsProvider
 		)
 	);
 
@@ -353,7 +378,7 @@ export function activate(context: ExtensionContext) {
 
 	vscode.window.onDidChangeActiveTextEditor(e => {
 
-		if (e?.document.languageId === 'bqsql') {
+		if (e?.document && isBigQueryLanguage(e.document.languageId)) {
 
 			//check if results tab exist and it's known
 			//  is possible that is not know in case that vscode was restarted and that window was not opened

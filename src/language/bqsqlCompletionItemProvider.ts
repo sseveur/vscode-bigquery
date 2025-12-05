@@ -3,11 +3,14 @@ import * as vscode from 'vscode';
 import { CompletionItemProvider, CompletionItem, CancellationToken, CompletionContext, CompletionList, Position, ProviderResult, TextDocument, CompletionItemKind, MarkdownString } from 'vscode';
 import { bigqueryTableSchemaService } from '../extension';
 import { BqsqlSuggestion } from './bqsqlSuggestion';
+import { isBigQueryLanguage } from '../services/languageUtils';
 
 
 export class BqsqlCompletionItemProvider implements CompletionItemProvider<CompletionItem> {
 
     provideCompletionItems(document: TextDocument, position: Position, token: CancellationToken, context: CompletionContext): vscode.CompletionList<vscode.CompletionItem> | vscode.CompletionItem[] | null | undefined {
+
+        if (!isBigQueryLanguage(document.languageId)) { return null; }
 
         const suggestions = suggest(document.getText(), position.line, position.character) as BqsqlSuggestion[];
 
