@@ -20,6 +20,7 @@ import { QueryResultsVisualizationType } from './services/queryResultsVisualizat
 import { TroubleshootSerializer } from './activitybar/troubleshootSerializer';
 import { GcpAuthenticationTreeDataProvider } from './activitybar/gcpAuthenticationTreeDataProvider';
 import { isBigQueryLanguage } from './services/languageUtils';
+import { QueryHistoryTreeDataProvider } from './activitybar/queryHistoryTreeDataProvider';
 
 export const bigqueryWebviewViewProvider = new WebviewViewProvider();
 export const authenticationWebviewProvider = new BigqueryAuthenticationWebviewViewProvider();
@@ -259,6 +260,59 @@ export function activate(context: ExtensionContext) {
 		vscode.commands.registerCommand(
 			commands.COMMAND_FORMAT_QUERY,
 			commands.commandFormatQuery
+		)
+	);
+
+	// Query History
+	const queryHistoryService = commands.initQueryHistoryService(context.globalState);
+	const queryHistoryTreeDataProvider = new QueryHistoryTreeDataProvider(queryHistoryService);
+
+	context.subscriptions.push(
+		vscode.window.registerTreeDataProvider(
+			'bigquery-query-history',
+			queryHistoryTreeDataProvider
+		)
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand(
+			commands.COMMAND_HISTORY_RERUN,
+			commands.commandHistoryRerun
+		)
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand(
+			commands.COMMAND_HISTORY_COPY,
+			commands.commandHistoryCopy
+		)
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand(
+			commands.COMMAND_HISTORY_SHOW,
+			commands.commandHistoryShow
+		)
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand(
+			commands.COMMAND_HISTORY_DELETE,
+			commands.commandHistoryDelete
+		)
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand(
+			commands.COMMAND_HISTORY_CLEAR,
+			commands.commandHistoryClear
+		)
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand(
+			commands.COMMAND_HISTORY_REFRESH,
+			() => queryHistoryTreeDataProvider.refresh()
 		)
 	);
 

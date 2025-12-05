@@ -27,6 +27,7 @@ import { ResultsGridRenderRequestV2, ResultsGridRenderRequestV2Type } from './ta
 import { AuthenticationTreeItem, AuthenticationTreeItemType } from './activitybar/authenticationTreeItem';
 import { Dataset, Table } from '@google-cloud/bigquery';
 import { formatBigQuerySQL } from './language/bqsqlFormatter';
+import { QueryHistoryItem, QueryHistoryService } from './services/queryHistoryService';
 
 export const COMMAND_RUN_QUERY = "vscode-bigquery.run-query";
 export const COMMAND_RUN_SELECTED_QUERY = "vscode-bigquery.run-selected-query";
@@ -57,6 +58,12 @@ export const AUTHENTICATION_TROUBLESHOOT = "vscode-bigquery.troubleshoot";
 export const OPEN_SETTING_PROJECTS = "vscode-bigquery.open-settings-projects";
 export const OPEN_SETTING_TABLES = "vscode-bigquery.open-settings-tables";
 export const COMMAND_FORMAT_QUERY = "vscode-bigquery.format-query";
+export const COMMAND_HISTORY_RERUN = "vscode-bigquery.history-rerun";
+export const COMMAND_HISTORY_COPY = "vscode-bigquery.history-copy";
+export const COMMAND_HISTORY_CLEAR = "vscode-bigquery.history-clear";
+export const COMMAND_HISTORY_SHOW = "vscode-bigquery.history-show";
+export const COMMAND_HISTORY_DELETE = "vscode-bigquery.history-delete";
+export const COMMAND_HISTORY_REFRESH = "vscode-bigquery.history-refresh";
 
 export const commandRunQuery = async function (this: any, ...args: any[]) {
 
@@ -110,7 +117,7 @@ const commandQuery = async function (local: any, queryType: RunQueryType) {
 
 const runQuery = async function (globalState: vscode.Memento, queryResultsWebviewMapping: Map<string, ResultsRender>, uuid: string, mainLabel: string, queryText: string): Promise<number> {
 
-	// const queryResponse = getBigQueryClient().runQuery(queryText);
+	const queryStartTime = Date.now();
 
 	let performLock = false;
 	if (vscode.window.tabGroups.all.filter(c => c.viewColumn === vscode.ViewColumn.Two).length === 0) {
@@ -175,6 +182,19 @@ const runQuery = async function (globalState: vscode.Memento, queryResultsWebvie
 			error: null
 		} as ResultsGridRenderRequestV2);
 
+		// Add to query history on success
+		if (queryHistoryService) {
+			const bytesProcessed = job.metadata?.statistics?.totalBytesProcessed || 0;
+			await queryHistoryService.addEntry({
+				query: queryText,
+				timestamp: queryStartTime,
+				bytesProcessed: parseInt(bytesProcessed.toString(), 10),
+				durationMs: Date.now() - queryStartTime,
+				projectId: projectId || 'unknown',
+				status: 'success'
+			});
+		}
+
 	} catch (errorx) {
 		// resultsGridRender.renderException(error);
 		const error =
@@ -190,6 +210,24 @@ const runQuery = async function (globalState: vscode.Memento, queryResultsWebvie
 			job: null,
 			error: error
 		} as ResultsGridRenderRequestV2);
+
+		// Add to query history on error
+		if (queryHistoryService) {
+			let errorProjectId = 'unknown';
+			try {
+				const bqClient = await getBigQueryClient();
+				errorProjectId = await bqClient.getProjectId() || 'unknown';
+			} catch { }
+			await queryHistoryService.addEntry({
+				query: queryText,
+				timestamp: queryStartTime,
+				bytesProcessed: 0,
+				durationMs: Date.now() - queryStartTime,
+				projectId: errorProjectId,
+				status: 'error',
+				errorMessage: error.message
+			});
+		}
 	}
 
 	return 0;
@@ -948,5 +986,94 @@ export const commandFormatQuery = async function () {
 		});
 	} catch (error: any) {
 		vscode.window.showErrorMessage(`Failed to format SQL: ${error.message}`);
+	}
+};
+
+// Query History
+let queryHistoryService: QueryHistoryService | null = null;
+
+export function initQueryHistoryService(globalState: vscode.Memento): QueryHistoryService {
+	if (!queryHistoryService) {
+		queryHistoryService = new QueryHistoryService(globalState);
+	}
+	return queryHistoryService;
+}
+
+export function getQueryHistoryService(): QueryHistoryService | null {
+	return queryHistoryService;
+}
+
+// Helper to extract QueryHistoryItem from either direct item or TreeItem
+function extractHistoryItem(arg: any): QueryHistoryItem | null {
+	if (!arg) return null;
+	// If it's a TreeItem with historyItem property
+	if (arg.historyItem) return arg.historyItem;
+	// If it's the QueryHistoryItem directly
+	if (arg.query && arg.timestamp) return arg;
+	return null;
+}
+
+export const commandHistoryRerun = async function (arg: any) {
+	const item = extractHistoryItem(arg);
+	if (!item || !item.query) {
+		return;
+	}
+
+	// Create a new untitled document with the query
+	const doc = await vscode.workspace.openTextDocument({
+		language: 'bqsql',
+		content: item.query
+	});
+	await vscode.window.showTextDocument(doc);
+
+	// Run the query
+	vscode.commands.executeCommand(COMMAND_RUN_QUERY);
+};
+
+export const commandHistoryCopy = async function (arg: any) {
+	const item = extractHistoryItem(arg);
+	if (!item || !item.query) {
+		return;
+	}
+	await vscode.env.clipboard.writeText(item.query);
+	vscode.window.showInformationMessage('Query copied to clipboard');
+};
+
+export const commandHistoryShow = async function (arg: any) {
+	const item = extractHistoryItem(arg);
+	if (!item || !item.query) {
+		return;
+	}
+
+	// Create a new untitled document with the query (read-only preview)
+	const doc = await vscode.workspace.openTextDocument({
+		language: 'bqsql',
+		content: item.query
+	});
+	await vscode.window.showTextDocument(doc, { preview: true });
+};
+
+export const commandHistoryDelete = async function (arg: any) {
+	const item = extractHistoryItem(arg);
+	if (!item || !item.id || !queryHistoryService) {
+		return;
+	}
+	await queryHistoryService.removeEntry(item.id);
+};
+
+export const commandHistoryClear = async function () {
+	if (!queryHistoryService) {
+		return;
+	}
+
+	const confirm = await vscode.window.showWarningMessage(
+		'Clear all query history?',
+		{ modal: true },
+		'Clear'
+	);
+
+	if (confirm === 'Clear') {
+		await queryHistoryService.clearHistory();
+		vscode.window.showInformationMessage('Query history cleared');
 	}
 };

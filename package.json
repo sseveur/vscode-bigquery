@@ -2,7 +2,7 @@
 	"name": "vscode-bigquery-v2",
 	"displayName": "BigQuery Data View v2",
 	"description": "Google BigQuery extension for Visual Studio Code. List datasets and tables, view table contents, and run queries. Fork of bstruct/vscode-bigquery.",
-	"version": "0.2.9",
+	"version": "0.2.10",
 	"publisher": "sseveur",
 	"icon": "logo.png",
 	"repository": {
@@ -238,6 +238,35 @@
 				"command": "vscode-bigquery.format-query",
 				"title": "BigQueryView: Format SQL",
 				"icon": "$(symbol-structure)"
+			},
+			{
+				"command": "vscode-bigquery.history-rerun",
+				"title": "BigQueryView: Re-run Query",
+				"icon": "$(debug-start)"
+			},
+			{
+				"command": "vscode-bigquery.history-copy",
+				"title": "BigQueryView: Copy Query",
+				"icon": "$(copy)"
+			},
+			{
+				"command": "vscode-bigquery.history-show",
+				"title": "BigQueryView: Show Query"
+			},
+			{
+				"command": "vscode-bigquery.history-delete",
+				"title": "BigQueryView: Delete from History",
+				"icon": "$(trash)"
+			},
+			{
+				"command": "vscode-bigquery.history-clear",
+				"title": "BigQueryView: Clear All History",
+				"icon": "$(clear-all)"
+			},
+			{
+				"command": "vscode-bigquery.history-refresh",
+				"title": "BigQueryView: Refresh History",
+				"icon": "$(refresh)"
 			}
 		],
 		"menus": {
@@ -263,6 +292,16 @@
 					"command": "vscode-bigquery.explorer-refresh",
 					"group": "navigation",
 					"when": "view == 'bigquery-tree-data-provider'"
+				},
+				{
+					"command": "vscode-bigquery.history-refresh",
+					"group": "navigation",
+					"when": "view == 'bigquery-query-history'"
+				},
+				{
+					"command": "vscode-bigquery.history-clear",
+					"group": "navigation",
+					"when": "view == 'bigquery-query-history'"
 				}
 			],
 			"view/item/context": [
@@ -297,6 +336,21 @@
 					"command": "vscode-bigquery.project-pin",
 					"when": "viewItem == 'bq-gcp-project'",
 					"group": "inline"
+				},
+				{
+					"command": "vscode-bigquery.history-rerun",
+					"when": "viewItem == 'history-query'",
+					"group": "inline"
+				},
+				{
+					"command": "vscode-bigquery.history-copy",
+					"when": "viewItem == 'history-query'",
+					"group": "inline"
+				},
+				{
+					"command": "vscode-bigquery.history-delete",
+					"when": "viewItem == 'history-query'",
+					"group": "inline"
 				}
 			]
 		},
@@ -311,6 +365,12 @@
 				{
 					"id": "bigquery-tree-data-provider",
 					"name": "Explorer",
+					"contextualTitle": "BigQuery",
+					"type": "tree"
+				},
+				{
+					"id": "bigquery-query-history",
+					"name": "Query History",
 					"contextualTitle": "BigQuery",
 					"type": "tree"
 				}
