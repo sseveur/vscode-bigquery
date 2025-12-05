@@ -269,7 +269,7 @@
 					"id": "bigquery-authentication",
 					"name": "Authentication",
 					"contextualTitle": "BigQuery",
-					"type": "tree"
+					"type": "webview"
 				},
 				{
 					"id": "bigquery-tree-data-provider",
@@ -347,6 +347,8 @@
 		"@vscode/codicons": "^0.0.32",
 		"@vscode/webview-ui-toolkit": "^1.2.2",
 		"csv-writer": "^1.6.0",
-		"grid_render": "file://.//grid_render/pkg"
+		"grid_render": "file://.//grid_render/pkg",
+		"preact": "^10.28.0",
+		"preact-render-to-string": "^6.6.3"
 	}
 }

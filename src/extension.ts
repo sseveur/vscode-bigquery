@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { Uri, StatusBarItem, ExtensionContext } from 'vscode';
-// import { BigqueryAuthenticationWebviewViewProvider } from './activitybar/authenticationWebviewViewProvider';
+import { BigqueryAuthenticationWebviewViewProvider } from './activitybar/authenticationWebviewViewProvider';
 import { BigQueryTreeDataProvider } from './activitybar/treeDataProvider';
 import * as commands from './extensionCommands';
 import { WebviewViewProvider } from './tableResultsPanel/webviewViewProvider';
@@ -21,7 +21,7 @@ import { GcpAuthenticationTreeDataProvider } from './activitybar/gcpAuthenticati
 import { isBigQueryLanguage } from './services/languageUtils';
 
 export const bigqueryWebviewViewProvider = new WebviewViewProvider();
-// export const authenticationWebviewProvider = new BigqueryAuthenticationWebviewViewProvider();
+export const authenticationWebviewProvider = new BigqueryAuthenticationWebviewViewProvider();
 export const gcpAuthenticationTreeDataProvider = new GcpAuthenticationTreeDataProvider();
 export const bigQueryTreeDataProvider = new BigQueryTreeDataProvider();
 export const bigqueryTableSchemaService = new BigqueryTableSchemaService();
@@ -262,19 +262,20 @@ export function activate(context: ExtensionContext) {
 	// );
 
 	// bigquery-authentication
-	// context.subscriptions.push(
-	// 	vscode.window.registerWebviewViewProvider(
-	// 		"bigquery-authentication",
-	// 		authenticationWebviewProvider,
-	// 		{ webviewOptions: { retainContextWhenHidden: true } }
-	// 	)
-	// );
 	context.subscriptions.push(
-		vscode.window.registerTreeDataProvider(
-			'bigquery-authentication',
-			gcpAuthenticationTreeDataProvider
+		vscode.window.registerWebviewViewProvider(
+			"bigquery-authentication",
+			authenticationWebviewProvider,
+			{ webviewOptions: { retainContextWhenHidden: true } }
 		)
 	);
+	// Tree view alternative (disabled):
+	// context.subscriptions.push(
+	// 	vscode.window.registerTreeDataProvider(
+	// 		'bigquery-authentication',
+	// 		gcpAuthenticationTreeDataProvider
+	// 	)
+	// );
 
 	//bigquery-tree-data-provider
 	context.subscriptions.push(
