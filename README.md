@@ -4,7 +4,7 @@ This extension aims to bring most of the functionality of Bigquery to Visual Stu
 ## Authentication
 The authentication is taken care of by the [gcloud CLI](https://cloud.google.com/sdk/docs/install). Therefore, gcloud CLI must be installed. This extension makes a visual representation of what is provided by that console application.
 
-<img src="documentation/authentication.png" alt="authentication" width="500"/>
+<img src="documentation/authentication_panel.png" alt="authentication" width="300"/>
 
 The three buttons "User login", "User login + GDrive" and "Service account" reflect the three possible ways of authenticating the requests. Either user personal authentication is used, where the computer browser will be opened requesting authentication to Google Cloud for the options "User login" and "User login + GDrive". Use the "GDrive" option to be able to browse and select tables based on Google Drive. Or, a service account key file (json format) must be selected when requested by pressing the button "Service account".
 
@@ -31,7 +31,7 @@ For `views` and `tables` is possible to access the menu via right-click.
 - Preview: That opens a window with the table representation of the table. For external tables and views, a `SELECT *` statement will be run internally in order to show the results of the table.
 <img src="documentation/explorer_tree_table.png" alt="explorer tree table" width="600"/>
 - View schema: Opens a window that describes the meta information of the table or views
-<img src="documentation/schema_view.png" alt="schema view" width="900"/>
+<img src="documentation/preview_schema.png" alt="schema view" width="900"/>
 
 ## Settings
 
@@ -76,7 +76,7 @@ To run only the query selected in the text can be done by the key combination `C
 
 After the query returns a response, the bottom panel of Visual Studio code will be made visible with the selected tab `Bigquery: Query results`. There, the query results are displayed with the usual pagination functionality. For convenience, is possible to open the same query results in another tab for side-by-side comparisons or further persistence. The results in the bottom panel will only represent the latest query execution.
 
-As visible in the image above, syntax highlight is very poor at the moment. Intellisence has too few features. This will be the next improvement's biggest area. 
+The extension provides syntax highlighting for SQL keywords (SELECT, FROM, WHERE, JOIN, CASE, WHEN, etc.) and intellisense/autocomplete for SQL keywords and BigQuery functions. Syntax highlighting also works for `.sql` files via grammar injection. 
 
 The query in the editor is evaluated with every change. If there are errors in the query, they will be underlined
 

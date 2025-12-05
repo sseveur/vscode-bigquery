@@ -5,6 +5,9 @@
       "include": "#expression"
     },
     {
+      "include": "#keywords"
+    },
+    {
       "include": "#functions"
     }
   ],
@@ -22,6 +25,57 @@
         },
         {
           "include": "#table-name"
+        },
+        {
+          "include": "#keywords"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "match": "(?i)\\b(SELECT|FROM|WHERE|GROUP|BY|ORDER|HAVING|LIMIT|OFFSET|WITH|AS|DISTINCT|ALL)\\b",
+          "name": "keyword.control.bqsql"
+        },
+        {
+          "match": "(?i)\\b(INNER|LEFT|RIGHT|FULL|CROSS|OUTER|JOIN|ON|USING|NATURAL)\\b",
+          "name": "keyword.control.bqsql"
+        },
+        {
+          "match": "(?i)\\b(CREATE|OR|REPLACE|TABLE|VIEW|SCHEMA|FUNCTION|TEMP|TEMPORARY|DROP|ALTER|TRUNCATE)\\b",
+          "name": "keyword.control.bqsql"
+        },
+        {
+          "match": "(?i)\\b(INSERT|INTO|UPDATE|DELETE|MERGE|VALUES|SET)\\b",
+          "name": "keyword.control.bqsql"
+        },
+        {
+          "match": "(?i)\\b(AND|OR|NOT|IN|BETWEEN|LIKE|EXISTS|IS|NULL|TRUE|FALSE)\\b",
+          "name": "keyword.operator.bqsql"
+        },
+        {
+          "match": "(?i)\\b(CASE|WHEN|THEN|ELSE|END)\\b",
+          "name": "keyword.control.conditional.bqsql"
+        },
+        {
+          "match": "(?i)\\b(UNION|INTERSECT|EXCEPT)\\b",
+          "name": "keyword.control.bqsql"
+        },
+        {
+          "match": "(?i)\\b(OVER|PARTITION|ROWS|RANGE|UNBOUNDED|PRECEDING|FOLLOWING|CURRENT|ROW)\\b",
+          "name": "keyword.control.bqsql"
+        },
+        {
+          "match": "(?i)\\b(ASC|DESC|NULLS|FIRST|LAST)\\b",
+          "name": "keyword.control.bqsql"
+        },
+        {
+          "match": "(?i)\\b(UNNEST|PIVOT|UNPIVOT|TABLESAMPLE|QUALIFY|OPTIONS|RECURSIVE)\\b",
+          "name": "keyword.control.bqsql"
+        },
+        {
+          "match": "(?i)\\b(INT64|FLOAT64|NUMERIC|BIGNUMERIC|BOOL|STRING|BYTES|DATE|DATETIME|TIME|TIMESTAMP|GEOGRAPHY|ARRAY|STRUCT|JSON)\\b",
+          "name": "storage.type.bqsql"
         }
       ]
     },

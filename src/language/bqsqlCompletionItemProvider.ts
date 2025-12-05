@@ -401,7 +401,98 @@ export class BqsqlCompletionItemProvider implements CompletionItemProvider<Compl
                 this.getCompletionItem("KEYS.ROTATE_KEYSET", CompletionItemKind.Function),
                 this.getCompletionItem("KEYS.ROTATE_WRAPPED_KEYSET", CompletionItemKind.Function),
                 this.getCompletionItem("KEYS.KEYSET_LENGTH", CompletionItemKind.Function),
-                this.getCompletionItem("EXTERNAL_OBJECT_TRANSFORM", CompletionItemKind.Function)
+                this.getCompletionItem("EXTERNAL_OBJECT_TRANSFORM", CompletionItemKind.Function),
+
+                // SQL Keywords - JOIN types
+                this.getKeywordCompletionItem("INNER JOIN"),
+                this.getKeywordCompletionItem("LEFT JOIN"),
+                this.getKeywordCompletionItem("RIGHT JOIN"),
+                this.getKeywordCompletionItem("FULL JOIN"),
+                this.getKeywordCompletionItem("FULL OUTER JOIN"),
+                this.getKeywordCompletionItem("CROSS JOIN"),
+                this.getKeywordCompletionItem("LEFT OUTER JOIN"),
+                this.getKeywordCompletionItem("RIGHT OUTER JOIN"),
+
+                // SQL Keywords - DDL statements
+                this.getKeywordCompletionItem("CREATE TABLE"),
+                this.getKeywordCompletionItem("CREATE VIEW"),
+                this.getKeywordCompletionItem("CREATE OR REPLACE VIEW"),
+                this.getKeywordCompletionItem("CREATE OR REPLACE TABLE"),
+                this.getKeywordCompletionItem("CREATE TEMP TABLE"),
+                this.getKeywordCompletionItem("CREATE TEMPORARY TABLE"),
+                this.getKeywordCompletionItem("CREATE SCHEMA"),
+                this.getKeywordCompletionItem("CREATE FUNCTION"),
+                this.getKeywordCompletionItem("DROP TABLE"),
+                this.getKeywordCompletionItem("DROP VIEW"),
+                this.getKeywordCompletionItem("DROP SCHEMA"),
+                this.getKeywordCompletionItem("ALTER TABLE"),
+
+                // SQL Keywords - DML statements
+                this.getKeywordCompletionItem("INSERT INTO"),
+                this.getKeywordCompletionItem("DELETE FROM"),
+                this.getKeywordCompletionItem("MERGE INTO"),
+                this.getKeywordCompletionItem("TRUNCATE TABLE"),
+
+                // SQL Keywords - Query clauses
+                this.getKeywordCompletionItem("SELECT"),
+                this.getKeywordCompletionItem("FROM"),
+                this.getKeywordCompletionItem("WHERE"),
+                this.getKeywordCompletionItem("GROUP BY"),
+                this.getKeywordCompletionItem("ORDER BY"),
+                this.getKeywordCompletionItem("HAVING"),
+                this.getKeywordCompletionItem("LIMIT"),
+                this.getKeywordCompletionItem("OFFSET"),
+                this.getKeywordCompletionItem("WITH"),
+
+                // SQL Keywords - Modifiers
+                this.getKeywordCompletionItem("DISTINCT"),
+                this.getKeywordCompletionItem("AS"),
+                this.getKeywordCompletionItem("ASC"),
+                this.getKeywordCompletionItem("DESC"),
+                this.getKeywordCompletionItem("NULLS FIRST"),
+                this.getKeywordCompletionItem("NULLS LAST"),
+
+                // SQL Keywords - Operators
+                this.getKeywordCompletionItem("AND"),
+                this.getKeywordCompletionItem("OR"),
+                this.getKeywordCompletionItem("NOT"),
+                this.getKeywordCompletionItem("IN"),
+                this.getKeywordCompletionItem("BETWEEN"),
+                this.getKeywordCompletionItem("LIKE"),
+                this.getKeywordCompletionItem("EXISTS"),
+                this.getKeywordCompletionItem("IS NULL"),
+                this.getKeywordCompletionItem("IS NOT NULL"),
+
+                // SQL Keywords - Conditionals
+                this.getKeywordCompletionItem("CASE"),
+                this.getKeywordCompletionItem("WHEN"),
+                this.getKeywordCompletionItem("THEN"),
+                this.getKeywordCompletionItem("ELSE"),
+                this.getKeywordCompletionItem("END"),
+
+                // SQL Keywords - Set operations
+                this.getKeywordCompletionItem("UNION"),
+                this.getKeywordCompletionItem("UNION ALL"),
+                this.getKeywordCompletionItem("INTERSECT"),
+                this.getKeywordCompletionItem("EXCEPT"),
+                this.getKeywordCompletionItem("EXCEPT DISTINCT"),
+
+                // SQL Keywords - Window clauses
+                this.getKeywordCompletionItem("OVER"),
+                this.getKeywordCompletionItem("PARTITION BY"),
+                this.getKeywordCompletionItem("ROWS BETWEEN"),
+                this.getKeywordCompletionItem("RANGE BETWEEN"),
+
+                // SQL Keywords - Table operations
+                this.getKeywordCompletionItem("UNNEST"),
+                this.getKeywordCompletionItem("PIVOT"),
+                this.getKeywordCompletionItem("UNPIVOT"),
+                this.getKeywordCompletionItem("TABLESAMPLE"),
+
+                // SQL Keywords - BigQuery-specific
+                this.getKeywordCompletionItem("QUALIFY"),
+                this.getKeywordCompletionItem("OPTIONS"),
+                this.getKeywordCompletionItem("ON")
 
             ]
         );
@@ -417,6 +508,12 @@ export class BqsqlCompletionItemProvider implements CompletionItemProvider<Compl
         const alias = label.toLocaleLowerCase().replace('.', '_');
         completionItem.insertText = new vscode.SnippetString(`${label}($1)`);
 
+        return completionItem;
+    }
+
+    getKeywordCompletionItem(label: string): CompletionItem {
+        let completionItem = new CompletionItem(label, CompletionItemKind.Keyword);
+        completionItem.insertText = `${label} `;
         return completionItem;
     }
 
