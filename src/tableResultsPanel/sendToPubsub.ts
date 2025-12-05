@@ -42,8 +42,9 @@ export class SendToPubsub {
                     // Instantiates a client
                     const pubsub = new PubSub();
                     const topic = pubsub.topic(topicName, { messageOrdering: false });
-                    //check if topic exists
-                    if (!topic.exists()) {
+                    //check if topic exists - must await the Promise
+                    const [exists] = await topic.exists();
+                    if (!exists) {
                         vscode.window.showErrorMessage('The given Pub/Sub topic name does not exist or user does not have permissions.');
                         return;
                     }

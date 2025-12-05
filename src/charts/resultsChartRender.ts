@@ -141,7 +141,9 @@ export class ResultsChartRender {
             <script id="chart-data-schema" type="application/json">${schema}</script>
             <script id="chart-data" type="application/json">${data}</script>
         
+            <!-- TODO: SECURITY - MorphCharts is loaded from external CDN. Consider bundling locally for production use. -->
             <script type="module">
+                // WARNING: External CDN dependency - query data is processed by externally-loaded code
                 import * as MorphCharts from "https://cdn.skypack.dev/morphcharts";
                 window.onload = () => {
         

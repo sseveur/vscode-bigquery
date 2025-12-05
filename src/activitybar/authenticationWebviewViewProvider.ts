@@ -3,6 +3,20 @@ import { getExtensionUri } from '../extension';
 import * as commands from '../extensionCommands';
 import { Authentication } from '../services/authentication';
 import { AuthenticationListItem } from '../services/authenticationListItem';
+import { getNonce, getCspMetaTag } from '../utils/webviewSecurity';
+
+/**
+ * Escapes a string for safe embedding in HTML content.
+ * Prevents XSS attacks by converting special characters to HTML entities.
+ */
+function escapeHtml(str: string): string {
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
 
 export class BigqueryAuthenticationWebviewViewProvider implements vscode.WebviewViewProvider {
 
@@ -35,13 +49,16 @@ export class BigqueryAuthenticationWebviewViewProvider implements vscode.Webview
         //in case that the search result needs pagination, this event is enabled
         this.disposableEvent = webviewView.webview.onDidReceiveMessage(this.listenerOnDidReceiveMessage);
 
+        const nonce = getNonce();
+        const cspMetaTag = getCspMetaTag(webviewView.webview, nonce, { allowUnsafeInlineStyles: true });
+
         Authentication
             .list(forceShowConsole)
             .then(result => {
-                webviewView.webview.html = this.getHtml(toolkitUri, codiconsUri, result);
+                webviewView.webview.html = this.getHtml(toolkitUri, codiconsUri, result, nonce, cspMetaTag);
             })
             .catch(error => {
-                webviewView.webview.html = this.getErrorHtml(toolkitUri, codiconsUri, error);
+                webviewView.webview.html = this.getErrorHtml(toolkitUri, codiconsUri, error, nonce, cspMetaTag);
             });
 
     }
@@ -232,7 +249,7 @@ export class BigqueryAuthenticationWebviewViewProvider implements vscode.Webview
                             <span class="codicon codicon-account"></span>
                         </div>
                         <div class="account-info">
-                            <div class="account-email">${account.account}</div>
+                            <div class="account-email">${escapeHtml(account.account)}</div>
                             <div class="account-status ${isActive ? 'status-active' : 'status-inactive'}">
                                 <span class="codicon codicon-${isActive ? 'verified-filled' : 'circle-outline'}"></span>
                                 ${isActive ? 'Active' : 'Inactive'}
@@ -240,10 +257,10 @@ export class BigqueryAuthenticationWebviewViewProvider implements vscode.Webview
                         </div>
                     </div>
                     <div class="account-actions">
-                        ${!isActive ? `<vscode-button appearance="secondary" onclick="vscode.postMessage({command:'activate', value: '${account.account}'})">
+                        ${!isActive ? `<vscode-button appearance="secondary" data-command="activate" data-value="${escapeHtml(account.account)}">
                             <span class="codicon codicon-check"></span>&nbsp;Activate
                         </vscode-button>` : ''}
-                        <vscode-button appearance="secondary" onclick="vscode.postMessage({command:'revoke', value: '${account.account}'})">
+                        <vscode-button appearance="secondary" data-command="revoke" data-value="${escapeHtml(account.account)}">
                             <span class="codicon codicon-trash"></span>&nbsp;Revoke
                         </vscode-button>
                     </div>
@@ -252,13 +269,14 @@ export class BigqueryAuthenticationWebviewViewProvider implements vscode.Webview
         }).join('');
     }
 
-    private getHtml(toolkitUri: vscode.Uri, codiconsUri: vscode.Uri, accounts: AuthenticationListItem[]): string {
+    private getHtml(toolkitUri: vscode.Uri, codiconsUri: vscode.Uri, accounts: AuthenticationListItem[], nonce: string, cspMetaTag: string): string {
         return `<!DOCTYPE html>
             <html lang="en">
                 <head>
                     <meta charset="UTF-8">
                     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                    <script type="module" src="${toolkitUri}"></script>
+                    ${cspMetaTag}
+                    <script nonce="${nonce}" type="module" src="${toolkitUri}"></script>
                     <link rel="stylesheet" href="${codiconsUri}">
                     ${this.getStyles()}
                 </head>
@@ -277,21 +295,21 @@ export class BigqueryAuthenticationWebviewViewProvider implements vscode.Webview
                             Add Authentication
                         </div>
                         <div class="auth-buttons">
-                            <div class="auth-button" onclick="vscode.postMessage('user_login')">
+                            <div class="auth-button" data-command="user_login">
                                 <span class="codicon codicon-sign-in"></span>
                                 <div class="auth-button-text">
                                     <div class="auth-button-title">User Login</div>
                                     <div class="auth-button-desc">Sign in with your Google account</div>
                                 </div>
                             </div>
-                            <div class="auth-button" onclick="vscode.postMessage('user_login_drive')">
+                            <div class="auth-button" data-command="user_login_drive">
                                 <span class="codicon codicon-file"></span>
                                 <div class="auth-button-text">
                                     <div class="auth-button-title">User Login + Google Drive</div>
                                     <div class="auth-button-desc">Include Google Drive access scope</div>
                                 </div>
                             </div>
-                            <div class="auth-button" onclick="vscode.postMessage('service_account_login')">
+                            <div class="auth-button" data-command="service_account_login">
                                 <span class="codicon codicon-key"></span>
                                 <div class="auth-button-text">
                                     <div class="auth-button-title">Service Account</div>
@@ -303,23 +321,39 @@ export class BigqueryAuthenticationWebviewViewProvider implements vscode.Webview
 
                     <div class="footer">
                         <p>Authentication is powered by the <a href="https://cloud.google.com/sdk/docs/install">gcloud CLI</a>.</p>
-                        <p>Having issues? Check the <a href="#" onclick="vscode.postMessage('troubleshoot'); return false;">troubleshooting guide</a> or run <a href="#" onclick="vscode.postMessage('gcloud_init'); return false;">gcloud init</a>.</p>
+                        <p>Having issues? Check the <a href="#" data-command="troubleshoot">troubleshooting guide</a> or run <a href="#" data-command="gcloud_init">gcloud init</a>.</p>
                     </div>
 
-                    <script>
+                    <script nonce="${nonce}">
                         const vscode = acquireVsCodeApi();
+
+                        // Handle all clicks on elements with data-command attribute
+                        document.addEventListener('click', (e) => {
+                            const target = e.target.closest('[data-command]');
+                            if (target) {
+                                e.preventDefault();
+                                const command = target.dataset.command;
+                                const value = target.dataset.value;
+                                if (value) {
+                                    vscode.postMessage({ command, value });
+                                } else {
+                                    vscode.postMessage(command);
+                                }
+                            }
+                        });
                     </script>
                 </body>
             </html>`;
     }
 
-    private getErrorHtml(toolkitUri: vscode.Uri, codiconsUri: vscode.Uri, error: any): string {
+    private getErrorHtml(toolkitUri: vscode.Uri, codiconsUri: vscode.Uri, error: any, nonce: string, cspMetaTag: string): string {
         return `<!DOCTYPE html>
             <html lang="en">
                 <head>
                     <meta charset="UTF-8">
                     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                    <script type="module" src="${toolkitUri}"></script>
+                    ${cspMetaTag}
+                    <script nonce="${nonce}" type="module" src="${toolkitUri}"></script>
                     <link rel="stylesheet" href="${codiconsUri}">
                     ${this.getStyles()}
                 </head>
@@ -328,17 +362,27 @@ export class BigqueryAuthenticationWebviewViewProvider implements vscode.Webview
                         <div class="empty-state" style="color: var(--vscode-errorForeground);">
                             <div class="codicon codicon-error"></div>
                             <div style="margin-bottom: 8px;">Authentication Error</div>
-                            <div style="font-size: 11px; opacity: 0.8;">${error.stderr || 'Unable to connect to gcloud CLI'}</div>
+                            <div style="font-size: 11px; opacity: 0.8;">${escapeHtml(error.stderr || 'Unable to connect to gcloud CLI')}</div>
                         </div>
                     </div>
 
                     <div class="footer">
                         <p>Authentication requires the <a href="https://cloud.google.com/sdk/docs/install">gcloud CLI</a> to be installed.</p>
-                        <p>Need help? Check the <a href="#" onclick="vscode.postMessage('troubleshoot'); return false;">troubleshooting guide</a>.</p>
+                        <p>Need help? Check the <a href="#" data-command="troubleshoot">troubleshooting guide</a>.</p>
                     </div>
 
-                    <script>
+                    <script nonce="${nonce}">
                         const vscode = acquireVsCodeApi();
+
+                        // Handle all clicks on elements with data-command attribute
+                        document.addEventListener('click', (e) => {
+                            const target = e.target.closest('[data-command]');
+                            if (target) {
+                                e.preventDefault();
+                                const command = target.dataset.command;
+                                vscode.postMessage(command);
+                            }
+                        });
                     </script>
                 </body>
             </html>`;

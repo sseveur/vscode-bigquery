@@ -42,6 +42,27 @@ export class BigQueryClient {
 		const job = jobResponse[0];
 
 		return job;
+	}
+
+	/**
+	 * Runs a parameterized query to prevent SQL injection attacks.
+	 * Use @paramName syntax in the query and provide values in the params object.
+	 */
+	public async runParameterizedQuery(queryText: string, params: Record<string, unknown>): Promise<Job> {
+
+		const query: Query = {
+			dryRun: false,
+			query: queryText,
+			useLegacySql: false,
+			useQueryCache: true,
+			params: params
+		};
+
+		const jobResponse: JobResponse = await this.bqclient.createQueryJob(query);
+
+		const job = jobResponse[0];
+
+		return job;
 
 		// return new Promise((resolve, reject) => {
 
@@ -132,14 +153,16 @@ export class BigQueryClient {
 			.table(tableId)
 			.getMetadata();
 
-		const fullSchema = this.runQuery(`
-		SELECT 
-			field_path AS fieldPath, 
-			collation_name AS collationName, 
-			description 
-		FROM \`${projectId}.${datasetId}\`.INFORMATION_SCHEMA.COLUMN_FIELD_PATHS 
-		WHERE table_name = '${tableId}';
-		`).then(job => {
+		// Use parameterized query to prevent SQL injection
+		const fullSchema = this.runParameterizedQuery(
+			`SELECT
+				field_path AS fieldPath,
+				collation_name AS collationName,
+				description
+			FROM \`${projectId}.${datasetId}\`.INFORMATION_SCHEMA.COLUMN_FIELD_PATHS
+			WHERE table_name = @tableName`,
+			{ tableName: tableId }
+		).then(job => {
 			return job.getQueryResults();
 		});
 
@@ -150,22 +173,23 @@ export class BigQueryClient {
 
 	public async getTableSchema(projectId: string, datasetName: string, tableName: string): Promise<BigqueryTableSchema[]> {
 
+		// Use parameterized query to prevent SQL injection
 		const query = `
-SELECT 
+SELECT
 	colums.table_catalog AS project_id,
 	colums.table_schema AS dataset_name,
 	colums.table_name,
 	colums.column_name,
 	colums.ordinal_position,
 	colums.data_type,
-  	colums.is_partitioning_column,
-  	paths.description,
+	colums.is_partitioning_column,
+	paths.description,
 FROM \`${projectId}.${datasetName}\`.INFORMATION_SCHEMA.COLUMNS colums
   LEFT JOIN \`${projectId}.${datasetName}\`.INFORMATION_SCHEMA.COLUMN_FIELD_PATHS paths USING(table_catalog, table_schema, table_name, column_name)
-WHERE table_name = '${tableName}' AND is_hidden = 'NO';
+WHERE table_name = @tableName AND is_hidden = 'NO'
 `;
 
-		const q = await this.runQuery(query);
+		const q = await this.runParameterizedQuery(query, { tableName: tableName });
 
 		const results = await q.getQueryResults();
 
@@ -234,7 +258,7 @@ WHERE table_name = '${tableName}' AND is_hidden = 'NO';
 			});
 
 			request.on('error', (error) => {
-				console.log(error);
+				// Removed console.log to prevent sensitive data leakage
 				reject(error);
 			});
 

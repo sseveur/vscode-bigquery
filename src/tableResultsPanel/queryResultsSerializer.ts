@@ -72,10 +72,8 @@ let loadComplete = async function (resultsGridRender: ResultsGridRender, state: 
 
         try {
             const bqClient = await getBigQueryClient();
-            console.log('QueryResultsSerializer bqClient');
 
             const token = await bqClient.getToken();
-            console.log('QueryResultsSerializer token');
 
             const b = bqClient.getJob({
                 jobId: jobId,
@@ -84,7 +82,6 @@ let loadComplete = async function (resultsGridRender: ResultsGridRender, state: 
             });
             const job = await b.get();
             const metadata = job[0].metadata;
-            console.log('QueryResultsSerializer job');
 
             let _postMessageResult2 = await resultsGridRender.postMessage({
                 requestType: ResultsGridRenderRequestV2Type.executeQuery.toString(),
@@ -93,8 +90,6 @@ let loadComplete = async function (resultsGridRender: ResultsGridRender, state: 
                 job: metadata,
                 error: null
             } as ResultsGridRenderRequestV2);
-
-            console.log('resultsGridRender.postMessage ', _postMessageResult2);
 
         } catch (errorx) {
             // resultsGridRender.renderException(error);

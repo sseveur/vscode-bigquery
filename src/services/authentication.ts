@@ -1,5 +1,8 @@
 import * as vscode from 'vscode';
 import * as cp from 'child_process';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
 import { AuthenticationListItem } from './authenticationListItem';
 import { AuthenticationUserLoginResponse } from './authenticationUserLoginResponse';
 import { CustomTerminal } from './customTerminal';
@@ -10,7 +13,14 @@ export class Authentication {
 
     //https://cloud.google.com/sdk/gcloud/reference/auth/login
     public static async userLogin(): Promise<AuthenticationUserLoginResponse> {
-        const result = await this.runCommand('gcloud auth login --update-adc --add-quota-project-to-adc --quiet --verbosity warning --format="json"', true);
+        const result = await this.runGcloudCommand([
+            'auth', 'login',
+            '--update-adc',
+            '--add-quota-project-to-adc',
+            '--quiet',
+            '--verbosity', 'warning',
+            '--format', 'json'
+        ], true);
 
         //set default project if needed
         await Authentication.setDefaultProject();
@@ -19,7 +29,15 @@ export class Authentication {
     }
 
     public static async userLoginWithDrive(): Promise<AuthenticationUserLoginResponse> {
-        const result = await this.runCommand('gcloud auth login --update-adc --add-quota-project-to-adc --quiet --enable-gdrive-access --verbosity warning --format="json"', true);
+        const result = await this.runGcloudCommand([
+            'auth', 'login',
+            '--update-adc',
+            '--add-quota-project-to-adc',
+            '--quiet',
+            '--enable-gdrive-access',
+            '--verbosity', 'warning',
+            '--format', 'json'
+        ], true);
 
         //set default project if needed
         await Authentication.setDefaultProject();
@@ -31,18 +49,30 @@ export class Authentication {
 
         try {
 
-            const result = await this.runCommand(`gcloud auth activate-service-account --key-file="${fileUri.fsPath}" --format="json"`, true);
+            const result = await this.runGcloudCommand([
+                'auth', 'activate-service-account',
+                '--key-file', fileUri.fsPath,
+                '--format', 'json'
+            ], true);
 
             const typedResult = JSON.parse(result) as string[];
             if (typedResult.length === 0) {
 
-                //change default credentials
+                //change default credentials using Node.js fs instead of shell commands
                 //https://cloud.google.com/docs/authentication/application-default-credentials#personal
-                if (process.platform === 'win32') {
-                    await this.runCommand(`copy "${fileUri.fsPath}" %APPDATA%\\gcloud\\application_default_credentials.json`, true);
-                } else {
-                    await this.runCommand(`cp "${fileUri.fsPath}" $HOME/.config/gcloud/application_default_credentials.json`, true);
+                const destDir = process.platform === 'win32'
+                    ? path.join(process.env.APPDATA || '', 'gcloud')
+                    : path.join(os.homedir(), '.config', 'gcloud');
+
+                const destPath = path.join(destDir, 'application_default_credentials.json');
+
+                // Ensure directory exists
+                if (!fs.existsSync(destDir)) {
+                    fs.mkdirSync(destDir, { recursive: true });
                 }
+
+                // Copy file using Node.js fs (secure, no shell injection)
+                fs.copyFileSync(fileUri.fsPath, destPath);
 
                 //set default project if needed
                 await Authentication.setDefaultProject();
@@ -58,49 +88,69 @@ export class Authentication {
     }
 
     private static async setDefaultProject() {
-        const defaultProject = await this.runCommand('gcloud config get project', true);
+        const defaultProject = await this.runGcloudCommand(['config', 'get', 'project'], true);
         if (!defaultProject) {
-            const projectsString = await this.runCommand('gcloud projects list --format="json"', true);
+            const projectsString = await this.runGcloudCommand([
+                'projects', 'list',
+                '--format', 'json'
+            ], true);
 
-            // console.info('projectsString');
-            // console.info(projectsString);
             const projects = JSON.parse(projectsString);
             if (projects && projects.length && projects.length > 0) {
                 const projectId = projects[0].projectId;
                 if (projectId) {
-                    await this.runCommand(`gcloud config set project "${projectId}"`, true);
+                    await this.runGcloudCommand([
+                        'config', 'set', 'project', projectId
+                    ], true);
                 }
             }
         }
     }
 
     public static async list(forceShowConsole: boolean): Promise<AuthenticationListItem[]> {
-        const result = await this.runCommand('gcloud auth list --format="json"', forceShowConsole);
+        const result = await this.runGcloudCommand([
+            'auth', 'list',
+            '--format', 'json'
+        ], forceShowConsole);
         return JSON.parse(result) as AuthenticationListItem[];
     }
 
     public static async activate(account: string): Promise<boolean> {
-        const _ = await this.runCommand(`gcloud config set core/account "${account}" --format="json"`, true);
+        await this.runGcloudCommand([
+            'config', 'set', 'core/account', account,
+            '--format', 'json'
+        ], true);
         return true;
     }
 
     public static async revoke(account: string): Promise<boolean> {
-        const result = await this.runCommand(`gcloud auth revoke "${account}" --format="json"`, true);
+        const result = await this.runGcloudCommand([
+            'auth', 'revoke', account,
+            '--format', 'json'
+        ], true);
         return (JSON.parse(result) as string[]).indexOf(account) >= 0;
     }
 
     public static async getDefaultProjectId(): Promise<string> {
-        const result = await this.runCommand(`gcloud config get-value project`, false);
+        const result = await this.runGcloudCommand([
+            'config', 'get-value', 'project'
+        ], false);
         return result.trim();
     }
 
     public static async setDefaultProjectId(projectId: string): Promise<void> {
-        await this.runCommand(`gcloud config set project ${projectId}`, true);
+        await this.runGcloudCommand([
+            'config', 'set', 'project', projectId
+        ], true);
     }
 
     //https://cloud.google.com/sdk/gcloud/reference/auth/revoke
 
-    private static runCommand(command: string, forceShow: boolean): Promise<string> {
+    /**
+     * Runs a gcloud command using execFile (not exec) to prevent shell injection attacks.
+     * Arguments are passed as an array, not interpolated into a command string.
+     */
+    private static runGcloudCommand(args: string[], forceShow: boolean): Promise<string> {
 
         const terminalName = 'gcloud authentication';
 
@@ -121,24 +171,19 @@ export class Authentication {
             terminal = vscode.window.createTerminal(terminalOptions);
         }
 
-        // Black: 30
-        // Blue: 34
-        // Cyan: 36
-        // Green: 32
-        // Purple: 35
-        // Red: 31
-        // White: 37
-        // Yellow: 33
-        // terminal.sendText('\x1b[1m\x1b[34mHello world\x1b[0m');
-        terminal.sendText(`\x1b[1m\x1b[34m# ${command}\x1b[0m`);
+        // Display command in terminal (for user visibility)
+        const displayCommand = `gcloud ${args.join(' ')}`;
+        terminal.sendText(`\x1b[1m\x1b[34m# ${displayCommand}\x1b[0m`);
 
         if (forceShow) { terminal.show(); }
 
-        const commandOptions = {} as cp.ExecOptions;
+        const commandOptions = {} as cp.ExecFileOptions;
 
         return new Promise((resolve, reject) => {
 
-            cp.exec(command, commandOptions, (error, stdout, stderr) => {
+            // Use execFile instead of exec to prevent shell injection
+            // Arguments are passed as array, not interpolated into command string
+            cp.execFile('gcloud', args, commandOptions, (error, stdout, stderr) => {
                 if (error) {
 
                     terminal.sendText(stderr);
