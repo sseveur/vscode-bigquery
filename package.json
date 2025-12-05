@@ -189,6 +189,11 @@
 				"icon": "$(link-external)"
 			},
 			{
+				"command": "vscode-bigquery.view-table-schema",
+				"title": "BigueryView: Preview Schema",
+				"icon": "$(symbol-class)"
+			},
+			{
 				"command": "vscode-bigquery.create-table-default-query",
 				"title": "BigueryView: Create query",
 				"icon": "$(file-text)"
@@ -314,6 +319,10 @@
 			"view/item/context": [
 				{
 					"command": "vscode-bigquery.view-table",
+					"when": "viewItem == 'bq-table'"
+				},
+				{
+					"command": "vscode-bigquery.view-table-schema",
 					"when": "viewItem == 'bq-table'"
 				},
 				{
