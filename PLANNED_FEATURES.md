@@ -5,7 +5,7 @@
 | # | Feature | Complexity | Priority | Status |
 |---|---------|------------|----------|--------|
 | 1 | Cost Estimator | Easy | High | Done |
-| 2 | Table Schema Preview (Hover) | Easy | High | Pending |
+| 2 | Table Schema Preview (Hover) | Easy | High | Done |
 | 3 | Format SQL | Easy-Medium | Medium | Pending |
 | 4 | Keyboard Shortcuts | Easy | Low | Pending |
 | 5 | Query History | Medium | High | Pending |

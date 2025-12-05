@@ -8,6 +8,7 @@ import { WebviewViewProvider } from './tableResultsPanel/webviewViewProvider';
 import { BqsqlCompletionItemProvider } from './language/bqsqlCompletionItemProvider';
 import { BqsqlDocumentSemanticTokensProvider } from './language/bqsqlDocumentSemanticTokensProvider';
 import { BqsqlInlayHintsProvider } from './language/bqsqlInlayHintsProvider';
+import { BqsqlHoverProvider } from './language/bqsqlHoverProvider';
 import { BigqueryTableSchemaService } from './services/bigqueryTableSchemaService';
 import { BqsqlDiagnostics } from './language/bqsqlDiagnostics';
 import { QueryResultsSerializer } from './tableResultsPanel/queryResultsSerializer';
@@ -368,13 +369,20 @@ export function activate(context: ExtensionContext) {
 		)
 	);
 
-	//later
-	// context.subscriptions.push(
-	// 	vscode.languages.registerHoverProvider(
-	// 		{ language: 'bqsql' },
-	// 		new BqsqlHoverProvider()
-	// 	)
-	// );
+	// Hover provider for table schema preview
+	const hoverProvider = new BqsqlHoverProvider();
+	context.subscriptions.push(
+		vscode.languages.registerHoverProvider(
+			{ language: 'bqsql' },
+			hoverProvider
+		)
+	);
+	context.subscriptions.push(
+		vscode.languages.registerHoverProvider(
+			{ language: 'sql' },
+			hoverProvider
+		)
+	);
 
 	//check if the theme has changed and the tree icons need to change colour
 	vscode.workspace.onDidChangeConfiguration(event => {
