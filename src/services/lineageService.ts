@@ -1,5 +1,4 @@
-import { parse } from "@bstruct/bqsql-parser";
-import { BqsqlDocument, BqsqlDocumentItem } from "../language/bqsqlDocument";
+import { extractTableReferences } from "./sqlTableExtractor";
 
 export interface LineageTable {
     fullName: string;           // project.dataset.table or dataset.table or table
@@ -17,16 +16,14 @@ export interface LineageData {
 }
 
 export function extractLineage(sql: string): LineageData {
-    const parsed = parse(sql) as BqsqlDocument;
     const sources: LineageTable[] = [];
     const targets: LineageTable[] = [];
     const seenSources = new Set<string>();
     const seenTargets = new Set<string>();
 
-    // Extract source tables using parser (FROM, JOIN clauses)
-    const tableIdentifiers = findAllTableIdentifiers(parsed.items);
-    for (const tableId of tableIdentifiers) {
-        const tableName = extractTableName(sql, tableId);
+    // Extract source tables using sql-parser-cst (handles JOINs, comma-separated, etc.)
+    const tableNames = extractTableReferences(sql);
+    for (const tableName of tableNames) {
         if (tableName && !seenSources.has(tableName.toLowerCase())) {
             seenSources.add(tableName.toLowerCase());
             sources.push(parseTableName(tableName, 'source'));
@@ -141,69 +138,6 @@ function extractTargetTables(sql: string): TargetMatch[] {
     }
 
     return results;
-}
-
-function findAllTableIdentifiers(items: BqsqlDocumentItem[]): BqsqlDocumentItem[] {
-    const result: BqsqlDocumentItem[] = [];
-
-    for (const item of items) {
-        if (item.item_type === "TableIdentifier") {
-            result.push(item);
-        }
-
-        // Recursively search nested items
-        if (item.items && item.items.length > 0) {
-            result.push(...findAllTableIdentifiers(item.items));
-        }
-    }
-
-    return result;
-}
-
-function extractTableName(documentContent: string, tableIdentifier: BqsqlDocumentItem): string | null {
-    const lines = documentContent.split('\n');
-    const ranges = getAllRanges(tableIdentifier);
-
-    if (ranges.length === 0) return null;
-
-    // Get text from the ranges
-    const parts: string[] = [];
-    for (const range of ranges) {
-        try {
-            const text = lines[range[0]].substring(range[1], range[2]);
-            if (text) {
-                // Stop if we hit an alias keyword (AS)
-                if (/^\s*as\s*$/i.test(text)) break;
-                parts.push(text);
-            }
-        } catch { }
-    }
-
-    if (parts.length === 0) return null;
-
-    // Join and clean up
-    let tableName = parts.join('');
-    // Remove backticks for display
-    tableName = tableName.replace(/`/g, '');
-    // Strip any trailing alias that might have been captured (e.g., "table AS alias")
-    tableName = tableName.replace(/\s+as\s+\w+$/i, '').trim();
-    return tableName;
-}
-
-function getAllRanges(item: BqsqlDocumentItem): number[][] {
-    const ranges: number[][] = [];
-
-    if (item.range && item.range.length >= 3) {
-        ranges.push(item.range);
-    }
-
-    if (item.items) {
-        for (const child of item.items) {
-            ranges.push(...getAllRanges(child));
-        }
-    }
-
-    return ranges;
 }
 
 function parseTableName(fullName: string, role: 'source' | 'target'): LineageTable {

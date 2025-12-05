@@ -2,7 +2,7 @@
 	"name": "vscode-bigquery-v2",
 	"displayName": "BigQuery Data View v2",
 	"description": "Google BigQuery extension for Visual Studio Code. List datasets and tables, view table contents, run queries, format SQL, view query history, see cost estimates, table schema hover, and visualize data lineage with CTE support. Fork of bstruct/vscode-bigquery.",
-	"version": "0.2.13",
+	"version": "0.3.0",
 	"publisher": "sseveur",
 	"icon": "logo.png",
 	"repository": {
@@ -80,7 +80,11 @@
 				"vscode-bigquery.formatKeywordCase": {
 					"type": "string",
 					"default": "upper",
-					"enum": ["upper", "lower", "preserve"],
+					"enum": [
+						"upper",
+						"lower",
+						"preserve"
+					],
 					"scope": "machine-overridable",
 					"title": "Format: Keyword Case",
 					"description": "How to format SQL keywords (SELECT, FROM, etc.)"
@@ -88,7 +92,11 @@
 				"vscode-bigquery.formatIndentStyle": {
 					"type": "string",
 					"default": "standard",
-					"enum": ["standard", "tabularLeft", "tabularRight"],
+					"enum": [
+						"standard",
+						"tabularLeft",
+						"tabularRight"
+					],
 					"scope": "machine-overridable",
 					"title": "Format: Indent Style",
 					"description": "SQL indent style. 'standard' = normal indentation, 'tabularLeft/Right' = aligned keywords"
@@ -452,6 +460,7 @@
 		"eslint": "^8.18.0",
 		"glob": "^8.0.3",
 		"mocha": "^10.0.0",
+		"sql-parser-cst": "^0.36.1",
 		"ts-loader": "^9.3.1",
 		"typescript": "^4.7.4",
 		"webpack": "^5.88.2",
@@ -466,6 +475,7 @@
 		"@vscode/webview-ui-toolkit": "^1.2.2",
 		"csv-writer": "^1.6.0",
 		"grid_render": "file://.//grid_render/pkg",
+		"morphcharts": "^1.3.2",
 		"preact": "^10.28.0",
 		"preact-render-to-string": "^6.6.3",
 		"sql-formatter": "^15.6.10"

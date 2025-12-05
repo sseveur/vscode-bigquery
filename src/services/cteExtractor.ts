@@ -1,5 +1,6 @@
 import { parse } from "@bstruct/bqsql-parser";
 import { BqsqlDocument, BqsqlDocumentItem } from "../language/bqsqlDocument";
+import { extractTableReferences, extractCtesWithDependencies } from "./sqlTableExtractor";
 
 export interface CteDefinition {
     name: string;                      // CTE name
@@ -10,8 +11,23 @@ export interface CteDefinition {
 
 /**
  * Extract all CTE definitions from SQL query
+ * Uses sql-parser-cst for better JOIN/table extraction, with @bstruct/bqsql-parser as fallback
  */
 export function extractCtes(sql: string): CteDefinition[] {
+    // Try sql-parser-cst first (better table extraction for JOINs etc)
+    const cstCtes = extractCtesWithDependencies(sql);
+    if (cstCtes.length > 0) {
+        // Convert to CteDefinition format (without range, which isn't needed for lineage)
+        return cstCtes.map(cte => ({
+            name: cte.name,
+            range: [],  // sql-parser-cst doesn't provide range in same format
+            sourceTables: cte.sourceTables,
+            referencedCtes: cte.referencedCtes
+        }));
+    }
+
+    // Fallback to @bstruct/bqsql-parser for cases sql-parser-cst doesn't support
+    // (e.g., CREATE VIEW after WITH)
     const parsed = parse(sql) as BqsqlDocument;
     const ctes: CteDefinition[] = [];
     const cteNames = new Set<string>();
@@ -114,6 +130,7 @@ function parseCteBlock(
 
 /**
  * Extract table and CTE references from a query item
+ * Uses sql-parser-cst for better extraction, with fallback to @bstruct/bqsql-parser
  */
 function extractDependencies(
     queryItem: BqsqlDocumentItem,
@@ -122,16 +139,35 @@ function extractDependencies(
     knownCteNames: Set<string>,
     sql: string
 ): void {
+    // Try to use sql-parser-cst to extract all tables from the SQL
+    // This handles JOINs and other cases @bstruct misses
+    const allTables = extractTableReferences(sql);
+
+    for (const tableName of allTables) {
+        if (knownCteNames.has(tableName.toLowerCase())) {
+            if (!referencedCtes.includes(tableName)) {
+                referencedCtes.push(tableName);
+            }
+        } else {
+            if (!sourceTables.includes(tableName)) {
+                sourceTables.push(tableName);
+            }
+        }
+    }
+
+    // Also use the original @bstruct approach for any tables it might find
     for (const item of queryItem.items || []) {
         if (item.item_type === "TableIdentifier") {
-            // Found a table reference
             const tableName = extractTableNameFromIdentifier(item, sql);
             if (tableName) {
-                // Check if this is a CTE reference or a real table
                 if (knownCteNames.has(tableName.toLowerCase())) {
-                    referencedCtes.push(tableName);
+                    if (!referencedCtes.includes(tableName)) {
+                        referencedCtes.push(tableName);
+                    }
                 } else {
-                    sourceTables.push(tableName);
+                    if (!sourceTables.includes(tableName)) {
+                        sourceTables.push(tableName);
+                    }
                 }
             }
         }
