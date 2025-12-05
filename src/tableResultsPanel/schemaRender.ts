@@ -120,7 +120,6 @@ export class SchemaRender {
 
     private async getResultsHtml(tableMetadata: TableMetadata): Promise<string> {
 
-        // const schema = JSON.stringify(tableMetadata.schema.fields);
         const extensionUri = getExtensionUri();
 
         const toolkitUri = this.getUri(this.webView, extensionUri, [
@@ -133,49 +132,137 @@ export class SchemaRender {
             'codicon.css']
         );
 
-        const gridCss = this.getUri(this.webView, extensionUri, [
-            'resources',
-            'grid.css']
-        );
+        // Build schema fields table if available
+        let schemaFieldsHtml = '';
+        if (tableMetadata.schema && tableMetadata.schema.fields) {
+            const fieldsRows = tableMetadata.schema.fields.map((field: any) => `
+                <tr>
+                    <td>${field.name}</td>
+                    <td>${field.type}</td>
+                    <td>${field.mode || 'NULLABLE'}</td>
+                    <td>${field.description || ''}</td>
+                </tr>
+            `).join('');
+
+            schemaFieldsHtml = `
+                <div class="section">
+                    <div class="section-title">
+                        <span class="codicon codicon-symbol-field"></span>
+                        Schema Fields
+                    </div>
+                    <table class="schema-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Type</th>
+                                <th>Mode</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${fieldsRows}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
 
         return `<!DOCTYPE html>
-        <html lang="en" style="display:flex;">
-        	<head>
-        		<meta charset="UTF-8">
-                <script type="module" src="https://cdn.jsdelivr.net/npm/@finos/perspective/dist/cdn/perspective.js"></script>
-                <script type="module" src="https://cdn.jsdelivr.net/npm/@finos/perspective-viewer/dist/cdn/perspective-viewer.js"></script>
-                <script type="module" src="https://cdn.jsdelivr.net/npm/@finos/perspective-viewer-datagrid/dist/cdn/perspective-viewer-datagrid.js"></script>
-                <script type="module" src="https://cdn.jsdelivr.net/npm/@finos/perspective-viewer-d3fc/dist/cdn/perspective-viewer-d3fc.js"></script>
-
-                <link rel="stylesheet" crossorigin="anonymous" href="https://cdn.jsdelivr.net/npm/@finos/perspective-viewer/dist/css/pro.css"/>
-
+        <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <script type="module" src="${toolkitUri}"></script>
                 <link href="${codiconsUri}" rel="stylesheet" />
-                <link href="${gridCss}" rel="stylesheet" />
-        	</head>
-        	<body>
+                <style>
+                    body {
+                        padding: 16px;
+                        font-family: var(--vscode-font-family);
+                        font-size: var(--vscode-font-size);
+                        color: var(--vscode-foreground);
+                        background-color: var(--vscode-editor-background);
+                    }
+                    .section {
+                        margin-bottom: 24px;
+                    }
+                    .section-title {
+                        font-size: 13px;
+                        font-weight: 600;
+                        text-transform: uppercase;
+                        letter-spacing: 0.5px;
+                        color: var(--vscode-descriptionForeground);
+                        margin-bottom: 12px;
+                        display: flex;
+                        align-items: center;
+                        gap: 8px;
+                        border-bottom: 1px solid var(--vscode-widget-border);
+                        padding-bottom: 8px;
+                    }
+                    .info-grid {
+                        display: grid;
+                        grid-template-columns: 160px 1fr;
+                        gap: 8px 16px;
+                    }
+                    .info-label {
+                        font-weight: 500;
+                        color: var(--vscode-descriptionForeground);
+                    }
+                    .info-value {
+                        color: var(--vscode-foreground);
+                        word-break: break-all;
+                    }
+                    .schema-table {
+                        width: 100%;
+                        border-collapse: collapse;
+                        font-size: 12px;
+                    }
+                    .schema-table th,
+                    .schema-table td {
+                        text-align: left;
+                        padding: 8px 12px;
+                        border: 1px solid var(--vscode-widget-border);
+                    }
+                    .schema-table th {
+                        background-color: var(--vscode-editor-inactiveSelectionBackground);
+                        font-weight: 600;
+                    }
+                    .schema-table tr:hover {
+                        background-color: var(--vscode-list-hoverBackground);
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="section">
+                    <div class="section-title">
+                        <span class="codicon codicon-table"></span>
+                        Table Information
+                    </div>
+                    <div class="info-grid">
+                        <div class="info-label">Project ID</div>
+                        <div class="info-value">${tableMetadata.tableReference.projectId}</div>
 
-                <perspective-viewer></perspective-viewer>
-                <script type="module">
-                    import perspective from "https://cdn.jsdelivr.net/npm/@finos/perspective/dist/cdn/perspective.js";
-                
-                    const worker = perspective.worker();
-                    const table = agent.table({ x: [1, 2, 3, 4, 5] });
-                    document.querySelector("perspective-viewer").load(table);
-                </script>
+                        <div class="info-label">Dataset ID</div>
+                        <div class="info-value">${tableMetadata.tableReference.datasetId}</div>
 
-                <div class="labelValue"><span class="label">Project Id</span><span class="value">${tableMetadata.tableReference.projectId}</span></div>
-                <div class="labelValue"><span class="label">Dataset Id</span><span class="value">${tableMetadata.tableReference.datasetId}</span></div>
-                <div class="labelValue"><span class="label">Table Id</span><span class="value">${tableMetadata.tableReference.tableId}</span></div>
-                
-                <div class="labelValue"><span class="label">Location</span><span class="value">${tableMetadata.location}</span></div>
-                <div class="labelValue"><span class="label">Number of rows</span><span class="value">${tableMetadata.numRows}</span></div>
+                        <div class="info-label">Table ID</div>
+                        <div class="info-value">${tableMetadata.tableReference.tableId}</div>
 
-                <div class="labelValue"><span class="label">Creation time</span><span class="value">${new Date(Number(tableMetadata.creationTime))}</span></div>
-                <div class="labelValue"><span class="label">Last modified time</span><span class="value">${new Date(Number(tableMetadata.lastModifiedTime))}</span></div>
+                        <div class="info-label">Location</div>
+                        <div class="info-value">${tableMetadata.location}</div>
 
-                <div class="spacer"></div> 
-        	</body>
+                        <div class="info-label">Number of Rows</div>
+                        <div class="info-value">${Number(tableMetadata.numRows).toLocaleString()}</div>
+
+                        <div class="info-label">Creation Time</div>
+                        <div class="info-value">${new Date(Number(tableMetadata.creationTime)).toLocaleString()}</div>
+
+                        <div class="info-label">Last Modified</div>
+                        <div class="info-value">${new Date(Number(tableMetadata.lastModifiedTime)).toLocaleString()}</div>
+                    </div>
+                </div>
+
+                ${schemaFieldsHtml}
+            </body>
         </html>`;
 
     }
