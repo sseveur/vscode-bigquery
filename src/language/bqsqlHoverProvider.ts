@@ -15,7 +15,7 @@ export class BqsqlHoverProvider implements HoverProvider {
         const parsed = parse(documentContent) as BqsqlDocument;
 
         // Find TableIdentifier at the current position
-        const tableIdentifier = this.findTableIdentifierAtPosition(parsed.items, position.line, position.character);
+        const tableIdentifier = this.findTableIdentifierAtPosition(parsed.items, position.line, position.character, documentContent);
         if (!tableIdentifier) {
             return null;
         }
@@ -25,6 +25,15 @@ export class BqsqlHoverProvider implements HoverProvider {
         if (schema.length === 0) {
             // Try to preload schema for next hover
             bigqueryTableSchemaService.preLoadSchemaToCache(documentContent, tableIdentifier);
+
+            // Show a loading message with the table name
+            const tableName = this.extractTableName(documentContent, tableIdentifier);
+            if (tableName) {
+                const loadingMd = new MarkdownString();
+                loadingMd.appendMarkdown(`**\`${tableName}\`**\n\n`);
+                loadingMd.appendMarkdown(`*Loading schema... hover again to see columns*`);
+                return new Hover(loadingMd);
+            }
             return null;
         }
 
@@ -33,18 +42,18 @@ export class BqsqlHoverProvider implements HoverProvider {
         return new Hover(markdown);
     }
 
-    private findTableIdentifierAtPosition(items: BqsqlDocumentItem[], line: number, character: number): BqsqlDocumentItem | null {
+    private findTableIdentifierAtPosition(items: BqsqlDocumentItem[], line: number, character: number, documentContent: string): BqsqlDocumentItem | null {
         for (const item of items) {
             if (item.item_type === "TableIdentifier") {
                 // Check if position is within any of the table identifier's child ranges
-                if (this.isPositionInTableIdentifier(item, line, character)) {
+                if (this.isPositionInTableIdentifier(item, line, character, documentContent)) {
                     return item;
                 }
             }
 
             // Recursively search nested items
             if (item.items && item.items.length > 0) {
-                const found = this.findTableIdentifierAtPosition(item.items, line, character);
+                const found = this.findTableIdentifierAtPosition(item.items, line, character, documentContent);
                 if (found) {
                     return found;
                 }
@@ -53,8 +62,10 @@ export class BqsqlHoverProvider implements HoverProvider {
         return null;
     }
 
-    private isPositionInTableIdentifier(tableIdentifier: BqsqlDocumentItem, line: number, character: number): boolean {
-        // Check each child element's range
+    private isPositionInTableIdentifier(tableIdentifier: BqsqlDocumentItem, line: number, character: number, documentContent: string): boolean {
+        // For backtick-quoted identifiers, we need to check the full range
+        // The parser may store the entire `project.dataset.table` as one item
+
         for (const child of tableIdentifier.items) {
             if (child.range && child.range.length >= 3) {
                 const [rangeLine, rangeStart, rangeEnd] = child.range;
@@ -62,8 +73,69 @@ export class BqsqlHoverProvider implements HoverProvider {
                     return true;
                 }
             }
+
+            // Also check nested items for complex identifiers
+            if (child.items && child.items.length > 0) {
+                for (const grandChild of child.items) {
+                    if (grandChild.range && grandChild.range.length >= 3) {
+                        const [rangeLine, rangeStart, rangeEnd] = grandChild.range;
+                        if (rangeLine === line && character >= rangeStart && character <= rangeEnd) {
+                            return true;
+                        }
+                    }
+                }
+            }
         }
+
+        // Fallback: calculate the overall range from all children
+        const ranges = this.getAllRanges(tableIdentifier);
+        for (const range of ranges) {
+            if (range[0] === line && character >= range[1] && character <= range[2]) {
+                return true;
+            }
+        }
+
         return false;
+    }
+
+    private getAllRanges(item: BqsqlDocumentItem): number[][] {
+        const ranges: number[][] = [];
+
+        if (item.range && item.range.length >= 3) {
+            ranges.push(item.range);
+        }
+
+        if (item.items) {
+            for (const child of item.items) {
+                ranges.push(...this.getAllRanges(child));
+            }
+        }
+
+        return ranges;
+    }
+
+    private extractTableName(documentContent: string, tableIdentifier: BqsqlDocumentItem): string | null {
+        const lines = documentContent.split('\n');
+        const ranges = this.getAllRanges(tableIdentifier);
+
+        if (ranges.length === 0) return null;
+
+        // Get text from the ranges
+        const parts: string[] = [];
+        for (const range of ranges) {
+            try {
+                const text = lines[range[0]].substring(range[1], range[2]);
+                if (text) parts.push(text);
+            } catch { }
+        }
+
+        if (parts.length === 0) return null;
+
+        // Join and clean up
+        let tableName = parts.join('');
+        // Remove backticks for display
+        tableName = tableName.replace(/`/g, '');
+        return tableName;
     }
 
     private formatSchemaAsMarkdown(schema: BigqueryTableSchema[]): MarkdownString {
