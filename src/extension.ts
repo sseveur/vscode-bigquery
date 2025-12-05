@@ -255,12 +255,12 @@ export function activate(context: ExtensionContext) {
 		)
 	);
 
-	// context.subscriptions.push(
-	// 	vscode.window.registerCustomEditorProvider(
-	// 		commands.OPEN_SETTING_TABLES,
-	// 		commands.commandOpenSettingTables
-	// 	)
-	// );
+	context.subscriptions.push(
+		vscode.commands.registerCommand(
+			commands.COMMAND_FORMAT_QUERY,
+			commands.commandFormatQuery
+		)
+	);
 
 	// bigquery-authentication
 	context.subscriptions.push(

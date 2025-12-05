@@ -26,6 +26,7 @@ import { CopyToClipboard } from './tableResultsPanel/copyToClipboard';
 import { ResultsGridRenderRequestV2, ResultsGridRenderRequestV2Type } from './tableResultsPanel/resultsGridRenderRequestV2';
 import { AuthenticationTreeItem, AuthenticationTreeItemType } from './activitybar/authenticationTreeItem';
 import { Dataset, Table } from '@google-cloud/bigquery';
+import { formatBigQuerySQL } from './language/bqsqlFormatter';
 
 export const COMMAND_RUN_QUERY = "vscode-bigquery.run-query";
 export const COMMAND_RUN_SELECTED_QUERY = "vscode-bigquery.run-selected-query";
@@ -55,6 +56,7 @@ export const SETTING_TABLES = "vscode-bigquery.tables";
 export const AUTHENTICATION_TROUBLESHOOT = "vscode-bigquery.troubleshoot";
 export const OPEN_SETTING_PROJECTS = "vscode-bigquery.open-settings-projects";
 export const OPEN_SETTING_TABLES = "vscode-bigquery.open-settings-tables";
+export const COMMAND_FORMAT_QUERY = "vscode-bigquery.format-query";
 
 export const commandRunQuery = async function (this: any, ...args: any[]) {
 
@@ -921,4 +923,30 @@ export const getBigQueryClient = async function (): Promise<BigQueryClient> {
 
 const resetBigQueryClient = function () {
 	bigQueryClient = null;
+};
+
+export const commandFormatQuery = async function () {
+	const editor = vscode.window.activeTextEditor;
+	if (!editor) {
+		return;
+	}
+
+	const document = editor.document;
+	const text = document.getText();
+
+	try {
+		const formatted = formatBigQuerySQL(text);
+
+		// Replace entire document with formatted text
+		const fullRange = new vscode.Range(
+			document.positionAt(0),
+			document.positionAt(text.length)
+		);
+
+		await editor.edit(editBuilder => {
+			editBuilder.replace(fullRange, formatted);
+		});
+	} catch (error: any) {
+		vscode.window.showErrorMessage(`Failed to format SQL: ${error.message}`);
+	}
 };

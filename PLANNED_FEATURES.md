@@ -6,8 +6,8 @@
 |---|---------|------------|----------|--------|
 | 1 | Cost Estimator | Easy | High | Done |
 | 2 | Table Schema Preview (Hover) | Easy | High | Done |
-| 3 | Format SQL | Easy-Medium | Medium | Pending |
-| 4 | Keyboard Shortcuts | Easy | Low | Pending |
+| 3 | Format SQL | Easy-Medium | Medium | Done |
+| 4 | Keyboard Shortcuts | Easy | Low | Done |
 | 5 | Query History | Medium | High | Pending |
 | 6 | Data Lineage | Hard | Low | Pending |
 
