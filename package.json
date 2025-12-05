@@ -1,8 +1,8 @@
 {
 	"name": "vscode-bigquery-v2",
 	"displayName": "BigQuery Data View v2",
-	"description": "Google BigQuery extension for Visual Studio Code. List datasets and tables, view table contents, and run queries. Fork of bstruct/vscode-bigquery.",
-	"version": "0.2.10",
+	"description": "Google BigQuery extension for Visual Studio Code. List datasets and tables, view table contents, run queries, format SQL, view query history, see cost estimates, table schema hover, and visualize data lineage with CTE support. Fork of bstruct/vscode-bigquery.",
+	"version": "0.2.13",
 	"publisher": "sseveur",
 	"icon": "logo.png",
 	"repository": {
@@ -21,12 +21,9 @@
 	],
 	"activationEvents": [
 		"onView:bigquery-main-activity-bar",
-		"onView:bigquery-authentication",
-		"onView:bigquery-tree-data-provider",
 		"onWebviewPanel:bigquery-query-results",
 		"onWebviewPanel:bigquery-table-results",
 		"onWebviewPanel:authentication-troubleshoot",
-		"onLanguage:bqsql",
 		"onLanguage:sql"
 	],
 	"main": "./dist/extension.js",
@@ -267,6 +264,11 @@
 				"command": "vscode-bigquery.history-refresh",
 				"title": "BigQueryView: Refresh History",
 				"icon": "$(refresh)"
+			},
+			{
+				"command": "vscode-bigquery.show-lineage",
+				"title": "BigQueryView: Show Data Lineage",
+				"icon": "$(type-hierarchy)"
 			}
 		],
 		"menus": {
@@ -279,6 +281,11 @@
 				{
 					"command": "vscode-bigquery.run-selected-query",
 					"group": "navigation@-2",
+					"when": "editorLangId == bqsql || editorLangId == sql"
+				},
+				{
+					"command": "vscode-bigquery.show-lineage",
+					"group": "navigation@-1",
 					"when": "editorLangId == bqsql || editorLangId == sql"
 				}
 			],

@@ -138,15 +138,76 @@ There is no limit size/row number imposed in this feature, so please be aware of
 <br />
 <br />
 
+## Format SQL
+
+Format your BigQuery SQL queries with the `Shift+Alt+F` keyboard shortcut or by running the command `BigQueryView: Format SQL`. The formatter supports BigQuery-specific syntax and can be configured via settings:
+
+- **Keyword Case**: `upper`, `lower`, or `preserve`
+- **Indent Style**: `standard`, `tabularLeft`, or `tabularRight`
+- **Leading Commas**: Enable/disable leading comma style
+
+## Query History
+
+All executed queries are saved to a history panel in the BigQuery sidebar. For each query, you can see:
+- Query preview text
+- Timestamp of execution
+- Bytes processed and duration
+- Success/error status
+
+Right-click on a history item to:
+- **Re-run**: Execute the query again
+- **Copy**: Copy the query text to clipboard
+- **Delete**: Remove from history
+
+Use the clear button to remove all history entries.
+
+## Cost Estimator
+
+The status bar shows real-time cost estimates as you type your queries. Based on BigQuery's dry-run feature, it displays:
+- Estimated bytes to be processed
+- Estimated cost in USD (configurable rate, default $6.25/TB)
+
+Configure the cost per TB in settings via `vscode-bigquery.costPerTB`.
+
+## Table Schema Hover
+
+Hover over any table name in your SQL query to see its schema information:
+- Column names and data types
+- Column descriptions (if available)
+- Partitioning and clustering information
+
+The schema is cached after first fetch for faster subsequent lookups.
+
+## Data Lineage
+
+Visualize the data flow in your queries with the Data Lineage feature. Click the lineage button (<img src="documentation/lineage_icon.png" alt="" width="16"/>) in the editor title bar or run `BigQueryView: Show Data Lineage`.
+
+The lineage graph shows:
+- **Source tables** (blue): Tables your query reads from
+- **CTEs** (purple): Common Table Expressions as intermediate nodes
+- **Target tables** (green): Tables your query writes to (INSERT, CREATE, MERGE, etc.)
+
+Features:
+- **CTE Support**: CTEs are shown as intermediate nodes between sources and targets
+- **Layered DAG Layout**: Nodes are arranged left-to-right based on data flow
+- **Curved Connections**: Bezier curves show relationships between nodes
+- **Statement Type Badges**: Target nodes show the operation type (INSERT, CREATE TABLE, etc.)
+
+Example visualization for a query with CTEs:
+```
+[source_table] ──→ [cte_transform] ──→ [target_table]
+                         ↑
+[another_source] ────────┘
+```
+
+<br />
+
 <!-- ### Known Issues -->
 
 ### Troubleshooting
 Sometimes, after this extension is installed, the command `Bigquery: Run query` is not able to force open the bottom panel to display the results. Please restart Visual Studio Code when that happens.
 
 <!-- ### Generate a bug report -->
-
-## Project board
-Available in github: https://github.com/orgs/bstruct/projects/1/views/2.
 
 ## Report a bug
 Please file an issue most descriptive as possible at https://github.com/bstruct/vscode-bigquery/issues.

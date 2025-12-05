@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { BigQueryClient } from './services/bigqueryClient';
-import { bigQueryTreeDataProvider, QUERY_RESULTS_VIEW_TYPE, TABLE_RESULTS_VIEW_TYPE, TROUBLESHOOT_VIEW_TYPE, gcpAuthenticationTreeDataProvider } from './extension';
+import { bigQueryTreeDataProvider, QUERY_RESULTS_VIEW_TYPE, TABLE_RESULTS_VIEW_TYPE, TROUBLESHOOT_VIEW_TYPE, gcpAuthenticationTreeDataProvider, authenticationWebviewProvider } from './extension';
 // import { ResultsGridRenderRequest } from './tableResultsPanel/resultsGridRenderRequest';
 import { Authentication } from './services/authentication';
 import { BigqueryTreeItem, BigqueryTreeItemType } from './activitybar/bigqueryTreeItem';
@@ -28,6 +28,8 @@ import { AuthenticationTreeItem, AuthenticationTreeItemType } from './activityba
 import { Dataset, Table } from '@google-cloud/bigquery';
 import { formatBigQuerySQL } from './language/bqsqlFormatter';
 import { QueryHistoryItem, QueryHistoryService } from './services/queryHistoryService';
+import { buildLineageGraph } from './services/lineageGraph';
+import { showLineagePanel } from './lineage/lineageWebviewProvider';
 
 export const COMMAND_RUN_QUERY = "vscode-bigquery.run-query";
 export const COMMAND_RUN_SELECTED_QUERY = "vscode-bigquery.run-selected-query";
@@ -64,6 +66,7 @@ export const COMMAND_HISTORY_CLEAR = "vscode-bigquery.history-clear";
 export const COMMAND_HISTORY_SHOW = "vscode-bigquery.history-show";
 export const COMMAND_HISTORY_DELETE = "vscode-bigquery.history-delete";
 export const COMMAND_HISTORY_REFRESH = "vscode-bigquery.history-refresh";
+export const COMMAND_SHOW_LINEAGE = "vscode-bigquery.show-lineage";
 
 export const commandRunQuery = async function (this: any, ...args: any[]) {
 
@@ -363,6 +366,7 @@ export const commandAuthenticationRefresh = function (...args: any[]) {
 	resetBigQueryClient();
 
 	gcpAuthenticationTreeDataProvider.refresh();
+	authenticationWebviewProvider.refresh();
 
 	// getTelemetryReporter()?.sendTelemetryEvent('commandAuthenticationRefresh', {}, { elapsedMs: Date.now() - t1 });
 };
@@ -1075,5 +1079,33 @@ export const commandHistoryClear = async function () {
 	if (confirm === 'Clear') {
 		await queryHistoryService.clearHistory();
 		vscode.window.showInformationMessage('Query history cleared');
+	}
+};
+
+// Data Lineage
+export const commandShowLineage = function (context: vscode.ExtensionContext) {
+	const editor = vscode.window.activeTextEditor;
+	if (!editor) {
+		vscode.window.showErrorMessage('No active editor with SQL query');
+		return;
+	}
+
+	const text = editor.document.getText();
+	if (!text.trim()) {
+		vscode.window.showErrorMessage('No SQL query in the active editor');
+		return;
+	}
+
+	try {
+		const graph = buildLineageGraph(text);
+
+		if (graph.nodes.length === 0) {
+			vscode.window.showInformationMessage('No table references found in the query');
+			return;
+		}
+
+		showLineagePanel(graph, context);
+	} catch (error: any) {
+		vscode.window.showErrorMessage(`Failed to analyze lineage: ${error.message}`);
 	}
 };

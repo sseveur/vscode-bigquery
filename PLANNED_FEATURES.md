@@ -9,7 +9,7 @@
 | 3 | Format SQL | Easy-Medium | Medium | Done |
 | 4 | Keyboard Shortcuts | Easy | Low | Done |
 | 5 | Query History | Medium | High | Done |
-| 6 | Data Lineage | Hard | Low | Pending |
+| 6 | Data Lineage | Hard | Low | Done |
 
 ---
 

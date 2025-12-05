@@ -359,6 +359,9 @@ MigrationBackup/
 # source compile & watch
 dist/
 
+# previous packages
+previous_packages/
+
 # Claude Code
 CLAUDE.md
 .claude/
