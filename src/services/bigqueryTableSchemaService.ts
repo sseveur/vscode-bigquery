@@ -25,6 +25,10 @@ export class BigqueryTableSchemaService {
             if (q.length === 0) {
                 const bqClient = await getBigQueryClient();
                 let tableSchema: BigqueryTableSchema[] = await bqClient.getTableSchema(projectId, datasetName, tableName);
+                // Remove any existing entries for this table before adding (prevents duplicates from race conditions)
+                this.schemas = this.schemas.filter(
+                    c => !(c.project_id === projectId && c.dataset_name === datasetName && c.table_name === tableName)
+                );
                 this.schemas.push(...tableSchema);
 
                 return true;

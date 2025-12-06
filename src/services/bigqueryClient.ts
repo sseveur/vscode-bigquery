@@ -175,7 +175,7 @@ export class BigQueryClient {
 
 		// Use parameterized query to prevent SQL injection
 		const query = `
-SELECT
+SELECT DISTINCT
 	colums.table_catalog AS project_id,
 	colums.table_schema AS dataset_name,
 	colums.table_name,
