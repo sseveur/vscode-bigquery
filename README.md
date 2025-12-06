@@ -49,15 +49,15 @@ Or install from the [VS Code Marketplace](https://marketplace.visualstudio.com/i
 
 | Shortcut | Icon | Command | Description |
 |----------|------|---------|-------------|
-| `Ctrl+Enter` | <img src="documentation/icon_run_query.png" alt="run" width="16"/> | Run Query | Execute the entire query in the editor |
-| `Ctrl+E` | <img src="documentation/icon_run_selected.png" alt="run selected" width="16"/> | Run Selected Query | Execute only the selected text |
+| `Ctrl+Enter` | <img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/icon_run_query.png" alt="run" width="16"/> | Run Query | Execute the entire query in the editor |
+| `Ctrl+E` | <img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/icon_run_selected.png" alt="run selected" width="16"/> | Run Selected Query | Execute only the selected text |
 | `Shift+Alt+F` | | Format SQL | Format the current SQL document |
 
 ## Authentication
 
 The extension uses the [gcloud CLI](https://cloud.google.com/sdk/docs/install) for authentication. Three authentication methods are supported:
 
-<img src="documentation/authentication_panel.png" alt="authentication panel" width="300"/>
+<img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/authentication_panel.png" alt="authentication panel" width="300"/>
 
 - **User login** - Opens browser for Google Cloud authentication
 - **User login + GDrive** - Same as above, with Google Drive access for Drive-based tables
@@ -75,7 +75,7 @@ Refresh the authentication screen with the command `BigQuery: Authentication ref
 
 The BigQuery side panel displays a tree of projects, datasets, tables, views, functions, and ML models.
 
-<img src="documentation/explorer_tree.png" alt="explorer tree" width="600"/>
+<img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/explorer_tree.png" alt="explorer tree" width="600"/>
 
 Refresh the explorer with the command `BigQuery: Explorer refresh`.
 
@@ -85,7 +85,7 @@ You can set a default project that queries will run against by right-clicking on
 
 Right-click on tables and views to access:
 
-<img src="documentation/explorer_tree_menu.png" alt="explorer tree menu" width="400"/>
+<img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/explorer_tree_menu.png" alt="explorer tree menu" width="400"/>
 
 - **Create query** - Opens a new editor with a basic `SELECT * FROM` statement
 - **Open DDL** - Opens the DDL (Data Definition Language) statement for the object
@@ -94,11 +94,11 @@ Right-click on tables and views to access:
 
 ### Table Preview
 
-<img src="documentation/explorer_tree_table.png" alt="table preview" width="600"/>
+<img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/explorer_tree_table.png" alt="table preview" width="600"/>
 
 ### Schema View
 
-<img src="documentation/preview_schema.png" alt="schema view" width="900"/>
+<img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/preview_schema.png" alt="schema view" width="900"/>
 
 ## Run Queries
 
@@ -108,7 +108,7 @@ The extension activates for `.bqsql` files. Run queries using:
 - **Command Palette**: `BigQuery: Run Query` or `BigQuery: Run Selected Query`
 - **Editor Toolbar**: Click the run buttons
 
-<img src="documentation/file_explorer_query_result.png" alt="query results" width="900"/>
+<img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/file_explorer_query_result.png" alt="query results" width="900"/>
 
 Query results appear in the bottom panel under `Bigquery: Query results`. You can open results in a separate tab for side-by-side comparisons.
 
@@ -123,11 +123,11 @@ The extension provides:
 
 Queries are validated as you type. Errors are underlined in the editor:
 
-<img src="documentation/query_error.png" alt="query error" width="600"/>
+<img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/query_error.png" alt="query error" width="600"/>
 
 Valid queries show the estimated bytes in the status bar:
 
-<img src="documentation/query_size_evaluation.png" alt="query size evaluation" width="600"/>
+<img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/query_size_evaluation.png" alt="query size evaluation" width="600"/>
 
 ## Query History
 
@@ -146,7 +146,7 @@ Right-click actions:
 
 Use the clear button to remove all history entries.
 
-<img src="documentation/query_history.png" alt="query_history"/>
+<img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/query_history.png" alt="query_history"/>
 
 ## Cost Estimator
 
@@ -156,7 +156,7 @@ The status bar shows real-time cost estimates based on BigQuery's dry-run featur
 
 Configure the cost per TB in settings via `vscode-bigquery.costPerTB`. Set to 0 to hide cost estimates:
 
-<img src="documentation/cost_estimate.png" alt="cost_estimator" />
+<img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/cost_estimate.png" alt="cost_estimator" />
 
 ## Table Schema Hover
 
@@ -165,7 +165,7 @@ Hover over any table name in your SQL query to see schema information:
 - Column descriptions (if available)
 - Partitioning and clustering information
 
-<img src="documentation/table_hover_schema.png" alt="table_hover_schema" />
+<img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/table_hover_schema.png" alt="table_hover_schema" />
 
 The schema is cached after first fetch for faster subsequent lookups.
 
@@ -178,9 +178,9 @@ Schema hover works for tables in:
 
 ## Data Lineage
 
-Visualize data flow in your queries. Click the lineage button <img src="documentation/button_lineage.png" alt="lineage" width="16"/> in the editor title bar or run `BigQuery: Show Data Lineage`.
+Visualize data flow in your queries. Click the lineage button <img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/button_lineage.png" alt="lineage" width="16"/> in the editor title bar or run `BigQuery: Show Data Lineage`.
 
-<img src="documentation/data_lineage.png" alt="data lineage"/>
+<img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/data_lineage.png" alt="data lineage"/>
 
 The lineage graph shows:
 - **Source tables** (blue) - Tables your query reads from
@@ -208,7 +208,7 @@ Configuration options:
 
 After running a query, download results as CSV from the result grid toolbar.
 
-<img src="documentation/download_csv.png" alt="download csv" width="200"/>
+<img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/download_csv.png" alt="download csv" width="200"/>
 
 - Supports multiline content
 - No row limit (be mindful of large result sets)
@@ -222,7 +222,7 @@ Copy results in CSV format with a configurable size limit (default 1MB). Configu
 
 Download results in [JSONL](https://jsonlines.org/) format from the result grid toolbar.
 
-<img src="documentation/download_jsonl.png" alt="download jsonl" width="200"/>
+<img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/download_jsonl.png" alt="download jsonl" width="200"/>
 
 ## Send to Pub/Sub
 
@@ -246,11 +246,11 @@ SELECT
 FROM `dataset.table` t
 ```
 
-<img src="documentation/send_to_pubsub.png" alt="send to Pub/Sub" width="200"/>
+<img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/send_to_pubsub.png" alt="send to Pub/Sub" width="200"/>
 
 Enter the topic name in the format: `projects/<project_id>/topics/<topic_name>`
 
-<img src="documentation/send_to_pubsub_topic_name.png" alt="Pub/Sub topic name" width="200"/>
+<img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/send_to_pubsub_topic_name.png" alt="Pub/Sub topic name" width="200"/>
 
 ## Settings
 
@@ -258,13 +258,13 @@ Enter the topic name in the format: `projects/<project_id>/topics/<topic_name>`
 
 Pin projects to keep them at the top of the explorer tree.
 
-<img src="documentation/project_set_default.png" alt="set default project" width="600"/>
+<img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/project_set_default.png" alt="set default project" width="600"/>
 
-<img src="documentation/pin_unpin_project.png" alt="pin/unpin project" width="600"/>
+<img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/pin_unpin_project.png" alt="pin/unpin project" width="600"/>
 
 Pinned projects are stored in settings:
 
-<img src="documentation/settings_file.png" alt="settings file" width="600"/>
+<img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/settings_file.png" alt="settings file" width="600"/>
 
 ### Add GCP Projects
 
@@ -278,7 +278,7 @@ When permission is granted only at the table level:
 
 Setting: `vscode-bigquery.tables`
 
-<img src="documentation/setting_add_table.png" alt="add table" width="600"/>
+<img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/setting_add_table.png" alt="add table" width="600"/>
 
 ### Associate .sql Files
 
@@ -302,7 +302,7 @@ Setting: `vscode-bigquery.associateSqlFiles`
 
 Access settings via:
 
-<img src="documentation/settings_menu.png" alt="settings menu" width="900"/>
+<img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/settings_menu.png" alt="settings menu" width="900"/>
 
 ## Troubleshooting
 
