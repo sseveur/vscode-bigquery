@@ -1005,11 +1005,11 @@ export function getQueryHistoryService(): QueryHistoryService | null {
 
 // Helper to extract QueryHistoryItem from either direct item or TreeItem
 function extractHistoryItem(arg: any): QueryHistoryItem | null {
-	if (!arg) return null;
+	if (!arg) {return null;}
 	// If it's a TreeItem with historyItem property
-	if (arg.historyItem) return arg.historyItem;
+	if (arg.historyItem) {return arg.historyItem;}
 	// If it's the QueryHistoryItem directly
-	if (arg.query && arg.timestamp) return arg;
+	if (arg.query && arg.timestamp) {return arg;}
 	return null;
 }
 

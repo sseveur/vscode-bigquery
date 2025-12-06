@@ -81,11 +81,13 @@ export function extractTableReferences(sql: string): string[] {
         const cst = parse(sql, { dialect: "bigquery" });
         const tables: string[] = [];
 
+        /* eslint-disable @typescript-eslint/naming-convention */
         const visitor = cstVisitor({
             from_clause: (node: CstNode) => {
                 findTablesInExpr(node.expr, tables);
             }
         });
+        /* eslint-enable @typescript-eslint/naming-convention */
 
         visitor(cst);
         return tables;
@@ -115,6 +117,7 @@ export function extractCtesWithDependencies(sql: string): ExtractedCte[] {
         const cteNames = new Set<string>();
 
         // First pass: collect all CTE names
+        /* eslint-disable @typescript-eslint/naming-convention */
         const nameCollector = cstVisitor({
             common_table_expr: (node: CstNode) => {
                 const name = node.table?.name || node.table?.text;
@@ -123,9 +126,11 @@ export function extractCtesWithDependencies(sql: string): ExtractedCte[] {
                 }
             }
         });
+        /* eslint-enable @typescript-eslint/naming-convention */
         nameCollector(cst);
 
         // Second pass: extract CTEs with their dependencies
+        /* eslint-disable @typescript-eslint/naming-convention */
         const cteExtractor = cstVisitor({
             common_table_expr: (node: CstNode) => {
                 const name = node.table?.name || node.table?.text;
@@ -164,6 +169,7 @@ export function extractCtesWithDependencies(sql: string): ExtractedCte[] {
                 });
             }
         });
+        /* eslint-enable @typescript-eslint/naming-convention */
 
         cteExtractor(cst);
         return ctes;

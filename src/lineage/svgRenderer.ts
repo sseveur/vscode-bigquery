@@ -4,11 +4,13 @@ import { LayoutConfig, getLayoutConfig } from "./dagLayout";
 /**
  * Node colors by type (dbt-inspired palette)
  */
+/* eslint-disable @typescript-eslint/naming-convention */
 const NODE_COLORS: Record<NodeType, string> = {
     'SOURCE': '#3794ff',    // Blue
     'CTE': '#9b59b6',       // Purple
     'TARGET': '#89d185'     // Green
 };
+/* eslint-enable @typescript-eslint/naming-convention */
 
 /**
  * Render the lineage graph as an SVG string
@@ -201,7 +203,7 @@ function getTypeLabel(node: LineageNode): string {
  * Truncate name if too long
  */
 function truncateName(name: string, maxLength: number): string {
-    if (name.length <= maxLength) return name;
+    if (name.length <= maxLength) {return name;}
     return name.substring(0, maxLength - 2) + '..';
 }
 

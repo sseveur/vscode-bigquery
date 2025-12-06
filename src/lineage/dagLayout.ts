@@ -105,7 +105,7 @@ function sortNodesInLayer(
     graph: LineageGraph,
     allLayers: Map<number, LineageNode[]>
 ): LineageNode[] {
-    if (layerNodes.length <= 1) return layerNodes;
+    if (layerNodes.length <= 1) {return layerNodes;}
 
     const currentLayer = layerNodes[0].layer;
 
@@ -155,7 +155,7 @@ function sortNodesInLayer(
     return layerNodes.sort((a, b) => {
         const bcA = barycenters.get(a.id) || 0;
         const bcB = barycenters.get(b.id) || 0;
-        if (bcA !== bcB) return bcA - bcB;
+        if (bcA !== bcB) {return bcA - bcB;}
         return a.name.localeCompare(b.name);
     });
 }

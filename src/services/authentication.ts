@@ -177,7 +177,11 @@ export class Authentication {
 
         if (forceShow) { terminal.show(); }
 
-        const commandOptions = {} as cp.ExecFileOptions;
+        // On Windows, use shell: true to allow PATH resolution of gcloud.cmd
+        // On Mac/Linux, keep shell: false for better security
+        const commandOptions: cp.ExecFileOptions = {
+            shell: process.platform === 'win32'
+        };
 
         return new Promise((resolve, reject) => {
 
@@ -185,10 +189,15 @@ export class Authentication {
             // Arguments are passed as array, not interpolated into command string
             cp.execFile('gcloud', args, commandOptions, (error, stdout, stderr) => {
                 if (error) {
-
                     terminal.sendText(stderr);
 
-                    reject({ error, stdout, stderr });
+                    // Provide helpful message if gcloud is not found
+                    let diagnosticMessage = stderr;
+                    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+                        diagnosticMessage = 'gcloud CLI not found. Please ensure Google Cloud SDK is installed and added to PATH. Restart VS Code after installation.';
+                    }
+
+                    reject({ error, stdout, stderr: diagnosticMessage || stderr });
                 } else {
 
                     terminal.sendText(stdout);

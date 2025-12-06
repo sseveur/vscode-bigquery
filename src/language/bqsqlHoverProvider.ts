@@ -130,18 +130,18 @@ export class BqsqlHoverProvider implements HoverProvider {
         const lines = documentContent.split('\n');
         const ranges = this.getAllRanges(tableIdentifier);
 
-        if (ranges.length === 0) return null;
+        if (ranges.length === 0) {return null;}
 
         // Get text from the ranges
         const parts: string[] = [];
         for (const range of ranges) {
             try {
                 const text = lines[range[0]].substring(range[1], range[2]);
-                if (text) parts.push(text);
+                if (text) {parts.push(text);}
             } catch { }
         }
 
-        if (parts.length === 0) return null;
+        if (parts.length === 0) {return null;}
 
         // Join and clean up
         let tableName = parts.join('');

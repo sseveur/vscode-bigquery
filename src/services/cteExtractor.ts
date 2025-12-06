@@ -190,7 +190,7 @@ function extractTableNameFromIdentifier(tableIdentifier: BqsqlDocumentItem, sql:
     const lines = sql.split('\n');
     const ranges = getAllRanges(tableIdentifier);
 
-    if (ranges.length === 0) return null;
+    if (ranges.length === 0) {return null;}
 
     const parts: string[] = [];
     for (const range of ranges) {
@@ -198,13 +198,13 @@ function extractTableNameFromIdentifier(tableIdentifier: BqsqlDocumentItem, sql:
             const text = lines[range[0]].substring(range[1], range[2]);
             if (text) {
                 // Stop if we hit an alias keyword (AS)
-                if (/^\s*as\s*$/i.test(text)) break;
+                if (/^\s*as\s*$/i.test(text)) {break;}
                 parts.push(text);
             }
         } catch { }
     }
 
-    if (parts.length === 0) return null;
+    if (parts.length === 0) {return null;}
 
     // Join and clean up - remove backticks and any trailing alias
     let tableName = parts.join('').replace(/`/g, '');
@@ -235,7 +235,7 @@ function getAllRanges(item: BqsqlDocumentItem): number[][] {
  * Extract text from a parser range [line, start, end]
  */
 function extractTextFromRange(sql: string, range: number[] | undefined): string | null {
-    if (!range || range.length < 3) return null;
+    if (!range || range.length < 3) {return null;}
 
     const lines = sql.split('\n');
     const [line, start, end] = range;
@@ -266,6 +266,7 @@ export function extractCteColumns(sql: string, cteName: string): CteColumn[] {
         const cst = parseCst(sql, { dialect: "bigquery" });
         const columns: CteColumn[] = [];
 
+        /* eslint-disable @typescript-eslint/naming-convention */
         const visitor = cstVisitor({
             common_table_expr: (node: CstNode) => {
                 const name = node.table?.name || node.table?.text;
@@ -305,6 +306,7 @@ export function extractCteColumns(sql: string, cteName: string): CteColumn[] {
                 }
             }
         });
+        /* eslint-enable @typescript-eslint/naming-convention */
 
         visitor(cst);
         return columns;
@@ -365,6 +367,7 @@ export function getCteNames(sql: string): string[] {
         const cst = parseCst(sql, { dialect: "bigquery" });
         const names: string[] = [];
 
+        /* eslint-disable @typescript-eslint/naming-convention */
         const visitor = cstVisitor({
             common_table_expr: (node: CstNode) => {
                 const name = node.table?.name || node.table?.text;
@@ -373,6 +376,7 @@ export function getCteNames(sql: string): string[] {
                 }
             }
         });
+        /* eslint-enable @typescript-eslint/naming-convention */
 
         visitor(cst);
         return names;

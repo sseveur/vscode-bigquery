@@ -66,7 +66,7 @@ export function buildLineageGraph(sql: string): LineageGraph {
     // Create source nodes
     for (const tableName of allSourceTables) {
         // Skip if this is a CTE name
-        if (cteNames.has(tableName)) continue;
+        if (cteNames.has(tableName)) {continue;}
 
         const id = `source_${tableName}`;
         const displayName = getDisplayName(tableName);
@@ -104,7 +104,7 @@ export function buildLineageGraph(sql: string): LineageGraph {
     for (const target of basicLineage.targets) {
         const tableName = target.fullName.toLowerCase();
         // Skip if this is a CTE name (CTEs can appear in INSERT targets)
-        if (cteNames.has(tableName)) continue;
+        if (cteNames.has(tableName)) {continue;}
 
         const id = `target_${tableName}`;
         const displayName = getDisplayName(target.fullName);
@@ -125,7 +125,7 @@ export function buildLineageGraph(sql: string): LineageGraph {
     // CTE edges: source tables -> CTEs
     for (const cte of ctes) {
         const cteNode = nodeMap.get(cte.name.toLowerCase());
-        if (!cteNode) continue;
+        if (!cteNode) {continue;}
 
         // Edges from source tables to this CTE
         for (const sourceTable of cte.sourceTables) {
@@ -162,7 +162,7 @@ export function buildLineageGraph(sql: string): LineageGraph {
 
         for (const target of basicLineage.targets) {
             const targetNode = nodeMap.get(target.fullName.toLowerCase());
-            if (!targetNode) continue;
+            if (!targetNode) {continue;}
 
             // Connect CTEs that are used in main query to target
             for (const cteName of mainQueryCtes) {
@@ -244,7 +244,7 @@ function calculateCteLayers(ctes: CteDefinition[]): Map<string, number> {
 
         for (const cte of ctes) {
             const cteName = cte.name.toLowerCase();
-            if (layers.has(cteName)) continue;
+            if (layers.has(cteName)) {continue;}
 
             // Check if all referenced CTEs have layers assigned
             const refLayers: number[] = [];
@@ -292,7 +292,7 @@ function findMainQueryCteReferences(sql: string, ctes: CteDefinition[]): string[
     // Find the main query part (after the last CTE definition)
     // Look for SELECT/INSERT/UPDATE/DELETE/MERGE after the WITH block
     const mainQueryMatch = sql.match(/\)\s*(SELECT|INSERT|UPDATE|DELETE|MERGE)\s/i);
-    if (!mainQueryMatch) return cteNames; // Return all CTEs if we can't find main query
+    if (!mainQueryMatch) {return cteNames;} // Return all CTEs if we can't find main query
 
     const mainQueryStart = mainQueryMatch.index || 0;
     const mainQuery = sql.substring(mainQueryStart).toLowerCase();
@@ -331,7 +331,7 @@ function findMainQuerySourceReferences(
     // Check which source tables are mentioned in the main query
     for (const tableName of allSourceTables) {
         // Skip CTE names
-        if (cteNames.has(tableName)) continue;
+        if (cteNames.has(tableName)) {continue;}
 
         // Get just the table name part for matching (last part of qualified name)
         const parts = tableName.split('.');
