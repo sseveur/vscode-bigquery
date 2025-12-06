@@ -4,6 +4,7 @@ import { BqsqlDocument, BqsqlDocumentItem } from "./bqsqlDocument";
 import { isBigQueryLanguage } from "../services/languageUtils";
 import { bigqueryTableSchemaService } from "../extension";
 import { BigqueryTableSchema } from "../services/bigqueryTableSchema";
+import { extractCteColumns, getCteNames, CteColumn } from "../services/cteExtractor";
 
 export class BqsqlHoverProvider implements HoverProvider {
 
@@ -20,7 +21,18 @@ export class BqsqlHoverProvider implements HoverProvider {
             return null;
         }
 
-        // Get schema from cache
+        // Check if this is a CTE reference
+        const cteName = this.extractCteReference(tableIdentifier, documentContent);
+        if (cteName) {
+            // Verify it's actually a CTE defined in this query
+            const definedCtes = getCteNames(documentContent);
+            if (definedCtes.some(name => name.toLowerCase() === cteName.toLowerCase())) {
+                const columns = extractCteColumns(documentContent, cteName);
+                return new Hover(this.formatCteAsMarkdown(cteName, columns));
+            }
+        }
+
+        // Get schema from cache (for BigQuery tables)
         const schema = bigqueryTableSchemaService.getSchemaFromCache(documentContent, tableIdentifier);
         if (schema.length === 0) {
             // Try to preload schema for next hover
@@ -169,6 +181,51 @@ export class BqsqlHoverProvider implements HoverProvider {
         }
         footer += '*';
         md += footer;
+
+        const markdown = new MarkdownString(md);
+        markdown.isTrusted = true;
+        return markdown;
+    }
+
+    /**
+     * Check if the table identifier is a CTE reference (contains TableCteId)
+     * Returns the CTE name if it is, null otherwise
+     */
+    private extractCteReference(tableIdentifier: BqsqlDocumentItem, documentContent: string): string | null {
+        for (const child of tableIdentifier.items || []) {
+            if (child.item_type === "TableCteId") {
+                // Extract the CTE name from the range
+                if (child.range && child.range.length >= 3) {
+                    const lines = documentContent.split('\n');
+                    try {
+                        return lines[child.range[0]].substring(child.range[1], child.range[2]);
+                    } catch {
+                        return null;
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Format CTE columns as markdown for hover display
+     */
+    private formatCteAsMarkdown(cteName: string, columns: CteColumn[]): MarkdownString {
+        let md = `**CTE: \`${cteName}\`**\n\n`;
+
+        if (columns.length === 0) {
+            md += `*No columns detected*`;
+        } else {
+            md += `| Column |\n`;
+            md += `|--------|\n`;
+
+            for (const col of columns) {
+                md += `| ${col.name} |\n`;
+            }
+
+            md += `\n*${columns.length} column${columns.length !== 1 ? 's' : ''}*`;
+        }
 
         const markdown = new MarkdownString(md);
         markdown.isTrusted = true;

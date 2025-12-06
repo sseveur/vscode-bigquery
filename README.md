@@ -1,117 +1,240 @@
-# Bigquery extension for Visual Studio Code
-This extension aims to bring most of the functionality of Bigquery to Visual Studio Code. At the moment is possible to: authenticate ( using the [gcloud CLI](https://cloud.google.com/sdk/docs/install)); list projects, dataset, and tables; view table content; and run queries.
+# BigQuery Data View v2 for Visual Studio Code
+
+[![Version 1.0.0](https://img.shields.io/badge/version-1.0.0-blue)](https://marketplace.visualstudio.com/items?itemName=sseveur.vscode-bigquery-v2)
+[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/sseveur.vscode-bigquery-v2?label=VS%20Code%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=sseveur.vscode-bigquery-v2)
+[![Installs](https://img.shields.io/visual-studio-marketplace/i/sseveur.vscode-bigquery-v2)](https://marketplace.visualstudio.com/items?itemName=sseveur.vscode-bigquery-v2)
+
+A powerful Visual Studio Code extension for Google BigQuery. Browse datasets and tables, run queries with real-time validation, view results, format SQL, track query history, estimate costs, and visualize data lineage.
+
+<!-- TODO: Add hero screenshot showing the extension in action -->
+<!-- ![Extension Overview](documentation/hero_screenshot.png) -->
+
+## Features
+
+- **Authentication** - User login, GDrive access, and service account support via gcloud CLI
+- **Project Explorer** - Browse projects, datasets, tables, views, functions, and ML models
+- **Query Execution** - Run queries with `Ctrl+Enter`, real-time error highlighting, and byte estimation
+- **SQL Intellisense** - Autocomplete for SQL keywords and BigQuery functions
+- **Syntax Highlighting** - Full support for `.bqsql` files with grammar injection for `.sql` files
+- **SQL Formatting** - Format queries with configurable style options
+- **Query History** - Track all executed queries with re-run and copy capabilities
+- **Cost Estimation** - Real-time cost estimates based on bytes processed
+- **Table Schema Hover** - Hover over table names to see schema details
+- **Data Lineage** - Visualize data flow with CTE support
+- **Export Options** - Download results as CSV or JSONL, copy to clipboard
+- **Pub/Sub Integration** - Publish query results directly to Google Cloud Pub/Sub
+
+## Installation
+
+1. Open VS Code
+2. Go to Extensions (`Ctrl+Shift+X`)
+3. Search for "BigQuery Data View v2"
+4. Click Install
+
+Or install from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=sseveur.vscode-bigquery-v2).
+
+## Requirements
+
+- [Google Cloud SDK (gcloud CLI)](https://cloud.google.com/sdk/docs/install) must be installed
+- Valid Google Cloud authentication with BigQuery permissions
+
+## Quick Start
+
+1. Install the gcloud CLI and authenticate: `gcloud auth login`
+2. Open the BigQuery panel from the Activity Bar
+3. Create a new `.bqsql` file and write your query
+4. Press `Ctrl+Enter` to run
+
+## Keyboard Shortcuts
+
+| Shortcut | Icon | Command | Description |
+|----------|------|---------|-------------|
+| `Ctrl+Enter` | <img src="documentation/icon_run_query.png" alt="run" width="16"/> | Run Query | Execute the entire query in the editor |
+| `Ctrl+E` | <img src="documentation/icon_run_selected.png" alt="run selected" width="16"/> | Run Selected Query | Execute only the selected text |
+| `Shift+Alt+F` | | Format SQL | Format the current SQL document |
 
 ## Authentication
-The authentication is taken care of by the [gcloud CLI](https://cloud.google.com/sdk/docs/install). Therefore, gcloud CLI must be installed. This extension makes a visual representation of what is provided by that console application.
 
-<img src="documentation/authentication_panel.png" alt="authentication" width="300"/>
+The extension uses the [gcloud CLI](https://cloud.google.com/sdk/docs/install) for authentication. Three authentication methods are supported:
 
-The three buttons "User login", "User login + GDrive" and "Service account" reflect the three possible ways of authenticating the requests. Either user personal authentication is used, where the computer browser will be opened requesting authentication to Google Cloud for the options "User login" and "User login + GDrive". Use the "GDrive" option to be able to browse and select tables based on Google Drive. Or, a service account key file (json format) must be selected when requested by pressing the button "Service account".
+<img src="documentation/authentication_panel.png" alt="authentication panel" width="300"/>
 
-When there's a valid account active and with the necessary permissions to interact with bigquery, this extension is ready to be used.
+- **User login** - Opens browser for Google Cloud authentication
+- **User login + GDrive** - Same as above, with Google Drive access for Drive-based tables
+- **Service account** - Select a service account key file (JSON format)
 
-Additional functionality to activate and revoke authentication accounts is also provided.
+When there's a valid account active with BigQuery permissions, the extension is ready to use.
 
-This screen is refreshed programmatically every time a change is detected. Additionally, refreshing the authentication screen can be done my executing the command `Bigquery: Authentication refresh`.
+Additional functionality:
+- Activate/switch between multiple accounts
+- Revoke authentication
 
-## Projects, Dataset, and Tables tree
-In the Bigquery side panel, sub panel "explorer", a tree of projects, datasets, tables, views, functions, and ML models are available. Compared with the tree available in the Bigquery interface in the Google Cloud portal, the "saved queries" are missing. Other than that, it should be like-for-like. 
+Refresh the authentication screen with the command `BigQuery: Authentication refresh`.
+
+## Projects, Datasets, and Tables Explorer
+
+The BigQuery side panel displays a tree of projects, datasets, tables, views, functions, and ML models.
 
 <img src="documentation/explorer_tree.png" alt="explorer tree" width="600"/>
 
-Refresh the explorer screen, which can be done by executing the command `Bigquery: Explorer refresh`.
+Refresh the explorer with the command `BigQuery: Explorer refresh`.
 
-Is possible to change the default project that queries will run against.
+You can set a default project that queries will run against by right-clicking on a project.
 
-## Views, tables, and schemas
+### Context Menu Actions
 
-For `views` and `tables` is possible to access the menu via right-click.
-<img src="documentation/explorer_tree_menu.png" alt="explorer tree menu" width="600"/>
-- Create query: opens a new query editor with a basic SELECT FROM statement.
-- Preview: That opens a window with the table representation of the table. For external tables and views, a `SELECT *` statement will be run internally in order to show the results of the table.
-<img src="documentation/explorer_tree_table.png" alt="explorer tree table" width="600"/>
-- View schema: Opens a window that describes the meta information of the table or views
+Right-click on tables and views to access:
+
+<img src="documentation/explorer_tree_menu.png" alt="explorer tree menu" width="400"/>
+
+- **Create query** - Opens a new editor with a basic `SELECT * FROM` statement
+- **Open DDL** - Opens the DDL (Data Definition Language) statement for the object
+- **Preview** - Opens a preview of the table data (runs `SELECT *` for views and external tables)
+- **Preview schema** - Opens the table/view schema information
+
+### Table Preview
+
+<img src="documentation/explorer_tree_table.png" alt="table preview" width="600"/>
+
+### Schema View
+
 <img src="documentation/preview_schema.png" alt="schema view" width="900"/>
 
-## Settings
+## Run Queries
 
-There are three different settings possible to configure.
-- Pin a project
-- Add GCP projects to the list (when there's no full access to the project)
-- Add Bigquery tables to the list (when there's no full access to the dataset)
+The extension activates for `.bqsql` files. Run queries using:
 
+- **Keyboard**: `Ctrl+Enter` (run all) or `Ctrl+E` (run selected)
+- **Command Palette**: `BigQuery: Run Query` or `BigQuery: Run Selected Query`
+- **Editor Toolbar**: Click the run buttons
 
-To make changes at <b>user level</b>, meaning, that can be synced between computers under the same login, the settings must be modified via the settings menu and change the associated file.
+<img src="documentation/file_explorer_query_result.png" alt="query results" width="900"/>
 
-<img src="documentation/settings_menu.png" alt="settings menu" width="600"/>
-<br />
-<br />
+Query results appear in the bottom panel under `Bigquery: Query results`. You can open results in a separate tab for side-by-side comparisons.
 
-### Pin a project
+### Syntax Highlighting & Intellisense
 
-In order to influence the order of the different GCP projects on the list, is possible to pin one or more to stay on top of the list.
+The extension provides:
+- Syntax highlighting for SQL keywords (SELECT, FROM, WHERE, JOIN, CASE, WHEN, etc.)
+- Intellisense/autocomplete for SQL keywords and BigQuery functions
+- Grammar injection for `.sql` files (syntax highlighting works automatically)
 
-<img src="documentation/project_set_default.png" alt="set default project" width="600"/>
+### Real-time Query Validation
 
-<img src="documentation/pin_unpin_project.png" alt="pin/unpin project" width="600"/>
-
-By using the command shown in the image above, the local settings will be changed. 
-
-<img src="documentation/settings_file.png" alt="setting file" width="600"/>
-
-### Add GCP projects
-For the cases where the user only has read permissions into Bigquery at dataset level, the normal list of projects will not detect the correspondent project. In this case, is possible to force a project to be listed and consequentially the dataset will also be listed.
-
-### Add Bigquery tables
-When permission is given to a table, not a correspondent dataset or project, is possible to configure table IDs to assure that they are listed and can benefit from the usual functionality.
-
-<img src="documentation/setting_add_table.png" alt="add table" width="600"/>
-
-## Run queries
-This extension responds to files with the extension `.bqsql`. The querie(s) in the editor can be run using the key `Ctrl+Enter` ( same as in the Google Cloud portal ), executing the command `Biguery: Run Query` or pressing the dedicated button in the file editor.
-
-To run only the query selected in the text can be done by the key combination `Ctrl+E`, using the command `Biguery: Run Selected Query` or pressing the dedicated button in the editor window. (<img src="documentation/run_selected_query_icon.png" alt="" width="20"/>)
-
-<img src="documentation/file_explorer_query_result.png" alt="file explorer" width="900"/>
-
-After the query returns a response, the bottom panel of Visual Studio code will be made visible with the selected tab `Bigquery: Query results`. There, the query results are displayed with the usual pagination functionality. For convenience, is possible to open the same query results in another tab for side-by-side comparisons or further persistence. The results in the bottom panel will only represent the latest query execution.
-
-The extension provides syntax highlighting for SQL keywords (SELECT, FROM, WHERE, JOIN, CASE, WHEN, etc.) and intellisense/autocomplete for SQL keywords and BigQuery functions. Syntax highlighting also works for `.sql` files via grammar injection. 
-
-The query in the editor is evaluated with every change. If there are errors in the query, they will be underlined
+Queries are validated as you type. Errors are underlined in the editor:
 
 <img src="documentation/query_error.png" alt="query error" width="600"/>
 
-If the query is valid, the number of bytes that will be consumed will appear in the bottom bar
+Valid queries show the estimated bytes in the status bar:
 
-<img src="documentation/query_size_evaluation.png" alt="query error" width="600"/>
+<img src="documentation/query_size_evaluation.png" alt="query size evaluation" width="600"/>
 
-## Download CSV
+## Query History
 
-After a query has run, in the result grid, there's the option of downloading the same results in CSV format. The file generated supports multiline but not nested complex objects. 
-There is no limit size/row number imposed in this feature, so please be aware of the effort that will be asked of your computer.
+All executed queries are saved to the History panel in the BigQuery sidebar.
 
-<img src="documentation/download_csv.png" alt="file explorer" width="200"/>
+Each history entry shows:
+- Query preview text
+- Execution timestamp
+- Bytes processed and duration
+- Success/error status
 
+Right-click actions:
+- **Re-run** - Execute the query again
+- **Copy** - Copy query text to clipboard
+- **Delete** - Remove from history
 
-## Download JSONL
-After a query has run, in the result grid, when focused, there's the option of downloading the same results in [jsonl](https://jsonlines.org/) format. 
+Use the clear button to remove all history entries.
+
+<img src="documentation/query_history.png" alt="query_history"/>
+
+## Cost Estimator
+
+The status bar shows real-time cost estimates based on BigQuery's dry-run feature:
+- Estimated bytes to be processed
+- Estimated cost in USD (configurable, default $6.25/TB)
+
+Configure the cost per TB in settings via `vscode-bigquery.costPerTB`. Set to 0 to hide cost estimates:
+
+<img src="documentation/cost_estimate.png" alt="cost_estimator" />
+
+## Table Schema Hover
+
+Hover over any table name in your SQL query to see schema information:
+- Column names and data types
+- Column descriptions (if available)
+- Partitioning and clustering information
+
+<img src="documentation/table_hover_schema.png" alt="table_hover_schema" />
+
+The schema is cached after first fetch for faster subsequent lookups.
+
+### Supported Locations
+
+Schema hover works for tables in:
+- `FROM` clauses - `FROM project.dataset.table`
+- `JOIN` clauses - `JOIN project.dataset.table`, `LEFT JOIN`, `RIGHT JOIN`, `INNER JOIN`, `CROSS JOIN`, `FULL JOIN`
+- **CTE references** - When you reference a CTE name (e.g., `FROM my_cte`), the hover shows the columns defined in that CTE's SELECT clause
+
+## Data Lineage
+
+Visualize data flow in your queries. Click the lineage button <img src="documentation/button_lineage.png" alt="lineage" width="16"/> in the editor title bar or run `BigQuery: Show Data Lineage`.
+
+<img src="documentation/data_lineage.png" alt="data lineage"/>
+
+The lineage graph shows:
+- **Source tables** (blue) - Tables your query reads from
+- **CTEs** (purple) - Common Table Expressions as intermediate nodes
+- **Target tables** (green) - Tables your query writes to (INSERT, CREATE, MERGE, etc.)
+
+Features:
+- CTE Support - CTEs are shown as intermediate nodes between sources and targets
+- Layered DAG Layout - Nodes are arranged left-to-right based on data flow
+- Curved Connections - Bezier curves show relationships between nodes
+- Statement Type Badges - Target nodes show the operation type
+
+## Format SQL
+
+Format your BigQuery SQL queries with `Shift+Alt+F` or by running `BigQuery: Format SQL`.
+
+Configuration options:
+- **Keyword Case** (`vscode-bigquery.formatKeywordCase`): `upper`, `lower`, or `preserve`
+- **Indent Style** (`vscode-bigquery.formatIndentStyle`): `standard`, `tabularLeft`, or `tabularRight`
+- **Leading Commas** (`vscode-bigquery.formatLeadingCommas`): Enable/disable leading comma style
+
+## Export Options
+
+### Download CSV
+
+After running a query, download results as CSV from the result grid toolbar.
+
+<img src="documentation/download_csv.png" alt="download csv" width="200"/>
+
+- Supports multiline content
+- No row limit (be mindful of large result sets)
+- Does not support nested complex objects
+
+### Copy to Clipboard
+
+Copy results in CSV format with a configurable size limit (default 1MB). Configure via `vscode-bigquery.clipboardSizeLimitKb`.
+
+### Download JSONL
+
+Download results in [JSONL](https://jsonlines.org/) format from the result grid toolbar.
 
 <img src="documentation/download_jsonl.png" alt="download jsonl" width="200"/>
 
-There is no limit size/row number imposed in this feature, so please be aware of the effort that will be asked of your computer.
-<br />
-<br />
-
 ## Send to Pub/Sub
 
-It's possible to publish messages in Google Cloud Pub/Sub based on the row information. One message per row. 
-In order to produce a valid query that can be send to Pub/Sub there must be a column with the name `data` that can be of the type `STRING` or `JSON`. 
-Optionally, it possible to define the `attributes` of the message in a column with the same name. This column needs to be of the type `RECORD` as shown below.
+Publish query results to Google Cloud Pub/Sub (one message per row).
 
+Requirements:
+- A column named `data` of type `STRING` or `JSON`
+- Optional: A column named `attributes` of type `RECORD`
 
+Example query:
 ```sql
-SELECT 
+SELECT
     (
     SELECT AS STRUCT
         "my test test" AS test,
@@ -123,91 +246,86 @@ SELECT
 FROM `dataset.table` t
 ```
 
-
-This menu will be available in the result grid window, when focused.
-
 <img src="documentation/send_to_pubsub.png" alt="send to Pub/Sub" width="200"/>
 
+Enter the topic name in the format: `projects/<project_id>/topics/<topic_name>`
 
-After invoking this feature, please put the topic name into the input box.
-Please use the topic name with normal shape `projects/<project_id>/topics/<topic_name>`.
+<img src="documentation/send_to_pubsub_topic_name.png" alt="Pub/Sub topic name" width="200"/>
 
-<img src="documentation/send_to_pubsub_topic_name.png" alt="send to Pub/Sub" width="200"/>
+## Settings
 
-There is no limit size/row number imposed in this feature, so please be aware of the effort that will be asked of your computer.
-<br />
-<br />
+### Pin a Project
 
-## Format SQL
+Pin projects to keep them at the top of the explorer tree.
 
-Format your BigQuery SQL queries with the `Shift+Alt+F` keyboard shortcut or by running the command `BigQueryView: Format SQL`. The formatter supports BigQuery-specific syntax and can be configured via settings:
+<img src="documentation/project_set_default.png" alt="set default project" width="600"/>
 
-- **Keyword Case**: `upper`, `lower`, or `preserve`
-- **Indent Style**: `standard`, `tabularLeft`, or `tabularRight`
-- **Leading Commas**: Enable/disable leading comma style
+<img src="documentation/pin_unpin_project.png" alt="pin/unpin project" width="600"/>
 
-## Query History
+Pinned projects are stored in settings:
 
-All executed queries are saved to a history panel in the BigQuery sidebar. For each query, you can see:
-- Query preview text
-- Timestamp of execution
-- Bytes processed and duration
-- Success/error status
+<img src="documentation/settings_file.png" alt="settings file" width="600"/>
 
-Right-click on a history item to:
-- **Re-run**: Execute the query again
-- **Copy**: Copy the query text to clipboard
-- **Delete**: Remove from history
+### Add GCP Projects
 
-Use the clear button to remove all history entries.
+For cases where you only have read permissions at the dataset level (not project level), force a project to be listed:
 
-## Cost Estimator
+Setting: `vscode-bigquery.projects`
 
-The status bar shows real-time cost estimates as you type your queries. Based on BigQuery's dry-run feature, it displays:
-- Estimated bytes to be processed
-- Estimated cost in USD (configurable rate, default $6.25/TB)
+### Add BigQuery Tables
 
-Configure the cost per TB in settings via `vscode-bigquery.costPerTB`.
+When permission is granted only at the table level:
 
-## Table Schema Hover
+Setting: `vscode-bigquery.tables`
 
-Hover over any table name in your SQL query to see its schema information:
-- Column names and data types
-- Column descriptions (if available)
-- Partitioning and clustering information
+<img src="documentation/setting_add_table.png" alt="add table" width="600"/>
 
-The schema is cached after first fetch for faster subsequent lookups.
+### Associate .sql Files
 
-## Data Lineage
+Enable BigQuery features for all `.sql` files:
 
-Visualize the data flow in your queries with the Data Lineage feature. Click the lineage button (<img src="documentation/lineage_icon.png" alt="" width="16"/>) in the editor title bar or run `BigQueryView: Show Data Lineage`.
+Setting: `vscode-bigquery.associateSqlFiles`
 
-The lineage graph shows:
-- **Source tables** (blue): Tables your query reads from
-- **CTEs** (purple): Common Table Expressions as intermediate nodes
-- **Target tables** (green): Tables your query writes to (INSERT, CREATE, MERGE, etc.)
+## Configuration Reference
 
-Features:
-- **CTE Support**: CTEs are shown as intermediate nodes between sources and targets
-- **Layered DAG Layout**: Nodes are arranged left-to-right based on data flow
-- **Curved Connections**: Bezier curves show relationships between nodes
-- **Statement Type Badges**: Target nodes show the operation type (INSERT, CREATE TABLE, etc.)
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `vscode-bigquery.pinned-projects` | array | `[]` | Pinned GCP project IDs |
+| `vscode-bigquery.projects` | array | `[]` | Additional GCP project IDs to list |
+| `vscode-bigquery.tables` | array | `[]` | Table IDs to list directly |
+| `vscode-bigquery.associateSqlFiles` | boolean | `false` | Treat .sql files as BigQuery SQL |
+| `vscode-bigquery.clipboardSizeLimitKb` | number | `1024` | Clipboard copy size limit (KB) |
+| `vscode-bigquery.costPerTB` | number | `6.25` | Cost per TB for estimates ($) |
+| `vscode-bigquery.formatKeywordCase` | string | `upper` | Keyword case: upper, lower, preserve |
+| `vscode-bigquery.formatIndentStyle` | string | `standard` | Indent style: standard, tabularLeft, tabularRight |
+| `vscode-bigquery.formatLeadingCommas` | boolean | `true` | Use leading comma style |
 
-Example visualization for a query with CTEs:
-```
-[source_table] ──→ [cte_transform] ──→ [target_table]
-                         ↑
-[another_source] ────────┘
-```
+Access settings via:
 
-<br />
+<img src="documentation/settings_menu.png" alt="settings menu" width="900"/>
 
-<!-- ### Known Issues -->
+## Troubleshooting
 
-### Troubleshooting
-Sometimes, after this extension is installed, the command `Bigquery: Run query` is not able to force open the bottom panel to display the results. Please restart Visual Studio Code when that happens.
+### Query results panel not opening
 
-<!-- ### Generate a bug report -->
+Sometimes after installation, the `BigQuery: Run query` command doesn't open the results panel. Restart VS Code to resolve this.
 
-## Report a bug
-Please file an issue most descriptive as possible at https://github.com/bstruct/vscode-bigquery/issues.
+### Authentication issues
+
+Ensure the gcloud CLI is properly installed and you've run `gcloud auth login` successfully.
+
+### Missing projects or datasets
+
+If you have limited permissions, add projects or tables manually via settings.
+
+## Report a Bug
+
+Please file an issue with as much detail as possible at [GitHub Issues](https://github.com/sseveur/vscode-bigquery/issues).
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## License
+
+This project is a fork of [bstruct/vscode-bigquery](https://github.com/bstruct/vscode-bigquery).

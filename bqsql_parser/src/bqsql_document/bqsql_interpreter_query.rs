@@ -299,7 +299,9 @@ fn document_item_handler_from(interpreter: &mut BqsqlInterpreter) -> Option<Bqsq
         static ref RE: Regex = Regex::new(r"^\w+").unwrap();
     }
 
-    if is_keyword(interpreter, interpreter.index - 1, BqsqlKeyword::From) {
+    if is_keyword(interpreter, interpreter.index - 1, BqsqlKeyword::From)
+        || is_keyword(interpreter, interpreter.index - 1, BqsqlKeyword::Join)
+    {
         let mut items: Vec<Option<BqsqlDocumentItem>> = Vec::new();
 
         let mut count_positions: usize = 0;

@@ -1,6 +1,10 @@
 import { parse } from "@bstruct/bqsql-parser";
+import { parse as parseCst, cstVisitor } from "sql-parser-cst";
 import { BqsqlDocument, BqsqlDocumentItem } from "../language/bqsqlDocument";
 import { extractTableReferences, extractCtesWithDependencies } from "./sqlTableExtractor";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type CstNode = any;
 
 export interface CteDefinition {
     name: string;                      // CTE name
@@ -240,5 +244,139 @@ function extractTextFromRange(sql: string, range: number[] | undefined): string 
         return lines[line].substring(start, end);
     } catch {
         return null;
+    }
+}
+
+/**
+ * CTE column information
+ */
+export interface CteColumn {
+    name: string;
+}
+
+/**
+ * Extract column names from a CTE definition
+ * Handles:
+ * - Explicit column list: WITH my_cte (col1, col2) AS (...)
+ * - SELECT columns: WITH my_cte AS (SELECT a, b AS c FROM ...)
+ * - SELECT *: Returns ["*"]
+ */
+export function extractCteColumns(sql: string, cteName: string): CteColumn[] {
+    try {
+        const cst = parseCst(sql, { dialect: "bigquery" });
+        const columns: CteColumn[] = [];
+
+        const visitor = cstVisitor({
+            common_table_expr: (node: CstNode) => {
+                const name = node.table?.name || node.table?.text;
+                if (!name || name.toLowerCase() !== cteName.toLowerCase()) {
+                    return;
+                }
+
+                // Check for explicit column list: WITH my_cte (col1, col2) AS
+                if (node.columns && node.columns.items) {
+                    for (const col of node.columns.items) {
+                        const colName = col.name || col.text;
+                        if (colName) {
+                            columns.push({ name: colName });
+                        }
+                    }
+                    return;
+                }
+
+                // Otherwise, extract from SELECT clause
+                const selectVisitor = cstVisitor({
+                    select_clause: (selectNode: CstNode) => {
+                        if (!selectNode.columns) { return; }
+
+                        const items = selectNode.columns.items || selectNode.columns;
+                        for (const col of (Array.isArray(items) ? items : [items])) {
+                            const colName = extractColumnName(col);
+                            if (colName && !columns.some(c => c.name === colName)) {
+                                columns.push({ name: colName });
+                            }
+                        }
+                    }
+                });
+
+                // The CTE body is in node.expr
+                if (node.expr) {
+                    selectVisitor(node.expr);
+                }
+            }
+        });
+
+        visitor(cst);
+        return columns;
+    } catch {
+        return [];
+    }
+}
+
+/**
+ * Extract column name from a SELECT clause item
+ */
+function extractColumnName(node: CstNode): string | null {
+    if (!node) { return null; }
+
+    // Handle aliased columns: expr AS alias
+    if (node.type === 'alias') {
+        const alias = node.alias?.name || node.alias?.text;
+        if (alias) { return alias; }
+        // Fall through to get name from expr
+        return extractColumnName(node.expr);
+    }
+
+    // Handle star: SELECT *
+    if (node.type === 'all_columns') {
+        return '*';
+    }
+
+    // Handle qualified star: SELECT t.*
+    if (node.type === 'member_expr' && node.property?.type === 'all_columns') {
+        const table = node.object?.name || node.object?.text || '';
+        return `${table}.*`;
+    }
+
+    // Handle simple identifier: SELECT col
+    if (node.type === 'identifier') {
+        return node.name || node.text;
+    }
+
+    // Handle member expression: SELECT t.col
+    if (node.type === 'member_expr') {
+        return node.property?.name || node.property?.text;
+    }
+
+    // Handle function calls: SELECT func(x) - use function name if no alias
+    if (node.type === 'func_call') {
+        const funcName = node.name?.name || node.name?.text;
+        if (funcName) { return funcName; }
+    }
+
+    return null;
+}
+
+/**
+ * Get all CTE names defined in the SQL
+ */
+export function getCteNames(sql: string): string[] {
+    try {
+        const cst = parseCst(sql, { dialect: "bigquery" });
+        const names: string[] = [];
+
+        const visitor = cstVisitor({
+            common_table_expr: (node: CstNode) => {
+                const name = node.table?.name || node.table?.text;
+                if (name) {
+                    names.push(name);
+                }
+            }
+        });
+
+        visitor(cst);
+        return names;
+    } catch {
+        return [];
     }
 }
