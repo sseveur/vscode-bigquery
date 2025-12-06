@@ -178,7 +178,7 @@ Schema hover works for tables in:
 
 ## Data Lineage
 
-Visualize data flow in your queries. Click the lineage button <img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/button_lineage.png" alt="lineage" width="16"/> in the editor title bar or run `BigQuery: Show Data Lineage`.
+Visualize data flow in your queries. Click the lineage button in the editor title bar (top-right corner) or run `BigQuery: Show Data Lineage`.
 
 <img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/data_lineage.png" alt="data lineage"/>
 
