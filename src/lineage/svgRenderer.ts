@@ -124,7 +124,10 @@ function renderNode(node: LineageNode, cfg: LayoutConfig): string {
         <g class="node node-${node.nodeType.toLowerCase()}"
            transform="translate(${node.x}, ${node.y})"
            data-id="${escapeAttr(node.id)}"
-           data-type="${escapeAttr(node.nodeType)}">
+           data-type="${escapeAttr(node.nodeType)}"
+           data-fullname="${escapeAttr(node.fullName)}"
+           ${node.sourceLine ? `data-line="${node.sourceLine}"` : ''}
+           ${node.sourceColumn ? `data-column="${node.sourceColumn}"` : ''}>
             <!-- Tooltip with full name -->
             <title>${escapeHtml(node.fullName)}</title>
             <!-- Node background -->

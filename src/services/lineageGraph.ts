@@ -12,6 +12,8 @@ export interface LineageNode {
     layer: number;                 // Horizontal position (0=sources, n=targets)
     x?: number;                    // Calculated by layout engine
     y?: number;                    // Calculated by layout engine
+    sourceLine?: number;           // Line number in SQL for navigation
+    sourceColumn?: number;         // Column number in SQL for navigation
 }
 
 export interface LineageEdge {
@@ -51,20 +53,26 @@ export function buildLineageGraph(sql: string): LineageGraph {
     // 1. Add source table nodes (layer 0)
     // Only include tables that are NOT referenced only inside CTEs
     // or tables that appear in the main query
-    const allSourceTables = new Set<string>();
+    // Use a Map to preserve position info
+    const allSourceTables = new Map<string, { line?: number; column?: number }>();
     for (const source of basicLineage.sources) {
-        allSourceTables.add(source.fullName.toLowerCase());
+        allSourceTables.set(source.fullName.toLowerCase(), {
+            line: source.line,
+            column: source.column
+        });
     }
 
-    // Add CTE source tables
+    // Add CTE source tables (no position info for these)
     for (const cte of ctes) {
         for (const table of cte.sourceTables) {
-            allSourceTables.add(table.toLowerCase());
+            if (!allSourceTables.has(table.toLowerCase())) {
+                allSourceTables.set(table.toLowerCase(), {});
+            }
         }
     }
 
     // Create source nodes
-    for (const tableName of allSourceTables) {
+    for (const [tableName, position] of allSourceTables) {
         // Skip if this is a CTE name
         if (cteNames.has(tableName)) {continue;}
 
@@ -75,7 +83,9 @@ export function buildLineageGraph(sql: string): LineageGraph {
             name: displayName,
             fullName: tableName,
             nodeType: 'SOURCE',
-            layer: 0
+            layer: 0,
+            sourceLine: position.line,
+            sourceColumn: position.column
         };
         nodes.push(node);
         nodeMap.set(tableName, node);
@@ -114,7 +124,9 @@ export function buildLineageGraph(sql: string): LineageGraph {
             fullName: target.fullName,
             nodeType: 'TARGET',
             statementType: target.statementType,
-            layer: targetLayer
+            layer: targetLayer,
+            sourceLine: target.line,
+            sourceColumn: target.column
         };
         nodes.push(node);
         nodeMap.set(tableName, node);
@@ -158,7 +170,8 @@ export function buildLineageGraph(sql: string): LineageGraph {
         const mainQueryCtes = ctes.length > 0 ? findMainQueryCteReferences(sql, ctes) : [];
 
         // Find source tables referenced directly in main query (not just in CTEs)
-        const mainQuerySources = findMainQuerySourceReferences(sql, allSourceTables, cteNames);
+        const allSourceTableNames = new Set(allSourceTables.keys());
+        const mainQuerySources = findMainQuerySourceReferences(sql, allSourceTableNames, cteNames);
 
         for (const target of basicLineage.targets) {
             const targetNode = nodeMap.get(target.fullName.toLowerCase());

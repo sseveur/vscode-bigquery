@@ -6,9 +6,17 @@ import { renderGraphToSvg, getGraphStyles, renderLegend } from './svgRenderer';
 const VIEW_TYPE = 'bigquery-lineage';
 
 let currentPanel: vscode.WebviewPanel | undefined;
+let messageHandlerDisposable: vscode.Disposable | undefined;
+let sourceDocument: vscode.TextDocument | undefined;
 
 export function showLineagePanel(graph: LineageGraph, context: vscode.ExtensionContext): void {
     const column = vscode.ViewColumn.Beside;
+
+    // Store reference to the source document before panel takes focus
+    const editor = vscode.window.activeTextEditor;
+    if (editor) {
+        sourceDocument = editor.document;
+    }
 
     // If panel already exists, reveal and update it
     if (currentPanel) {
@@ -30,10 +38,88 @@ export function showLineagePanel(graph: LineageGraph, context: vscode.ExtensionC
 
     updatePanelContent(currentPanel, graph);
 
+    // Handle messages from webview
+    messageHandlerDisposable = currentPanel.webview.onDidReceiveMessage(message => {
+        if (message.type === 'navigate') {
+            navigateToPosition(message.line, message.column, message.fullName);
+        }
+    });
+
     // Handle panel disposal
     currentPanel.onDidDispose(() => {
         currentPanel = undefined;
+        sourceDocument = undefined;
+        if (messageHandlerDisposable) {
+            messageHandlerDisposable.dispose();
+            messageHandlerDisposable = undefined;
+        }
     });
+}
+
+/**
+ * Navigate to a specific position in the source document
+ */
+async function navigateToPosition(line?: number, column?: number, fullName?: string): Promise<void> {
+    // Use stored source document
+    if (!sourceDocument) {
+        vscode.window.showWarningMessage('No source document available');
+        return;
+    }
+
+    // Show the document first to get an editor
+    const editor = await vscode.window.showTextDocument(sourceDocument, {
+        viewColumn: vscode.ViewColumn.One,
+        preserveFocus: false
+    });
+
+    // If we have exact position, use it
+    if (line && line > 0) {
+        const position = new vscode.Position(line - 1, (column || 1) - 1);
+
+        // Find the end of the table name for selection
+        const lineText = sourceDocument.lineAt(line - 1).text;
+        let endColumn = (column || 1) - 1;
+
+        // Try to select the full table name
+        if (fullName) {
+            const searchStart = Math.max(0, (column || 1) - 1);
+            const nameToFind = fullName.split('.').pop() || fullName;
+            const idx = lineText.toLowerCase().indexOf(nameToFind.toLowerCase(), searchStart);
+            if (idx >= 0) {
+                endColumn = idx + nameToFind.length;
+            }
+        }
+
+        const endPosition = new vscode.Position(line - 1, endColumn);
+        editor.selection = new vscode.Selection(position, endPosition);
+        editor.revealRange(
+            new vscode.Range(position, endPosition),
+            vscode.TextEditorRevealType.InCenter
+        );
+        return;
+    }
+
+    // Fallback: search for the table name if no position
+    if (fullName) {
+        const text = sourceDocument.getText();
+        const searchTerm = fullName.split('.').pop() || fullName;
+        const regex = new RegExp(`\\b${escapeRegex(searchTerm)}\\b`, 'i');
+        const match = regex.exec(text);
+
+        if (match) {
+            const position = sourceDocument.positionAt(match.index);
+            const endPosition = sourceDocument.positionAt(match.index + match[0].length);
+            editor.selection = new vscode.Selection(position, endPosition);
+            editor.revealRange(
+                new vscode.Range(position, endPosition),
+                vscode.TextEditorRevealType.InCenter
+            );
+        }
+    }
+}
+
+function escapeRegex(str: string): string {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function updatePanelContent(panel: vscode.WebviewPanel, graph: LineageGraph): void {
@@ -268,6 +354,9 @@ function getHtmlContent(graph: LineageGraph): string {
 
     <script>
         (function() {
+            // Acquire VS Code API
+            const vscode = acquireVsCodeApi();
+
             let scale = 1;
             const minScale = 0.25;
             const maxScale = 2;
@@ -317,6 +406,24 @@ function getHtmlContent(graph: LineageGraph): string {
                     }
                 }, { passive: false });
             }
+
+            // Click handler for nodes - navigate to source position
+            document.querySelectorAll('.node').forEach(function(node) {
+                node.style.cursor = 'pointer';
+                node.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const line = parseInt(this.getAttribute('data-line')) || null;
+                    const column = parseInt(this.getAttribute('data-column')) || null;
+                    const fullName = this.getAttribute('data-fullname') || '';
+
+                    vscode.postMessage({
+                        type: 'navigate',
+                        line: line,
+                        column: column,
+                        fullName: fullName
+                    });
+                });
+            });
         })();
     </script>
 </body>

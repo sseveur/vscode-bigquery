@@ -1,4 +1,4 @@
-import { extractTableReferences } from "./sqlTableExtractor";
+import { extractTableReferences, TableReference } from "./sqlTableExtractor";
 
 export interface LineageTable {
     fullName: string;           // project.dataset.table or dataset.table or table
@@ -7,6 +7,8 @@ export interface LineageTable {
     tableId: string;
     role: 'source' | 'target';
     statementType?: string;     // INSERT, CREATE, MERGE, UPDATE, DELETE
+    line?: number;              // Source line number for navigation
+    column?: number;            // Source column number for navigation
 }
 
 export interface LineageData {
@@ -22,11 +24,14 @@ export function extractLineage(sql: string): LineageData {
     const seenTargets = new Set<string>();
 
     // Extract source tables using sql-parser-cst (handles JOINs, comma-separated, etc.)
-    const tableNames = extractTableReferences(sql);
-    for (const tableName of tableNames) {
-        if (tableName && !seenSources.has(tableName.toLowerCase())) {
-            seenSources.add(tableName.toLowerCase());
-            sources.push(parseTableName(tableName, 'source'));
+    const tableRefs = extractTableReferences(sql);
+    for (const tableRef of tableRefs) {
+        if (tableRef.name && !seenSources.has(tableRef.name.toLowerCase())) {
+            seenSources.add(tableRef.name.toLowerCase());
+            const table = parseTableName(tableRef.name, 'source');
+            table.line = tableRef.line;
+            table.column = tableRef.column;
+            sources.push(table);
         }
     }
 
@@ -38,6 +43,8 @@ export function extractLineage(sql: string): LineageData {
             seenTargets.add(normalizedName);
             const table = parseTableName(match.tableName, 'target');
             table.statementType = match.statementType;
+            table.line = match.line;
+            table.column = match.column;
             targets.push(table);
         }
     }
@@ -61,6 +68,25 @@ export function extractLineage(sql: string): LineageData {
 interface TargetMatch {
     tableName: string;
     statementType: string;
+    line?: number;
+    column?: number;
+}
+
+/**
+ * Convert offset in source string to line/column
+ */
+function offsetToLineColumn(source: string, offset: number): { line: number; column: number } {
+    let line = 1;
+    let column = 1;
+    for (let i = 0; i < offset && i < source.length; i++) {
+        if (source[i] === '\n') {
+            line++;
+            column = 1;
+        } else {
+            column++;
+        }
+    }
+    return { line, column };
 }
 
 function extractTargetTables(sql: string): TargetMatch[] {
@@ -129,9 +155,14 @@ function extractTargetTables(sql: string): TargetMatch[] {
             if (match[1]) {
                 // Clean up the table name (remove backticks)
                 const tableName = match[1].replace(/`/g, '');
+                // Calculate position - find where the table name starts in the match
+                const tableNameStart = match.index + match[0].indexOf(match[1]);
+                const position = offsetToLineColumn(sql, tableNameStart);
                 results.push({
                     tableName,
-                    statementType: type
+                    statementType: type,
+                    line: position.line,
+                    column: position.column
                 });
             }
         }

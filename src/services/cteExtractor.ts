@@ -147,7 +147,8 @@ function extractDependencies(
     // This handles JOINs and other cases @bstruct misses
     const allTables = extractTableReferences(sql);
 
-    for (const tableName of allTables) {
+    for (const tableRef of allTables) {
+        const tableName = tableRef.name;
         if (knownCteNames.has(tableName.toLowerCase())) {
             if (!referencedCtes.includes(tableName)) {
                 referencedCtes.push(tableName);

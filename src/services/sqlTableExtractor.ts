@@ -3,6 +3,29 @@ import { parse, cstVisitor } from "sql-parser-cst";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type CstNode = any;
 
+export interface TableReference {
+    name: string;
+    line?: number;
+    column?: number;
+}
+
+/**
+ * Convert offset in source string to line/column
+ */
+function offsetToLineColumn(source: string, offset: number): { line: number; column: number } {
+    let line = 1;
+    let column = 1;
+    for (let i = 0; i < offset && i < source.length; i++) {
+        if (source[i] === '\n') {
+            line++;
+            column = 1;
+        } else {
+            column++;
+        }
+    }
+    return { line, column };
+}
+
 /**
  * Helper to get identifier name from member_expr (nested)
  */
@@ -50,24 +73,47 @@ function getTableName(node: CstNode): string | null {
 }
 
 /**
+ * Get range from node (returns start offset)
+ */
+function getNodeRange(node: CstNode): number | undefined {
+    if (node?.range && Array.isArray(node.range)) {
+        return node.range[0];
+    }
+    // Try to get range from nested nodes
+    if (node?.table?.range) {
+        return node.table.range[0];
+    }
+    if (node?.expr?.range) {
+        return node.expr.range[0];
+    }
+    return undefined;
+}
+
+/**
  * Recursively find table references in JOIN expressions
  */
-function findTablesInExpr(node: CstNode, tables: string[]) {
+function findTablesInExpr(node: CstNode, tables: TableReference[], source: string) {
     if (!node) { return; }
 
     if (node.type === 'join_expr') {
-        findTablesInExpr(node.left, tables);
-        findTablesInExpr(node.right, tables);
+        findTablesInExpr(node.left, tables, source);
+        findTablesInExpr(node.right, tables, source);
     } else if (node.type === 'list_expr') {
         for (const item of node.items || []) {
-            findTablesInExpr(item, tables);
+            findTablesInExpr(item, tables, source);
         }
     } else if (node.type === 'paren_expr') {
-        findTablesInExpr(node.expr, tables);
+        findTablesInExpr(node.expr, tables, source);
     } else {
         const name = getTableName(node);
-        if (name && !tables.includes(name)) {
-            tables.push(name);
+        if (name && !tables.some(t => t.name === name)) {
+            const offset = getNodeRange(node);
+            const position = offset !== undefined ? offsetToLineColumn(source, offset) : undefined;
+            tables.push({
+                name,
+                line: position?.line,
+                column: position?.column
+            });
         }
     }
 }
@@ -76,15 +122,15 @@ function findTablesInExpr(node: CstNode, tables: string[]) {
  * Extract table references from SQL using sql-parser-cst
  * Handles: JOINs, comma-separated tables, backtick-quoted, 4-part identifiers
  */
-export function extractTableReferences(sql: string): string[] {
+export function extractTableReferences(sql: string): TableReference[] {
     try {
-        const cst = parse(sql, { dialect: "bigquery" });
-        const tables: string[] = [];
+        const cst = parse(sql, { dialect: "bigquery", includeRange: true });
+        const tables: TableReference[] = [];
 
         /* eslint-disable @typescript-eslint/naming-convention */
         const visitor = cstVisitor({
             from_clause: (node: CstNode) => {
-                findTablesInExpr(node.expr, tables);
+                findTablesInExpr(node.expr, tables, sql);
             }
         });
         /* eslint-enable @typescript-eslint/naming-convention */
@@ -136,12 +182,12 @@ export function extractCtesWithDependencies(sql: string): ExtractedCte[] {
                 const name = node.table?.name || node.table?.text;
                 if (!name) { return; }
 
-                const tables: string[] = [];
+                const tableRefs: TableReference[] = [];
 
                 // Find tables in the CTE's query body (node.expr is the AS (...) part)
                 const bodyVisitor = cstVisitor({
                     from_clause: (fromNode: CstNode) => {
-                        findTablesInExpr(fromNode.expr, tables);
+                        findTablesInExpr(fromNode.expr, tableRefs, sql);
                     }
                 });
 
@@ -154,7 +200,8 @@ export function extractCtesWithDependencies(sql: string): ExtractedCte[] {
                 const sourceTables: string[] = [];
                 const referencedCtes: string[] = [];
 
-                for (const table of tables) {
+                for (const tableRef of tableRefs) {
+                    const table = tableRef.name;
                     if (cteNames.has(table.toLowerCase())) {
                         referencedCtes.push(table);
                     } else {
