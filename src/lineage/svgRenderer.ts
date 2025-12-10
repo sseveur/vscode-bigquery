@@ -125,6 +125,8 @@ function renderNode(node: LineageNode, cfg: LayoutConfig): string {
            transform="translate(${node.x}, ${node.y})"
            data-id="${escapeAttr(node.id)}"
            data-type="${escapeAttr(node.nodeType)}">
+            <!-- Tooltip with full name -->
+            <title>${escapeHtml(node.fullName)}</title>
             <!-- Node background -->
             <rect
                 width="${cfg.nodeWidth}"
