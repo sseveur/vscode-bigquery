@@ -138,7 +138,7 @@ const runQuery = async function (globalState: vscode.Memento, queryResultsWebvie
 
 	} else {
 
-		const panel = vscode.window.createWebviewPanel(QUERY_RESULTS_VIEW_TYPE, label, { viewColumn: vscode.ViewColumn.Two, preserveFocus: true }, { enableFindWidget: true, enableScripts: true });
+		const panel = vscode.window.createWebviewPanel(QUERY_RESULTS_VIEW_TYPE, label, { viewColumn: vscode.ViewColumn.Two, preserveFocus: true }, { enableFindWidget: true, enableScripts: true, retainContextWhenHidden: true });
 		resultsGridRender = new ResultsGridRender(panel);
 
 		//lock the tab group in vscode.ViewColumn.Two
@@ -411,7 +411,7 @@ export const commandViewTable = async function (...args: any[]) {
 			if (args.length > 1 && args[1] && args[1].viewType === TABLE_RESULTS_VIEW_TYPE) {
 				panel = args[1];
 			} else {
-				panel = vscode.window.createWebviewPanel(TABLE_RESULTS_VIEW_TYPE, title, { viewColumn: vscode.ViewColumn.Active }, { enableFindWidget: true, enableScripts: true });
+				panel = vscode.window.createWebviewPanel(TABLE_RESULTS_VIEW_TYPE, title, { viewColumn: vscode.ViewColumn.Active }, { enableFindWidget: true, enableScripts: true, retainContextWhenHidden: true });
 			}
 
 			const resultsGridRender = new ResultsGridRender(panel);
@@ -504,7 +504,7 @@ export const commandViewTableSchema = async function (...args: any[]) {
 	const bqClient = await getBigQueryClient();
 
 	const metadataPromise = bqClient.getMetadata(item.projectId, item.datasetId, item.tableId);
-	const panel = vscode.window.createWebviewPanel("vscode-bigquery-table-schema", title, { viewColumn: vscode.ViewColumn.Active }, { enableFindWidget: true, enableScripts: true });
+	const panel = vscode.window.createWebviewPanel("vscode-bigquery-table-schema", title, { viewColumn: vscode.ViewColumn.Active }, { enableFindWidget: true, enableScripts: true, retainContextWhenHidden: true });
 	const schemaRender = new SchemaRender(panel.webview);
 
 	schemaRender.render(metadataPromise);
