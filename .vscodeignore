@@ -13,3 +13,12 @@ vsc-extension-quickstart.md
 **/*.ts
 grid_render/**
 bqsql_parser/**
+
+# Development files
+CLAUDE.md
+DEVELOPMENT.md
+PLANNED_FEATURES.md
+util.md
+commands.txt
+.claude/**
+.github/**
