@@ -1,5 +1,6 @@
 import { extractCtes, CteDefinition } from "./cteExtractor";
 import { extractLineage, LineageTable } from "./lineageService";
+import { splitQueries } from "./querySplitter";
 
 export type NodeType = 'SOURCE' | 'CTE' | 'TARGET';
 
@@ -373,4 +374,61 @@ function getDisplayName(fullName: string): string {
  */
 function escapeRegex(str: string): string {
     return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// ============================================
+// Multi-Query Lineage Support
+// ============================================
+
+export interface QueryLineageInfo {
+    graph: LineageGraph;
+    queryIndex: number;
+    startLine: number;
+    endLine: number;
+    sqlText: string;
+}
+
+export interface MultiLineageResult {
+    queries: QueryLineageInfo[];
+    totalQueries: number;
+}
+
+/**
+ * Build lineage graphs for multiple queries in a SQL document
+ */
+export function buildMultiQueryLineage(fullSql: string): MultiLineageResult {
+    const splitResults = splitQueries(fullSql);
+    const queries: QueryLineageInfo[] = [];
+
+    for (let i = 0; i < splitResults.length; i++) {
+        const split = splitResults[i];
+        try {
+            const graph = buildLineageGraph(split.sql);
+
+            // Adjust line numbers for document position
+            // When a query starts at line N, its internal line 1 becomes line N
+            const lineOffset = split.startLine - 1;
+            for (const node of graph.nodes) {
+                if (node.sourceLine !== undefined) {
+                    node.sourceLine += lineOffset;
+                }
+            }
+
+            queries.push({
+                graph,
+                queryIndex: i,
+                startLine: split.startLine,
+                endLine: split.endLine,
+                sqlText: split.sql
+            });
+        } catch {
+            // Skip queries that fail to parse
+            continue;
+        }
+    }
+
+    return {
+        queries,
+        totalQueries: splitResults.length
+    };
 }

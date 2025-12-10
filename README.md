@@ -188,6 +188,7 @@ The lineage graph shows:
 - **Target tables** (green) - Tables your query writes to (INSERT, CREATE, MERGE, etc.)
 
 Features:
+- **Multi-Query Support** - Files with multiple queries show separate lineage diagrams stacked vertically
 - **Click to Navigate** - Click on any node to jump to its location in the SQL source code
 - **Hover Tooltips** - Hover over nodes to see the full qualified table name
 - **CTE Support** - CTEs are shown as intermediate nodes between sources and targets

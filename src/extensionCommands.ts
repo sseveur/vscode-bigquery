@@ -28,8 +28,8 @@ import { AuthenticationTreeItem, AuthenticationTreeItemType } from './activityba
 import { Dataset, Table } from '@google-cloud/bigquery';
 import { formatBigQuerySQL } from './language/bqsqlFormatter';
 import { QueryHistoryItem, QueryHistoryService } from './services/queryHistoryService';
-import { buildLineageGraph } from './services/lineageGraph';
-import { showLineagePanel } from './lineage/lineageWebviewProvider';
+import { buildMultiQueryLineage } from './services/lineageGraph';
+import { showMultiLineagePanel } from './lineage/lineageWebviewProvider';
 
 export const COMMAND_RUN_QUERY = "vscode-bigquery.run-query";
 export const COMMAND_RUN_SELECTED_QUERY = "vscode-bigquery.run-selected-query";
@@ -1093,14 +1093,15 @@ export const commandShowLineage = function (context: vscode.ExtensionContext) {
 	}
 
 	try {
-		const graph = buildLineageGraph(text);
+		const result = buildMultiQueryLineage(text);
+		const queriesWithLineage = result.queries.filter(q => q.graph.nodes.length > 0);
 
-		if (graph.nodes.length === 0) {
-			vscode.window.showInformationMessage('No table references found in the query');
+		if (queriesWithLineage.length === 0) {
+			vscode.window.showInformationMessage('No table references found in any queries');
 			return;
 		}
 
-		showLineagePanel(graph, context);
+		showMultiLineagePanel(result, context);
 	} catch (error: any) {
 		vscode.window.showErrorMessage(`Failed to analyze lineage: ${error.message}`);
 	}
