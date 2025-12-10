@@ -50,7 +50,7 @@
           "name": "keyword.control.bqsql"
         },
         {
-          "match": "(?i)\\b(AND|OR|NOT|IN|BETWEEN|LIKE|EXISTS|IS|NULL|TRUE|FALSE)\\b",
+          "match": "(?i)\\b(AND|OR|NOT|IN|BETWEEN|LIKE|EXISTS|IS|NULL|TRUE|FALSE|ALL|ANY|SOME)\\b",
           "name": "keyword.operator.bqsql"
         },
         {
