@@ -119,7 +119,7 @@ To quickly rebuild and install after making changes:
 ```bash
 # Package and install in one go
 npx @vscode/vsce package && code --install-extension vscode-bigquery-*.vsix --force
-npx @vscode/vsce package && code --install-extension vscode-bigquery-v2-0.2.6.vsix --force
+
 ```
 
 Then reload VS Code: `Cmd+Shift+P` → "Developer: Reload Window"

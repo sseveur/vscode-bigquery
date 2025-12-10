@@ -365,6 +365,8 @@ previous_packages/
 # Claude Code
 CLAUDE.md
 .claude/
+PLANNED_FEATURES.md
+DEVELOPMENT.md
 
 # macOS
 .DS_Store

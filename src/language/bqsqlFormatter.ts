@@ -7,6 +7,13 @@ export interface FormatOptions {
     keywordCase: 'upper' | 'lower' | 'preserve';
     indentStyle: 'standard' | 'tabularLeft' | 'tabularRight';
     leadingCommas: boolean;
+    expressionWidth: number;
+    functionCase: 'upper' | 'lower' | 'preserve';
+    logicalOperatorNewline: 'before' | 'after';
+    identifierCase: 'upper' | 'lower' | 'preserve';
+    dataTypeCase: 'upper' | 'lower' | 'preserve';
+    denseOperators: boolean;
+    newlineBeforeSemicolon: boolean;
 }
 
 export function getFormatOptions(): FormatOptions {
@@ -19,6 +26,13 @@ export function getFormatOptions(): FormatOptions {
         keywordCase: config.get<'upper' | 'lower' | 'preserve'>('formatKeywordCase', 'upper'),
         indentStyle: config.get<'standard' | 'tabularLeft' | 'tabularRight'>('formatIndentStyle', 'standard'),
         leadingCommas: config.get<boolean>('formatLeadingCommas', true),
+        expressionWidth: config.get<number>('formatExpressionWidth', 50),
+        functionCase: config.get<'upper' | 'lower' | 'preserve'>('formatFunctionCase', 'preserve'),
+        logicalOperatorNewline: config.get<'before' | 'after'>('formatLogicalOperatorNewline', 'before'),
+        identifierCase: config.get<'upper' | 'lower' | 'preserve'>('formatIdentifierCase', 'preserve'),
+        dataTypeCase: config.get<'upper' | 'lower' | 'preserve'>('formatDataTypeCase', 'preserve'),
+        denseOperators: config.get<boolean>('formatDenseOperators', false),
+        newlineBeforeSemicolon: config.get<boolean>('formatNewlineBeforeSemicolon', false),
     };
 }
 
@@ -32,6 +46,13 @@ export function formatBigQuerySQL(sql: string, options?: Partial<FormatOptions>)
         keywordCase: opts.keywordCase,
         indentStyle: opts.indentStyle,
         linesBetweenQueries: 2,
+        expressionWidth: opts.expressionWidth,
+        functionCase: opts.functionCase,
+        logicalOperatorNewline: opts.logicalOperatorNewline,
+        identifierCase: opts.identifierCase,
+        dataTypeCase: opts.dataTypeCase,
+        denseOperators: opts.denseOperators,
+        newlineBeforeSemicolon: opts.newlineBeforeSemicolon,
     });
 
     // Convert trailing commas to leading commas if enabled
