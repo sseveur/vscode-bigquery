@@ -1,6 +1,6 @@
 # BigQuery Data View v2 for Visual Studio Code
 
-[![Version 1.0.0](https://img.shields.io/badge/version-1.0.0-blue)](https://marketplace.visualstudio.com/items?itemName=sseveur.vscode-bigquery-v2)
+[![Version 1.1.0](https://img.shields.io/badge/version-1.1.0-blue)](https://marketplace.visualstudio.com/items?itemName=sseveur.vscode-bigquery-v2)
 [![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/sseveur.vscode-bigquery-v2?label=VS%20Code%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=sseveur.vscode-bigquery-v2)
 [![Installs](https://img.shields.io/visual-studio-marketplace/i/sseveur.vscode-bigquery-v2)](https://marketplace.visualstudio.com/items?itemName=sseveur.vscode-bigquery-v2)
 
@@ -188,19 +188,32 @@ The lineage graph shows:
 - **Target tables** (green) - Tables your query writes to (INSERT, CREATE, MERGE, etc.)
 
 Features:
-- CTE Support - CTEs are shown as intermediate nodes between sources and targets
-- Layered DAG Layout - Nodes are arranged left-to-right based on data flow
-- Curved Connections - Bezier curves show relationships between nodes
-- Statement Type Badges - Target nodes show the operation type
+- **Click to Navigate** - Click on any node to jump to its location in the SQL source code
+- **Hover Tooltips** - Hover over nodes to see the full qualified table name
+- **CTE Support** - CTEs are shown as intermediate nodes between sources and targets
+- **Layered DAG Layout** - Nodes are arranged left-to-right based on data flow
+- **Curved Connections** - Bezier curves show relationships between nodes
+- **Statement Type Badges** - Target nodes show the operation type
+- **Zoom Controls** - Zoom in/out and reset buttons, plus Ctrl+scroll wheel support
 
 ## Format SQL
 
 Format your BigQuery SQL queries with `Shift+Alt+F` or by running `BigQuery: Format SQL`.
 
 Configuration options:
-- **Keyword Case** (`vscode-bigquery.formatKeywordCase`): `upper`, `lower`, or `preserve`
-- **Indent Style** (`vscode-bigquery.formatIndentStyle`): `standard`, `tabularLeft`, or `tabularRight`
-- **Leading Commas** (`vscode-bigquery.formatLeadingCommas`): Enable/disable leading comma style
+
+| Setting | Values | Default | Description |
+|---------|--------|---------|-------------|
+| `formatKeywordCase` | upper, lower, preserve | upper | Case for SQL keywords (SELECT, FROM) |
+| `formatFunctionCase` | upper, lower, preserve | preserve | Case for function names (COUNT, SUM) |
+| `formatIdentifierCase` | upper, lower, preserve | preserve | Case for identifiers (tables, columns) |
+| `formatDataTypeCase` | upper, lower, preserve | preserve | Case for data types (INT64, STRING) |
+| `formatIndentStyle` | standard, tabularLeft, tabularRight | standard | SQL indentation style |
+| `formatLeadingCommas` | true, false | true | Use leading comma style |
+| `formatExpressionWidth` | 1-200 | 50 | Max expression width before line breaks |
+| `formatDenseOperators` | true, false | false | Pack operators without spaces (1+1) |
+| `formatLogicalOperatorNewline` | before, after | before | Newline position for AND/OR |
+| `formatNewlineBeforeSemicolon` | true, false | false | Semicolon on separate line |
 
 ## Export Options
 
@@ -290,15 +303,23 @@ Setting: `vscode-bigquery.associateSqlFiles`
 
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
+| `vscode-bigquery.associateSqlFiles` | boolean | `false` | Treat .sql files as BigQuery SQL |
+| `vscode-bigquery.autoRevealResults` | boolean | `true` | Auto-reveal results panel on file switch |
+| `vscode-bigquery.clipboardSizeLimitKb` | number | `1024` | Clipboard copy size limit (KB) |
+| `vscode-bigquery.costPerTB` | number | `6.25` | Cost per TB for estimates ($) |
+| `vscode-bigquery.formatExpressionWidth` | number | `50` | Max expression width before line break |
+| `vscode-bigquery.formatDenseOperators` | boolean | `false` | Pack operators without spaces |
+| `vscode-bigquery.formatKeywordCase` | string | `upper` | Keyword case: upper, lower, preserve |
+| `vscode-bigquery.formatFunctionCase` | string | `preserve` | Function case: upper, lower, preserve |
+| `vscode-bigquery.formatIdentifierCase` | string | `preserve` | Identifier case: upper, lower, preserve |
+| `vscode-bigquery.formatDataTypeCase` | string | `preserve` | Data type case: upper, lower, preserve |
+| `vscode-bigquery.formatIndentStyle` | string | `standard` | Indent style: standard, tabularLeft, tabularRight |
+| `vscode-bigquery.formatLeadingCommas` | boolean | `true` | Use leading comma style |
+| `vscode-bigquery.formatLogicalOperatorNewline` | string | `before` | AND/OR newline: before, after |
+| `vscode-bigquery.formatNewlineBeforeSemicolon` | boolean | `false` | Semicolon on separate line |
 | `vscode-bigquery.pinned-projects` | array | `[]` | Pinned GCP project IDs |
 | `vscode-bigquery.projects` | array | `[]` | Additional GCP project IDs to list |
 | `vscode-bigquery.tables` | array | `[]` | Table IDs to list directly |
-| `vscode-bigquery.associateSqlFiles` | boolean | `false` | Treat .sql files as BigQuery SQL |
-| `vscode-bigquery.clipboardSizeLimitKb` | number | `1024` | Clipboard copy size limit (KB) |
-| `vscode-bigquery.costPerTB` | number | `6.25` | Cost per TB for estimates ($) |
-| `vscode-bigquery.formatKeywordCase` | string | `upper` | Keyword case: upper, lower, preserve |
-| `vscode-bigquery.formatIndentStyle` | string | `standard` | Indent style: standard, tabularLeft, tabularRight |
-| `vscode-bigquery.formatLeadingCommas` | boolean | `true` | Use leading comma style |
 
 Access settings via:
 

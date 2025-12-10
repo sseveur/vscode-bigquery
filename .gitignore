@@ -367,6 +367,7 @@ CLAUDE.md
 .claude/
 PLANNED_FEATURES.md
 DEVELOPMENT.md
+util.md
 
 # macOS
 .DS_Store
