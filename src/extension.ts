@@ -463,15 +463,20 @@ export function activate(context: ExtensionContext) {
 			//  in this scenario, the tab exists but is not possible to determine the correspondent panel
 			//  panels are lazy loaded
 
-			[QueryResultsVisualizationType.chart, QueryResultsVisualizationType.table].forEach(t => {
-				const uuid = QueryResultsMappingService.getQueryResultsMappingUuid(context.globalState, e, t);
-				if (uuid) {
-					const resultsGridRender = QueryResultsMappingService.getQueryResultsMappingResultsGridRender(queryResultsWebviewMapping, uuid);
-					if (resultsGridRender) {
-						resultsGridRender.reveal(undefined, true);
+			const config = vscode.workspace.getConfiguration('vscode-bigquery');
+			const autoReveal = config.get('autoRevealResults', true);
+
+			if (autoReveal) {
+				[QueryResultsVisualizationType.chart, QueryResultsVisualizationType.table].forEach(t => {
+					const uuid = QueryResultsMappingService.getQueryResultsMappingUuid(context.globalState, e, t);
+					if (uuid) {
+						const resultsGridRender = QueryResultsMappingService.getQueryResultsMappingResultsGridRender(queryResultsWebviewMapping, uuid);
+						if (resultsGridRender) {
+							resultsGridRender.reveal(undefined, true);
+						}
 					}
-				}
-			});
+				});
+			}
 		}
 
 	});
