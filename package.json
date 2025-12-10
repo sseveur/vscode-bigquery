@@ -2,7 +2,7 @@
 	"name": "vscode-bigquery-v2",
 	"displayName": "BigQuery Data View v2",
 	"description": "Google BigQuery extension for Visual Studio Code. List datasets and tables, view table contents, run queries, format SQL, view query history, see cost estimates, table schema hover, and visualize data lineage with CTE support. Fork of bstruct/vscode-bigquery.",
-	"version": "1.1.0",
+	"version": "1.2.0",
 	"publisher": "sseveur",
 	"icon": "logo.png",
 	"repository": {
@@ -88,7 +88,11 @@
 				"vscode-bigquery.formatKeywordCase": {
 					"type": "string",
 					"default": "upper",
-					"enum": ["upper", "lower", "preserve"],
+					"enum": [
+						"upper",
+						"lower",
+						"preserve"
+					],
 					"scope": "machine-overridable",
 					"order": 7,
 					"title": "Format: Keyword Case",
@@ -97,7 +101,11 @@
 				"vscode-bigquery.formatFunctionCase": {
 					"type": "string",
 					"default": "preserve",
-					"enum": ["upper", "lower", "preserve"],
+					"enum": [
+						"upper",
+						"lower",
+						"preserve"
+					],
 					"scope": "machine-overridable",
 					"order": 8,
 					"title": "Format: Function Case",
@@ -106,7 +114,11 @@
 				"vscode-bigquery.formatIdentifierCase": {
 					"type": "string",
 					"default": "preserve",
-					"enum": ["upper", "lower", "preserve"],
+					"enum": [
+						"upper",
+						"lower",
+						"preserve"
+					],
 					"scope": "machine-overridable",
 					"order": 9,
 					"title": "Format: Identifier Case",
@@ -115,7 +127,11 @@
 				"vscode-bigquery.formatDataTypeCase": {
 					"type": "string",
 					"default": "preserve",
-					"enum": ["upper", "lower", "preserve"],
+					"enum": [
+						"upper",
+						"lower",
+						"preserve"
+					],
 					"scope": "machine-overridable",
 					"order": 10,
 					"title": "Format: Data Type Case",
@@ -124,7 +140,11 @@
 				"vscode-bigquery.formatIndentStyle": {
 					"type": "string",
 					"default": "standard",
-					"enum": ["standard", "tabularLeft", "tabularRight"],
+					"enum": [
+						"standard",
+						"tabularLeft",
+						"tabularRight"
+					],
 					"scope": "machine-overridable",
 					"order": 11,
 					"title": "Format: Indent Style",
@@ -141,7 +161,10 @@
 				"vscode-bigquery.formatLogicalOperatorNewline": {
 					"type": "string",
 					"default": "before",
-					"enum": ["before", "after"],
+					"enum": [
+						"before",
+						"after"
+					],
 					"scope": "machine-overridable",
 					"order": 13,
 					"title": "Format: Logical Operator Newline",
@@ -207,7 +230,9 @@
 			{
 				"scopeName": "source.sql.bqsql-injection",
 				"path": "./resources/language/bqsql.tmGrammar.json",
-				"injectTo": ["source.sql"]
+				"injectTo": [
+					"source.sql"
+				]
 			}
 		],
 		"snippets": [
