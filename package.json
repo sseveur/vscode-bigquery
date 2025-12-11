@@ -1,17 +1,17 @@
 {
-	"name": "vscode-bigquery-v2",
-	"displayName": "BigQuery Data View v2",
+	"name": "vscode-bigquery-v3",
+	"displayName": "BigQuery Data View v3",
 	"description": "Google BigQuery extension for Visual Studio Code. List datasets and tables, view table contents, run queries, format SQL, view query history, see cost estimates, table schema hover, and visualize data lineage with CTE support. Fork of bstruct/vscode-bigquery.",
-	"version": "1.1.1",
-	"publisher": "sseveur",
+	"version": "1.1.0",
+	"publisher": "s-seveur",
 	"icon": "logo.png",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/badiay-s/vscode-bigquery.git"
+		"url": "https://github.com/sseveur/vscode-bigquery.git"
 	},
-	"homepage": "https://github.com/badiay-s/vscode-bigquery",
+	"homepage": "https://github.com/sseveur/vscode-bigquery",
 	"bugs": {
-		"url": "https://github.com/badiay-s/vscode-bigquery/issues"
+		"url": "https://github.com/sseveur/vscode-bigquery/issues"
 	},
 	"engines": {
 		"vscode": "^1.63.0"
