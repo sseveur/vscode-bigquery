@@ -2,7 +2,7 @@
 	"name": "vscode-bigquery-v3",
 	"displayName": "BigQuery Data View v3",
 	"description": "Google BigQuery extension for Visual Studio Code. List datasets and tables, view table contents, run queries, format SQL, view query history, see cost estimates, table schema hover, and visualize data lineage with CTE support. Fork of bstruct/vscode-bigquery.",
-	"version": "1.1.0",
+	"version": "1.3.0",
 	"publisher": "s-seveur",
 	"icon": "logo.png",
 	"repository": {
@@ -536,9 +536,10 @@
 	},
 	"scripts": {
 		"vscode:prepublish": "npm run package",
-		"compile": "webpack",
+		"compile": "npm run compile-morphcharts && webpack",
+		"compile-morphcharts": "webpack --config webpack.morphcharts.config.js",
 		"watch": "webpack --watch",
-		"package": "webpack --mode production --devtool hidden-source-map",
+		"package": "npm run compile-morphcharts && webpack --mode production --devtool hidden-source-map",
 		"compile-tests": "tsc -p . --outDir out",
 		"compile-grid_render": "cd grid_render && wasm-pack build --release --target web",
 		"watch-tests": "tsc -p . -w --outDir out",

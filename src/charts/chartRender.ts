@@ -34,9 +34,15 @@ export class ChartRender {
     }
 
     getChartHtml(schema: string, data: string) {
+        const extensionUri = getExtensionUri();
+        const morphchartsUri = this.getUri(this.webViewPanel.webview, extensionUri, [
+            'resources',
+            'morphcharts.bundle.js'
+        ]);
+
         return `<!DOCTYPE html>
         <html lang="en-us">
-        
+
         <head>
             <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -47,19 +53,17 @@ export class ChartRender {
                     height: 100%;
                     margin: 0;
                 }
-        
+
                 .range {
                     margin: 8px;
                 }
             </style>
             <script id="chart-data-schema" type="application/json">${schema}</script>
             <script id="chart-data" type="application/json">${data}</script>
-        
-            <!-- TODO: SECURITY - MorphCharts is loaded from external CDN. Consider bundling locally for production use.
-                 See: https://github.com/anthropics/claude-code/issues/XXX -->
+
+            <!-- MorphCharts loaded from local bundle (no external CDN dependency) -->
             <script type="module">
-                // WARNING: External CDN dependency - query data is processed by externally-loaded code
-                import * as MorphCharts from "https://cdn.skypack.dev/morphcharts";
+                import * as MorphCharts from "${morphchartsUri}";
                 window.onload = () => {
         
                     //fields with a known type
