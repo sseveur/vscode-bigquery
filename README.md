@@ -1,10 +1,31 @@
-# BigQuery Data View v2 for Visual Studio Code
+# BigQuery Studio for Visual Studio Code
 
-[![Version 1.1.0](https://img.shields.io/badge/version-1.1.0-blue)](https://marketplace.visualstudio.com/items?itemName=sseveur.vscode-bigquery-v2)
-[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/sseveur.vscode-bigquery-v2?label=VS%20Code%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=sseveur.vscode-bigquery-v2)
-[![Installs](https://img.shields.io/visual-studio-marketplace/i/sseveur.vscode-bigquery-v2)](https://marketplace.visualstudio.com/items?itemName=sseveur.vscode-bigquery-v2)
+> **Fork Notice:** This extension is a fork of [bstruct/vscode-bigquery](https://github.com/bstruct/vscode-bigquery) with additional improvements and fixes.
+
+[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/s-seveur.bigquery-studio?label=VS%20Code%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=s-seveur.bigquery-studio)
+[![Installs](https://img.shields.io/visual-studio-marketplace/i/s-seveur.bigquery-studio)](https://marketplace.visualstudio.com/items?itemName=s-seveur.bigquery-studio)
 
 A powerful Visual Studio Code extension for Google BigQuery. Browse datasets and tables, run queries with real-time validation, view results, format SQL, track query history, estimate costs, and visualize data lineage.
+
+## What's Different
+
+This fork includes the following improvements over [bstruct/vscode-bigquery](https://github.com/bstruct/vscode-bigquery):
+
+### New Features
+- **Data Lineage Visualization** - dbt-style lineage graphs with CTE support, multi-query support, click-to-navigate to source, and hover tooltips
+- **Query History** - Track all executed queries with re-run and copy capabilities
+- **Table Schema Hover** - Hover over table names to see schema details (supports JOINs, CTEs, and backtick-quoted identifiers)
+- **Cost Estimator** - Real-time query cost estimates with configurable $/TB pricing
+- **SQL Formatter** - Advanced formatting with leading commas, keyword casing, indent styles, and more options
+- **Copy to Clipboard** - Copy query results directly to clipboard with configurable size limits
+
+### Improvements
+- **Offline-Ready Charting** - MorphCharts bundled locally instead of CDN for air-gapped environments
+- **Enhanced SQL Intellisense** - 400+ keywords/functions with syntax highlighting (including ALL, ANY, SOME)
+- **Windows Support** - Fixed gcloud authentication issues on Windows
+- **Security Hardening** - XSS prevention, Content Security Policy, and input validation
+- **Better Panel State** - Webview panels retain context when hidden
+- **Auto-Reveal Control** - Setting to disable automatic results panel focus switching
 
 <!-- TODO: Add hero screenshot showing the extension in action -->
 <!-- ![Extension Overview](documentation/hero_screenshot.png) -->
@@ -28,10 +49,10 @@ A powerful Visual Studio Code extension for Google BigQuery. Browse datasets and
 
 1. Open VS Code
 2. Go to Extensions (`Ctrl+Shift+X`)
-3. Search for "BigQuery Data View v2"
+3. Search for "BigQuery Studio"
 4. Click Install
 
-Or install from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=sseveur.vscode-bigquery-v2).
+Or install from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=s-seveur.bigquery-studio).
 
 ## Requirements
 
@@ -350,4 +371,4 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-This project is a fork of [bstruct/vscode-bigquery](https://github.com/bstruct/vscode-bigquery).
+MIT License - see the original project [bstruct/vscode-bigquery](https://github.com/bstruct/vscode-bigquery) for license details.

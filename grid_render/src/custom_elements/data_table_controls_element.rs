@@ -62,9 +62,9 @@ impl BaseElementTrait for DataTableControls {
             .append_sibling_fn("button", BTN_PREVIOUS_PAGE, &modify_controls, self)
             .append_sibling_fn("button", BTN_NEXT_PAGE, &modify_controls, self)
             .append_sibling_fn("button", BTN_LAST_PAGE, &modify_controls, self)
+            .append_sibling_fn("button", BTN_COPY_CLIPBOARD, &modify_controls, self)
             .append_sibling_fn("button", BTN_DOWNLOAD_CSV, &modify_controls, self)
             .append_sibling_fn("button", BTN_DOWNLOAD_JSONL, &modify_controls, self)
-            .append_sibling_fn("button", BTN_COPY_CLIPBOARD, &modify_controls, self)
             .append_sibling_fn("button", BTN_SEND_PUBSUB, &modify_controls, self)
     }
 }
