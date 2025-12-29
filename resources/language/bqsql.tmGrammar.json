@@ -15,6 +15,9 @@
     "expression": {
       "patterns": [
         {
+          "include": "#block-comment"
+        },
+        {
           "include": "#line-comment"
         },
         {
@@ -78,6 +81,11 @@
           "name": "storage.type.bqsql"
         }
       ]
+    },
+    "block-comment": {
+      "begin": "/\\*",
+      "end": "\\*/",
+      "name": "comment.block.bqsql"
     },
     "line-comment": {
       "begin": "--",
