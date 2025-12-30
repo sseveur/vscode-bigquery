@@ -540,6 +540,19 @@ function getMultiQueryHtmlContent(result: MultiLineageResult): string {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Data Lineage</title>
     <style>
+        @font-face {
+            font-family: 'codicon';
+            src: url('https://microsoft.github.io/vscode-codicons/dist/codicon.ttf') format('truetype');
+        }
+        .codicon {
+            font-family: 'codicon';
+            font-size: 16px;
+            line-height: 1;
+            display: inline-block;
+        }
+        .codicon-chevron-down:before { content: "\\eab4"; }
+        .codicon-chevron-right:before { content: "\\eab6"; }
+
         body {
             font-family: var(--vscode-font-family);
             font-size: var(--vscode-font-size);
@@ -652,13 +665,43 @@ function getMultiQueryHtmlContent(result: MultiLineageResult): string {
             padding: 16px;
         }
 
+        .query-section.collapsed .query-body {
+            display: none;
+        }
+
+        .query-section.collapsed .query-header {
+            border-bottom: none;
+        }
+
+        .collapse-toggle {
+            width: 20px;
+            height: 20px;
+            border: none;
+            background: transparent;
+            color: var(--vscode-foreground);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            margin-right: 4px;
+            border-radius: 3px;
+        }
+
+        .collapse-toggle:hover {
+            background: var(--vscode-toolbar-hoverBackground);
+        }
+
+        .collapse-toggle .codicon {
+            font-size: 14px;
+        }
+
         .graph-container {
             overflow: auto;
             border: 1px solid var(--vscode-panel-border);
             border-radius: 6px;
             background-color: var(--vscode-editor-background);
-            min-height: 150px;
-            max-height: 400px;
+            min-height: 300px;
         }
 
         .graph-wrapper {
@@ -796,6 +839,27 @@ function getMultiQueryHtmlContent(result: MultiLineageResult): string {
                 }
             });
 
+            // Click handler for collapse toggle buttons
+            document.querySelectorAll('.collapse-toggle').forEach(function(toggle) {
+                toggle.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const section = this.closest('.query-section');
+                    if (section) {
+                        section.classList.toggle('collapsed');
+                        const icon = this.querySelector('.codicon');
+                        if (icon) {
+                            if (section.classList.contains('collapsed')) {
+                                icon.classList.remove('codicon-chevron-down');
+                                icon.classList.add('codicon-chevron-right');
+                            } else {
+                                icon.classList.remove('codicon-chevron-right');
+                                icon.classList.add('codicon-chevron-down');
+                            }
+                        }
+                    }
+                });
+            });
+
             // Click handler for nodes - navigate to source position
             document.querySelectorAll('.node').forEach(function(node) {
                 node.style.cursor = 'pointer';
@@ -817,8 +881,9 @@ function getMultiQueryHtmlContent(result: MultiLineageResult): string {
             // Click handler for query headers - navigate to query start
             document.querySelectorAll('.query-header').forEach(function(header) {
                 header.addEventListener('click', function(e) {
-                    // Don't trigger if clicking on zoom controls
+                    // Don't trigger if clicking on zoom controls or collapse toggle
                     if (e.target.closest('.zoom-controls')) return;
+                    if (e.target.closest('.collapse-toggle')) return;
 
                     const line = parseInt(this.getAttribute('data-start-line')) || 1;
                     vscode.postMessage({
@@ -859,6 +924,9 @@ function renderQuerySection(queryInfo: QueryLineageInfo, displayIndex: number): 
         <div class="query-section" data-query-index="${displayIndex}">
             <div class="query-header" data-start-line="${startLine}">
                 <div class="query-title">
+                    <button class="collapse-toggle" title="Collapse/Expand">
+                        <span class="codicon codicon-chevron-down"></span>
+                    </button>
                     <span class="query-number">Query ${displayIndex + 1}</span>
                     <span class="query-lines">Lines ${startLine}-${endLine}</span>
                     <span class="query-preview-text">${escapeHtml(previewDisplay)}</span>

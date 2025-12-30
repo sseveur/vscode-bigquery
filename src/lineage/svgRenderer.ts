@@ -31,7 +31,7 @@ export function renderGraphToSvg(
     const nodes = graph.nodes.map(node => renderNode(node, cfg)).join('\n');
 
     return `
-        <svg viewBox="0 0 ${width} ${height}" class="lineage-graph" xmlns="http://www.w3.org/2000/svg">
+        <svg viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" class="lineage-graph" xmlns="http://www.w3.org/2000/svg">
             <defs>
                 <marker id="arrowhead" markerWidth="8" markerHeight="6"
                     refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
@@ -181,7 +181,7 @@ function renderNode(node: LineageNode, cfg: LayoutConfig): string {
  */
 function renderEmptyState(width: number, height: number): string {
     return `
-        <svg viewBox="0 0 ${width} ${height}" class="lineage-graph" xmlns="http://www.w3.org/2000/svg">
+        <svg viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" class="lineage-graph" xmlns="http://www.w3.org/2000/svg">
             <text
                 x="${width / 2}"
                 y="${height / 2}"
@@ -237,8 +237,7 @@ function escapeAttr(text: string): string {
 export function getGraphStyles(): string {
     return `
         .lineage-graph {
-            width: 100%;
-            height: auto;
+            display: block;
             min-height: 200px;
         }
 
