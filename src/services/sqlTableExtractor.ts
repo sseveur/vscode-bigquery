@@ -138,9 +138,79 @@ export function extractTableReferences(sql: string): TableReference[] {
         visitor(cst);
         return tables;
     } catch {
-        // Fallback: return empty if parsing fails
-        return [];
+        // Fallback: use regex-based extraction when sql-parser-cst fails
+        // This handles cases like table names with hyphens or starting with digits
+        return extractTableReferencesRegex(sql);
     }
+}
+
+/**
+ * Regex-based fallback for extracting table references
+ * Used when sql-parser-cst fails to parse (e.g., unquoted identifiers with hyphens)
+ */
+function extractTableReferencesRegex(sql: string): TableReference[] {
+    const tables: TableReference[] = [];
+    const seenTables = new Set<string>();
+
+    // Pattern for table names: backtick-quoted OR unquoted identifiers (including project-id with hyphens)
+    // Backtick-quoted: `project-id.dataset.table` or `project.dataset.table`
+    // Unquoted: project-id.dataset.table or dataset.table or table
+    const tablePattern = '(`[^`]+`|[a-zA-Z0-9_-]+(?:\\.[a-zA-Z0-9_-]+)*)';
+
+    // FROM table_name [AS alias]
+    const fromPattern = new RegExp(
+        `\\bFROM\\s+${tablePattern}(?:\\s+(?:AS\\s+)?[a-zA-Z_][a-zA-Z0-9_]*)?`,
+        'gi'
+    );
+
+    // JOIN table_name [AS alias]
+    const joinPattern = new RegExp(
+        `\\bJOIN\\s+${tablePattern}(?:\\s+(?:AS\\s+)?[a-zA-Z_][a-zA-Z0-9_]*)?`,
+        'gi'
+    );
+
+    // Process FROM clauses
+    let match;
+    while ((match = fromPattern.exec(sql)) !== null) {
+        if (match[1]) {
+            const tableName = match[1].replace(/`/g, '');
+            const lowerName = tableName.toLowerCase();
+            if (!seenTables.has(lowerName) && !isKeyword(tableName)) {
+                seenTables.add(lowerName);
+                const position = offsetToLineColumn(sql, match.index + match[0].indexOf(match[1]));
+                tables.push({ name: tableName, line: position.line, column: position.column });
+            }
+        }
+    }
+
+    // Process JOIN clauses
+    while ((match = joinPattern.exec(sql)) !== null) {
+        if (match[1]) {
+            const tableName = match[1].replace(/`/g, '');
+            const lowerName = tableName.toLowerCase();
+            if (!seenTables.has(lowerName) && !isKeyword(tableName)) {
+                seenTables.add(lowerName);
+                const position = offsetToLineColumn(sql, match.index + match[0].indexOf(match[1]));
+                tables.push({ name: tableName, line: position.line, column: position.column });
+            }
+        }
+    }
+
+    return tables;
+}
+
+/**
+ * Check if a name is a SQL keyword (to avoid false positives)
+ */
+function isKeyword(name: string): boolean {
+    const keywords = new Set([
+        'select', 'from', 'where', 'and', 'or', 'not', 'in', 'is', 'null',
+        'join', 'inner', 'left', 'right', 'full', 'outer', 'cross', 'on',
+        'group', 'by', 'order', 'having', 'limit', 'offset', 'union', 'all',
+        'distinct', 'as', 'case', 'when', 'then', 'else', 'end', 'between',
+        'like', 'exists', 'true', 'false', 'asc', 'desc', 'nulls', 'first', 'last'
+    ]);
+    return keywords.has(name.toLowerCase());
 }
 
 /**

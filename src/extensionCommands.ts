@@ -67,6 +67,7 @@ export const COMMAND_HISTORY_SHOW = "vscode-bigquery.history-show";
 export const COMMAND_HISTORY_DELETE = "vscode-bigquery.history-delete";
 export const COMMAND_HISTORY_REFRESH = "vscode-bigquery.history-refresh";
 export const COMMAND_SHOW_LINEAGE = "vscode-bigquery.show-lineage";
+export const COMMAND_SHOW_LINEAGE_SELECTION = "vscode-bigquery.show-lineage-selection";
 
 export const commandRunQuery = async function (this: any, ...args: any[]) {
 
@@ -1098,6 +1099,40 @@ export const commandShowLineage = function (context: vscode.ExtensionContext) {
 
 		if (queriesWithLineage.length === 0) {
 			vscode.window.showInformationMessage('No table references found in any queries');
+			return;
+		}
+
+		showMultiLineagePanel(result, context);
+	} catch (error: any) {
+		vscode.window.showErrorMessage(`Failed to analyze lineage: ${error.message}`);
+	}
+};
+
+// Data Lineage for Selection
+export const commandShowLineageSelection = function (context: vscode.ExtensionContext) {
+	const editor = vscode.window.activeTextEditor;
+	if (!editor) {
+		vscode.window.showErrorMessage('No active editor with SQL query');
+		return;
+	}
+
+	if (editor.selection.isEmpty) {
+		vscode.window.showErrorMessage('No text selected. Please select a SQL query.');
+		return;
+	}
+
+	const text = editor.document.getText(editor.selection);
+	if (!text.trim()) {
+		vscode.window.showErrorMessage('Selected text is empty');
+		return;
+	}
+
+	try {
+		const result = buildMultiQueryLineage(text);
+		const queriesWithLineage = result.queries.filter(q => q.graph.nodes.length > 0);
+
+		if (queriesWithLineage.length === 0) {
+			vscode.window.showInformationMessage('No table references found in selection');
 			return;
 		}
 

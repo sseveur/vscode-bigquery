@@ -271,6 +271,14 @@ export function activate(context: ExtensionContext) {
 		)
 	);
 
+	// Data Lineage for Selection
+	context.subscriptions.push(
+		vscode.commands.registerCommand(
+			commands.COMMAND_SHOW_LINEAGE_SELECTION,
+			() => commands.commandShowLineageSelection(context)
+		)
+	);
+
 	// Query History
 	const queryHistoryService = commands.initQueryHistoryService(context.globalState);
 	const queryHistoryTreeDataProvider = new QueryHistoryTreeDataProvider(queryHistoryService);

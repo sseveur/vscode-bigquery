@@ -51,12 +51,29 @@ export function extractCtes(sql: string): CteDefinition[] {
 function findAllCteNames(items: BqsqlDocumentItem[], cteNames: Set<string>, sql: string): void {
     for (const item of items) {
         if (item.item_type === "QueryWith") {
-            // Within QueryWith, find all TableCteId items
-            for (const child of item.items || []) {
+            // Within QueryWith, find all CTE names
+            // Parser may mark them as "TableCteId" or "Unknown" depending on context
+            const children = item.items || [];
+            for (let i = 0; i < children.length; i++) {
+                const child = children[i];
+                // Look for TableCteId items
                 if (child.item_type === "TableCteId") {
                     const name = extractTextFromRange(sql, child.range);
                     if (name) {
                         cteNames.add(name.toLowerCase());
+                    }
+                }
+                // Also look for Unknown items followed by AS keyword (likely CTE names)
+                else if (child.item_type === "Unknown") {
+                    const nextChild = children[i + 1];
+                    if (nextChild && nextChild.item_type === "Keyword") {
+                        const keyword = extractTextFromRange(sql, nextChild.range);
+                        if (keyword && keyword.toUpperCase() === "AS") {
+                            const name = extractTextFromRange(sql, child.range);
+                            if (name && /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name)) {
+                                cteNames.add(name.toLowerCase());
+                            }
+                        }
                     }
                 }
             }
@@ -93,7 +110,8 @@ function extractCteDefinitions(
 
 /**
  * Parse a QueryWith block to extract individual CTE definitions
- * Structure: QueryWith contains [Keyword(WITH), TableCteId, Keyword(AS), Query, ...]
+ * Structure: QueryWith contains [Keyword(WITH), TableCteId/Unknown, Keyword(AS), Query, ...]
+ * Note: Parser may mark CTE names as "Unknown" instead of "TableCteId" in some cases
  */
 function parseCteBlock(
     queryWith: BqsqlDocumentItem,
@@ -112,6 +130,19 @@ function parseCteBlock(
             // Found a CTE name
             currentCteName = extractTextFromRange(sql, child.range);
             currentCteRange = child.range || [];
+        } else if (child.item_type === "Unknown") {
+            // Check if this Unknown item is followed by AS keyword (likely a CTE name)
+            const nextChild = children[i + 1];
+            if (nextChild && nextChild.item_type === "Keyword") {
+                const keyword = extractTextFromRange(sql, nextChild.range);
+                if (keyword && keyword.toUpperCase() === "AS") {
+                    const name = extractTextFromRange(sql, child.range);
+                    if (name && /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name)) {
+                        currentCteName = name;
+                        currentCteRange = child.range || [];
+                    }
+                }
+            }
         } else if (child.item_type === "Query" && currentCteName) {
             // Found the CTE's query body - extract its dependencies
             const sourceTables: string[] = [];

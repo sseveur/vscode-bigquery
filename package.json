@@ -383,6 +383,11 @@
 				"command": "vscode-bigquery.show-lineage",
 				"title": "BigQueryView: Show Data Lineage",
 				"icon": "$(type-hierarchy)"
+			},
+			{
+				"command": "vscode-bigquery.show-lineage-selection",
+				"title": "BigQueryView: Show Data Lineage for Selection",
+				"icon": "$(type-hierarchy)"
 			}
 		],
 		"menus": {
@@ -401,6 +406,13 @@
 					"command": "vscode-bigquery.show-lineage",
 					"group": "navigation@-1",
 					"when": "editorLangId == bqsql || editorLangId == sql"
+				}
+			],
+			"editor/context": [
+				{
+					"command": "vscode-bigquery.show-lineage-selection",
+					"group": "1_modification",
+					"when": "editorHasSelection && (editorLangId == bqsql || editorLangId == sql)"
 				}
 			],
 			"view/title": [
