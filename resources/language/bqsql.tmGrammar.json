@@ -2,6 +2,9 @@
   "scopeName": "source.bqsql",
   "patterns": [
     {
+      "include": "#block-comment"
+    },
+    {
       "include": "#expression"
     },
     {
