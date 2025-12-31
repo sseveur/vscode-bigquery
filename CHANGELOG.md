@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to the BigQuery Data View v2 extension will be documented in this file.
+All notable changes to the BigQuery Studio extension will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -32,6 +32,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **CTE Source Table Extraction** - Fixed extraction of source tables from CTEs that use table aliases (e.g., `FROM table_name alias`)
 
 - **Alias Resolution in Main Query** - Fixed alias resolution to correctly find aliases defined in the main query rather than matching aliases inside CTE definitions
+
+### Security
+
+- **XSS Prevention** - HTML escaping and data attributes in authentication UI
+- **Content Security Policy** - Nonce-based CSP for all webviews
+- **Script Injection Prevention** - JSON escaping for embedded data in script tags
+- **Service Account Validation** - Validate JSON structure before accepting key files
+- **Error Sanitization** - Prevent credential exposure in error logs
+
+## [1.3.3] - 2025-12-29
+
+### Added
+
+- **Block Comment Support** - Added `/* */` block comment syntax highlighting and folding
 
 ## [1.1.0] - 2025-12-10
 
