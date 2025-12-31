@@ -4,6 +4,7 @@ import { CompletionItemProvider, CompletionItem, CancellationToken, CompletionCo
 import { bigqueryTableSchemaService } from '../extension';
 import { BqsqlSuggestion } from './bqsqlSuggestion';
 import { isBigQueryLanguage } from '../services/languageUtils';
+import { extractCteColumns, getCteNames, CteColumn } from '../services/cteExtractor';
 
 
 export class BqsqlCompletionItemProvider implements CompletionItemProvider<CompletionItem> {
@@ -11,6 +12,7 @@ export class BqsqlCompletionItemProvider implements CompletionItemProvider<Compl
     provideCompletionItems(document: TextDocument, position: Position, token: CancellationToken, context: CompletionContext): vscode.CompletionList<vscode.CompletionItem> | vscode.CompletionItem[] | null | undefined {
 
         if (!isBigQueryLanguage(document.languageId)) { return null; }
+
 
         const suggestions = suggest(document.getText(), position.line, position.character) as BqsqlSuggestion[];
 
@@ -42,7 +44,8 @@ export class BqsqlCompletionItemProvider implements CompletionItemProvider<Compl
                         // c1.command = {
                         //     command: "editor.action.triggerSuggest"
                         // } as vscode.Command;
-                        c1.sortText = pad(index0) + pad(element.ordinal_position);
+                        // Use "0_" prefix to prioritize columns over functions/keywords
+                        c1.sortText = "0_" + pad(index0) + pad(element.ordinal_position);
 
                         list.items.push(c1);
                     }
@@ -61,6 +64,20 @@ export class BqsqlCompletionItemProvider implements CompletionItemProvider<Compl
 
                 // }
 
+            }
+        }
+
+        // Fallback: Check if user typed "alias." or "cteName." and suggest CTE columns
+        const cteColumns = this.getCteColumnsAtPosition(document, position);
+        if (cteColumns.length > 0) {
+            for (let i = 0; i < cteColumns.length; i++) {
+                const col = cteColumns[i];
+                let c1 = new CompletionItem(col.name, CompletionItemKind.Field);
+                c1.insertText = `${col.name},`;
+                c1.detail = 'CTE Column';
+                // Use "0_" prefix to prioritize columns over functions/keywords
+                c1.sortText = "0_" + pad(0) + pad(i);
+                list.items.push(c1);
             }
         }
 
@@ -507,6 +524,8 @@ export class BqsqlCompletionItemProvider implements CompletionItemProvider<Compl
         completionItem.documentation = new vscode.MarkdownString('Bigquery official [documentation](https://cloud.google.com/bigquery/docs/reference/standard-sql/functions-and-operators#'.concat(anchor.concat(')')));
         const alias = label.toLocaleLowerCase().replace('.', '_');
         completionItem.insertText = new vscode.SnippetString(`${label}($1)`);
+        // Use "1_" prefix to make functions lower priority than columns (which use "0_")
+        completionItem.sortText = "1_" + label;
 
         return completionItem;
     }
@@ -514,7 +533,176 @@ export class BqsqlCompletionItemProvider implements CompletionItemProvider<Compl
     getKeywordCompletionItem(label: string): CompletionItem {
         let completionItem = new CompletionItem(label, CompletionItemKind.Keyword);
         completionItem.insertText = `${label} `;
+        // Use "2_" prefix to make keywords lowest priority (after columns "0_" and functions "1_")
+        completionItem.sortText = "2_" + label;
         return completionItem;
+    }
+
+    /**
+     * Check if user is typing after "alias." or "cteName." and return CTE columns
+     */
+    getCteColumnsAtPosition(document: TextDocument, position: Position): CteColumn[] {
+        // Get text from start of line up to cursor position
+        const lineText = document.lineAt(position.line).text;
+        const textBeforeCursor = lineText.substring(0, position.character);
+
+        // Check if there's a "word." or "`table`." pattern before the cursor
+        // Pattern 1: Simple identifier: word.column or word.
+        // Pattern 2: Backtick-quoted: `project.dataset.table`.column or `project.dataset.table`.
+        let aliasOrCteName: string | null = null;
+        let isBacktickQuoted = false;
+
+        // Try backtick-quoted pattern first: `...`.
+        const backtickMatch = textBeforeCursor.match(/`([^`]+)`\s*\.\s*([a-zA-Z_][a-zA-Z0-9_]*)?$/);
+        if (backtickMatch) {
+            aliasOrCteName = backtickMatch[1];
+            isBacktickQuoted = true;
+        } else {
+            // Try simple identifier pattern: word.
+            const match = textBeforeCursor.match(/\b([a-zA-Z_][a-zA-Z0-9_]*)\.\s*([a-zA-Z_][a-zA-Z0-9_]*)?$/);
+            if (match) {
+                aliasOrCteName = match[1];
+            }
+        }
+
+        if (!aliasOrCteName) {
+            return [];
+        }
+        const tableName = aliasOrCteName; // TypeScript now knows this is non-null
+        const sql = document.getText();
+
+        // If backtick-quoted, it's a direct table reference - look up schema directly
+        if (isBacktickQuoted) {
+            const tableSchema = this.getPhysicalTableColumns(tableName);
+            if (tableSchema.length > 0) {
+                return tableSchema;
+            }
+            return [];
+        }
+
+        // Check if this is a CTE name
+        const cteNames = getCteNames(sql);
+        const matchedCte = cteNames.find(name => name.toLowerCase() === tableName.toLowerCase());
+        if (matchedCte) {
+            const cols = extractCteColumns(sql, matchedCte);
+            return cols;
+        }
+
+        // Check if this is a table alias - find what table it refers to
+        const tableForAlias = this.findTableForAlias(sql, tableName);
+        if (tableForAlias) {
+            // Check if it's a CTE
+            const cteName = cteNames.find(name => name.toLowerCase() === tableForAlias.toLowerCase());
+            if (cteName) {
+                const cols = extractCteColumns(sql, cteName);
+                return cols;
+            }
+
+            // Not a CTE - it's a physical table, try to get schema from cache
+            const tableSchema = this.getPhysicalTableColumns(tableForAlias);
+            if (tableSchema.length > 0) {
+                return tableSchema;
+            }
+        }
+
+        return [];
+    }
+
+    /**
+     * Find the table name for a given alias in the SQL
+     * Handles patterns like: FROM table_name alias, FROM table_name AS alias
+     * Searches from the main query (after WITH block) to avoid matching aliases inside CTEs
+     */
+    findTableForAlias(sql: string, alias: string): string | null {
+        // Find the main query part (after the WITH block if present)
+        // Look for the last SELECT/INSERT/UPDATE/DELETE/MERGE that's not inside CTEs
+        let mainQuery = sql;
+
+        // Find where CTEs end by looking for the pattern ") SELECT" or similar
+        const mainQueryMatch = sql.match(/\)\s*(SELECT|INSERT|UPDATE|DELETE|MERGE)\s/i);
+        if (mainQueryMatch && mainQueryMatch.index !== undefined) {
+            mainQuery = sql.substring(mainQueryMatch.index);
+        }
+
+        // Pattern: FROM/JOIN table_name AS alias or FROM/JOIN table_name alias
+        // Also handles: project.dataset.table AS alias
+        const patterns = [
+            // FROM table AS alias or FROM table alias (without AS)
+            new RegExp(`\\bFROM\\s+([a-zA-Z0-9_\`.\\-]+)\\s+(?:AS\\s+)?${this.escapeRegex(alias)}\\b`, 'gi'),
+            // JOIN table AS alias or JOIN table alias (without AS)
+            new RegExp(`\\bJOIN\\s+([a-zA-Z0-9_\`.\\-]+)\\s+(?:AS\\s+)?${this.escapeRegex(alias)}\\b`, 'gi'),
+            // Comma-separated: , table AS alias or , table alias
+            new RegExp(`,\\s*([a-zA-Z0-9_\`.\\-]+)\\s+(?:AS\\s+)?${this.escapeRegex(alias)}\\b`, 'gi')
+        ];
+
+        for (const pattern of patterns) {
+            const match = pattern.exec(mainQuery);
+            if (match && match[1]) {
+                // Clean up the table name (remove backticks)
+                return match[1].replace(/`/g, '');
+            }
+        }
+
+        return null;
+    }
+
+    escapeRegex(str: string): string {
+        return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    /**
+     * Get columns for a physical BigQuery table from the schema cache
+     * Table name format: project.dataset.table or dataset.table
+     */
+    getPhysicalTableColumns(tableName: string): CteColumn[] {
+        // Parse the table name into parts
+        const parts = tableName.replace(/`/g, '').split('.');
+
+        if (parts.length < 2) {
+            return [];
+        }
+
+        // Get all cached schemas and find matching table
+        // The schema service stores schemas by project_id, dataset_name, table_name
+        const allSchemas = (bigqueryTableSchemaService as any).schemas as any[] || [];
+
+        // Try to find matching schema
+        let matchingSchemas: any[] = [];
+
+        if (parts.length === 3) {
+            // project.dataset.table
+            const [projectId, datasetName, tableNamePart] = parts;
+            matchingSchemas = allSchemas.filter(
+                s => s.project_id === projectId &&
+                     s.dataset_name === datasetName &&
+                     s.table_name === tableNamePart
+            );
+        } else if (parts.length === 2) {
+            // dataset.table - match any project
+            const [datasetName, tableNamePart] = parts;
+            matchingSchemas = allSchemas.filter(
+                s => s.dataset_name === datasetName &&
+                     s.table_name === tableNamePart
+            );
+        }
+
+
+        if (matchingSchemas.length === 0) {
+            return [];
+        }
+
+        // Convert to CteColumn format (just need the name)
+        const columns: CteColumn[] = [];
+        const seen = new Set<string>();
+
+        for (const schema of matchingSchemas) {
+            if (!seen.has(schema.column_name)) {
+                seen.add(schema.column_name);
+                columns.push({ name: schema.column_name });
+            }
+        }
+
+        return columns;
     }
 
 }

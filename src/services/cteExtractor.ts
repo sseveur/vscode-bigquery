@@ -375,9 +375,130 @@ export function extractCteColumns(sql: string, cteName: string): CteColumn[] {
 
         visitor(cst);
         return columns;
-    } catch {
-        return [];
+    } catch (e) {
+        // Fallback: use regex when parser fails (e.g., during typing with incomplete SQL)
+        return extractCteColumnsRegex(sql, cteName);
     }
+}
+
+/**
+ * Regex fallback for extracting CTE columns from incomplete SQL
+ * Extracts columns from the SELECT clause of the specified CTE
+ */
+function extractCteColumnsRegex(sql: string, cteName: string): CteColumn[] {
+    const columns: CteColumn[] = [];
+
+    // Find the CTE definition start: cteName AS ( SELECT
+    const cteStartPattern = new RegExp(
+        `\\b${cteName}\\s+AS\\s*\\(\\s*SELECT\\s+`,
+        'is'
+    );
+
+    const startMatch = cteStartPattern.exec(sql);
+    if (!startMatch) {
+        return columns;
+    }
+
+    // Find the SELECT columns by looking for FROM (respecting parentheses)
+    const afterSelect = sql.substring(startMatch.index + startMatch[0].length);
+    const selectClause = extractUntilFrom(afterSelect);
+
+    if (!selectClause) {
+        return columns;
+    }
+
+    // Parse individual column expressions
+    // This is simplified - handles: col, col AS alias, table.col, table.col AS alias, func() AS alias
+    const columnParts = splitSelectColumns(selectClause);
+
+    for (const part of columnParts) {
+        const trimmed = part.trim();
+        if (!trimmed) { continue; }
+
+        // Check for AS alias
+        const asMatch = trimmed.match(/\bAS\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*$/i);
+        if (asMatch) {
+            columns.push({ name: asMatch[1] });
+            continue;
+        }
+
+        // Check for table.column or just column
+        const colMatch = trimmed.match(/([a-zA-Z_][a-zA-Z0-9_]*)\s*$/);
+        if (colMatch) {
+            columns.push({ name: colMatch[1] });
+            continue;
+        }
+
+        // Check for * or table.*
+        if (trimmed === '*' || trimmed.endsWith('.*')) {
+            columns.push({ name: trimmed });
+        }
+    }
+
+    return columns;
+}
+
+/**
+ * Extract text until FROM keyword, respecting nested parentheses
+ * This handles cases like: col1, IF(x, y, z), func(a, b) FROM table
+ */
+function extractUntilFrom(text: string): string | null {
+    let parenDepth = 0;
+    let i = 0;
+
+    while (i < text.length) {
+        const char = text[i];
+
+        if (char === '(') {
+            parenDepth++;
+        } else if (char === ')') {
+            parenDepth--;
+            if (parenDepth < 0) {
+                // We've hit the closing paren of the CTE itself
+                return null;
+            }
+        } else if (parenDepth === 0) {
+            // Check for FROM keyword (only at paren depth 0)
+            const remaining = text.substring(i);
+            if (/^\s*FROM\b/i.test(remaining)) {
+                return text.substring(0, i).trim();
+            }
+        }
+
+        i++;
+    }
+
+    return null;
+}
+
+/**
+ * Split SELECT column list, respecting parentheses for function calls
+ */
+function splitSelectColumns(selectClause: string): string[] {
+    const columns: string[] = [];
+    let current = '';
+    let parenDepth = 0;
+
+    for (const char of selectClause) {
+        if (char === '(') {
+            parenDepth++;
+            current += char;
+        } else if (char === ')') {
+            parenDepth--;
+            current += char;
+        } else if (char === ',' && parenDepth === 0) {
+            columns.push(current.trim());
+            current = '';
+        } else {
+            current += char;
+        }
+    }
+
+    if (current.trim()) {
+        columns.push(current.trim());
+    }
+
+    return columns;
 }
 
 /**
@@ -426,6 +547,7 @@ function extractColumnName(node: CstNode): string | null {
 
 /**
  * Get all CTE names defined in the SQL
+ * Uses parser when possible, falls back to regex for incomplete SQL (during typing)
  */
 export function getCteNames(sql: string): string[] {
     try {
@@ -446,6 +568,28 @@ export function getCteNames(sql: string): string[] {
         visitor(cst);
         return names;
     } catch {
-        return [];
+        // Fallback: use regex when parser fails (e.g., during typing with incomplete SQL)
+        return getCteNamesRegex(sql);
     }
+}
+
+/**
+ * Regex fallback for extracting CTE names from incomplete SQL
+ * Handles: WITH cte_name AS (...), cte_name2 AS (...)
+ */
+function getCteNamesRegex(sql: string): string[] {
+    const names: string[] = [];
+
+    // Match CTE definitions: WITH name AS or , name AS
+    // Pattern: (WITH|,)\s*name\s+AS\s*\(
+    const ctePattern = /(?:WITH|,)\s*([a-zA-Z_][a-zA-Z0-9_]*)\s+AS\s*\(/gi;
+
+    let match;
+    while ((match = ctePattern.exec(sql)) !== null) {
+        if (match[1] && !names.includes(match[1])) {
+            names.push(match[1]);
+        }
+    }
+
+    return names;
 }

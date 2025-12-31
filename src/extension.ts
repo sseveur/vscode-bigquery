@@ -401,13 +401,15 @@ export function activate(context: ExtensionContext) {
 	context.subscriptions.push(
 		vscode.languages.registerCompletionItemProvider(
 			{ language: 'bqsql' },
-			completionProvider
+			completionProvider,
+			'.' // Trigger completion when user types '.' for CTE column suggestions
 		)
 	);
 	context.subscriptions.push(
 		vscode.languages.registerCompletionItemProvider(
 			{ language: 'sql' },
-			completionProvider
+			completionProvider,
+			'.' // Trigger completion when user types '.' for CTE column suggestions
 		)
 	);
 
