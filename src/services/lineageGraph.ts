@@ -36,6 +36,7 @@ export function buildLineageGraph(sql: string): LineageGraph {
     const ctes = extractCtes(sql);
     const basicLineage = extractLineage(sql);
 
+
     const nodes: LineageNode[] = [];
     const edges: LineageEdge[] = [];
     const edgeIds = new Set<string>(); // Track edge IDs to prevent duplicates

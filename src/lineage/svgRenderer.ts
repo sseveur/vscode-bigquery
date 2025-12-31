@@ -90,6 +90,7 @@ function renderEdge(edge: LineageEdge, nodes: LineageNode[], cfg: LayoutConfig):
 
 /**
  * Generate a cubic Bezier path between two nodes
+ * Creates curved paths that spread out when edges skip layers
  */
 function generateBezierPath(from: LineageNode, to: LineageNode, cfg: LayoutConfig): string {
     // Start from right edge of source node (center height)
@@ -100,12 +101,23 @@ function generateBezierPath(from: LineageNode, to: LineageNode, cfg: LayoutConfi
     const x2 = to.x! - 4;
     const y2 = to.y! + cfg.nodeHeight / 2;
 
-    // Control points for smooth S-curve
+    // Calculate layer difference to create curved paths for edges that skip layers
+    const layerDiff = to.layer - from.layer;
     const dx = x2 - x1;
-    const cx1 = x1 + dx * 0.5;
-    const cy1 = y1;
-    const cx2 = x2 - dx * 0.5;
-    const cy2 = y2;
+
+    // For edges spanning multiple layers, add vertical curve offset
+    // This makes edges visible when they would otherwise overlap
+    let curveOffset = 0;
+    if (layerDiff > 1) {
+        // Alternate curve direction and increase magnitude for longer edges
+        curveOffset = (layerDiff - 1) * 30 * (layerDiff % 2 === 0 ? 1 : -1);
+    }
+
+    // Control points for smooth curve
+    const cx1 = x1 + dx * 0.3;
+    const cy1 = y1 + curveOffset;
+    const cx2 = x2 - dx * 0.3;
+    const cy2 = y2 + curveOffset;
 
     return `M ${x1} ${y1} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${x2} ${y2}`;
 }

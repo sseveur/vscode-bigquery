@@ -104,6 +104,8 @@ function findTablesInExpr(node: CstNode, tables: TableReference[], source: strin
         }
     } else if (node.type === 'paren_expr') {
         findTablesInExpr(node.expr, tables, source);
+    } else if (node.type === 'alias') {
+        findTablesInExpr(node.expr, tables, source);
     } else {
         const name = getTableName(node);
         if (name && !tables.some(t => t.name === name)) {
