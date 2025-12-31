@@ -49,6 +49,27 @@ export class Authentication {
 
         try {
 
+            // Validate service account key file structure before using it
+            const keyFileContent = fs.readFileSync(fileUri.fsPath, 'utf-8');
+            let parsedKey: any;
+            try {
+                parsedKey = JSON.parse(keyFileContent);
+            } catch {
+                console.error('Service account key file is not valid JSON');
+                return { valid: false } as AuthenticationUserLoginResponse;
+            }
+
+            // Validate required fields for a service account key
+            if (!parsedKey.type || !parsedKey.project_id || !parsedKey.private_key || !parsedKey.client_email) {
+                console.error('Service account key file is missing required fields (type, project_id, private_key, or client_email)');
+                return { valid: false } as AuthenticationUserLoginResponse;
+            }
+
+            if (parsedKey.type !== 'service_account') {
+                console.error('Key file type must be "service_account"');
+                return { valid: false } as AuthenticationUserLoginResponse;
+            }
+
             const result = await this.runGcloudCommand([
                 'auth', 'activate-service-account',
                 '--key-file', fileUri.fsPath,
@@ -81,7 +102,9 @@ export class Authentication {
             }
 
         } catch (error) {
-            console.info(JSON.stringify(error));
+            // Sanitize error logging to avoid exposing sensitive data like file paths or credentials
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            console.error('Service account login failed:', errorMessage);
         }
 
         return { valid: false } as AuthenticationUserLoginResponse;

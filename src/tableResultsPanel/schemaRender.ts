@@ -2,7 +2,23 @@ import * as vscode from 'vscode';
 import { getExtensionUri } from '../extension';
 import { SimpleQueryRowsResponseError } from '../services/simpleQueryRowsResponseError';
 import { TableMetadata } from '../services/tableMetadata';
+import { getNonce, getCspMetaTag } from '../utils/webviewSecurity';
 // import { SchemaGrid } from './schemaGrid.ts';
+
+/**
+ * Escapes HTML special characters to prevent XSS attacks.
+ */
+function escapeHtml(str: string | null | undefined): string {
+    if (str === null || str === undefined) {
+        return '';
+    }
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
 
 //https://github.com/microsoft/vscode-webview-ui-toolkit/blob/main/docs/getting-started.md
 
@@ -45,12 +61,16 @@ export class SchemaRender {
             "toolkit.min.js",
         ]);
 
+        const nonce = getNonce();
+        const cspMetaTag = getCspMetaTag(this.webView, nonce, { allowUnsafeInlineStyles: true });
+
         return `<!DOCTYPE html>
 		<html lang="en">
 			<head>
 				<meta charset="UTF-8">
 				<meta name="viewport" content="width=device-width, initial-scale=1.0">
-				<script type="module" src="${toolkitUri}"></script>
+				${cspMetaTag}
+				<script nonce="${nonce}" type="module" src="${toolkitUri}"></script>
 			</head>
 			<body>
                 <vscode-progress-ring></vscode-progress-ring>
@@ -67,6 +87,9 @@ export class SchemaRender {
             "resources",
             "toolkit.min.js",
         ]);
+
+        const nonce = getNonce();
+        const cspMetaTag = getCspMetaTag(this.webView, nonce, { allowUnsafeInlineStyles: true });
 
         if (exception.errors) {
 
@@ -85,12 +108,13 @@ export class SchemaRender {
                 <head>
                     <meta charset="UTF-8">
                     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                    <script type="module" src="${toolkitUri}"></script>
+                    ${cspMetaTag}
+                    <script nonce="${nonce}" type="module" src="${toolkitUri}"></script>
                 </head>
                 <body>
                 <vscode-data-grid id="basic-grid" generate-header="sticky" aria-label="Default"></vscode-data-grid>
-    
-                <script>
+
+                <script nonce="${nonce}">
                     document.getElementById('basic-grid').rowsData = ${rows};
                 </script>
                 </body>
@@ -104,12 +128,13 @@ export class SchemaRender {
             <html lang="en">
                 <head>
                     <meta charset="UTF-8">
-                    <script type="module" src="${toolkitUri}"></script>
+                    ${cspMetaTag}
+                    <script nonce="${nonce}" type="module" src="${toolkitUri}"></script>
                 </head>
                 <body>
                 <vscode-data-grid id="basic-grid" generate-header="sticky" aria-label="Default"></vscode-data-grid>
-    
-                <script>
+
+                <script nonce="${nonce}">
                     document.getElementById('basic-grid').rowsData = ${rows};
                 </script>
                 </body>
@@ -132,15 +157,19 @@ export class SchemaRender {
             'codicon.css']
         );
 
+        const nonce = getNonce();
+        const cspMetaTag = getCspMetaTag(this.webView, nonce, { allowUnsafeInlineStyles: true });
+
         // Build schema fields table if available
+        // Use escapeHtml to prevent XSS from table metadata
         let schemaFieldsHtml = '';
         if (tableMetadata.schema && tableMetadata.schema.fields) {
             const fieldsRows = tableMetadata.schema.fields.map((field: any) => `
                 <tr>
-                    <td>${field.name}</td>
-                    <td>${field.type}</td>
-                    <td>${field.mode || 'NULLABLE'}</td>
-                    <td>${field.description || ''}</td>
+                    <td>${escapeHtml(field.name)}</td>
+                    <td>${escapeHtml(field.type)}</td>
+                    <td>${escapeHtml(field.mode) || 'NULLABLE'}</td>
+                    <td>${escapeHtml(field.description)}</td>
                 </tr>
             `).join('');
 
@@ -172,7 +201,8 @@ export class SchemaRender {
             <head>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <script type="module" src="${toolkitUri}"></script>
+                ${cspMetaTag}
+                <script nonce="${nonce}" type="module" src="${toolkitUri}"></script>
                 <link href="${codiconsUri}" rel="stylesheet" />
                 <style>
                     body {
@@ -239,16 +269,16 @@ export class SchemaRender {
                     </div>
                     <div class="info-grid">
                         <div class="info-label">Project ID</div>
-                        <div class="info-value">${tableMetadata.tableReference.projectId}</div>
+                        <div class="info-value">${escapeHtml(tableMetadata.tableReference.projectId)}</div>
 
                         <div class="info-label">Dataset ID</div>
-                        <div class="info-value">${tableMetadata.tableReference.datasetId}</div>
+                        <div class="info-value">${escapeHtml(tableMetadata.tableReference.datasetId)}</div>
 
                         <div class="info-label">Table ID</div>
-                        <div class="info-value">${tableMetadata.tableReference.tableId}</div>
+                        <div class="info-value">${escapeHtml(tableMetadata.tableReference.tableId)}</div>
 
                         <div class="info-label">Location</div>
-                        <div class="info-value">${tableMetadata.location}</div>
+                        <div class="info-value">${escapeHtml(tableMetadata.location)}</div>
 
                         <div class="info-label">Number of Rows</div>
                         <div class="info-value">${Number(tableMetadata.numRows).toLocaleString()}</div>

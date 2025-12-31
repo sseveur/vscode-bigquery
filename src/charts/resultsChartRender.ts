@@ -5,6 +5,14 @@ import { getBigQueryClient } from '../extensionCommands';
 import { SimpleQueryRowsResponseError } from '../services/simpleQueryRowsResponseError';
 import { ResultsChartRenderRequest } from './ResultsChartRenderRequest';
 
+/**
+ * Escapes JSON strings for safe embedding in HTML script tags.
+ * Prevents breaking out of script tags with </script> sequences.
+ */
+function escapeJsonForScript(json: string): string {
+    return json.replace(/<\/script>/gi, '<\\/script>');
+}
+
 export class ResultsChartRender {
     private webViewPanel: vscode.WebviewPanel;
 
@@ -91,8 +99,8 @@ export class ResultsChartRender {
             const job = bqClient.getJob(jobsReference);
             const queryResultOptions: QueryResultsOptions = {startIndex: '0', maxResults: 1_000_000};
             const queryRowsResponse = (await job.getQueryResults(queryResultOptions));
-            data = JSON.stringify(queryRowsResponse[0]);
-            schema = JSON.stringify(queryRowsResponse[2]?.schema || {});
+            data = escapeJsonForScript(JSON.stringify(queryRowsResponse[0]));
+            schema = escapeJsonForScript(JSON.stringify(queryRowsResponse[2]?.schema || {}));
             totalRows = Number(queryRowsResponse[2]?.totalRows || 0);
 
             // } else {

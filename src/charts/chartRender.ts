@@ -5,6 +5,14 @@ import { BigQueryClient } from '../services/bigqueryClient';
 import { JobReference } from '../services/queryResultsMapping';
 import { SimpleQueryRowsResponseError } from '../services/simpleQueryRowsResponseError';
 
+/**
+ * Escapes JSON strings for safe embedding in HTML script tags.
+ * Prevents breaking out of script tags with </script> sequences.
+ */
+function escapeJsonForScript(json: string): string {
+    return json.replace(/<\/script>/gi, '<\\/script>');
+}
+
 export class ChartRender {
     private webViewPanel: vscode.WebviewPanel;
 
@@ -21,8 +29,8 @@ export class ChartRender {
             const job = bigqueryClient.getJob(jobReference);
             let queryResults = await job.getQueryResults({ autoPaginate: true, maxResults: 10000 });
 
-            const schema = JSON.stringify(queryResults[2]?.schema);
-            const data = JSON.stringify(queryResults[0]);
+            const schema = escapeJsonForScript(JSON.stringify(queryResults[2]?.schema));
+            const data = escapeJsonForScript(JSON.stringify(queryResults[0]));
 
             //pass the file path to html page builder getChartHtml and set html
             const html = this.getChartHtml(schema, data);
