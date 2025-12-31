@@ -5,6 +5,34 @@ All notable changes to the BigQuery Data View v2 extension will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2025-12-31
+
+### Added
+
+- **Smart Column Autocomplete** - When typing after a table alias or CTE name followed by `.`, the extension now suggests columns from that table or CTE:
+  - **CTE columns** - Type `cte_name.` or `alias.` to see columns defined in the CTE's SELECT clause
+  - **Physical table columns** - Type `alias.` or `` `project.dataset.table`. `` to see columns from BigQuery tables (schema must be cached first via hover)
+  - **Alias resolution** - Automatically resolves table aliases to their source CTE or physical table
+  - Works during active typing with incomplete SQL (regex fallback when parser fails)
+
+- **Column Priority in Autocomplete** - Columns now appear before functions and keywords in the autocomplete list, making it easier to find the columns you need
+
+- **Dot Trigger for Completions** - The `.` character now triggers the autocomplete popup automatically when typing after table names or aliases
+
+- **Query Result Node** - SELECT-only queries now show an orange "Query Result" node in the lineage graph, making the data flow destination visible
+
+- **Show Data Lineage for Selection** - Right-click on selected SQL text to generate lineage for just that portion of code (available in `.bqsql` and `.sql` files when text is selected)
+
+- **Collapsible Query Sections** - Multi-query lineage views now have collapse/expand toggles for each query section, with chevron icons for better navigation
+
+### Fixed
+
+- **Lineage Edge Visibility** - Fixed an issue where edges between source tables and multiple CTEs were not visible when they overlapped. Edges that skip layers now curve to remain visible
+
+- **CTE Source Table Extraction** - Fixed extraction of source tables from CTEs that use table aliases (e.g., `FROM table_name alias`)
+
+- **Alias Resolution in Main Query** - Fixed alias resolution to correctly find aliases defined in the main query rather than matching aliases inside CTE definitions
+
 ## [1.1.0] - 2025-12-10
 
 ### Added

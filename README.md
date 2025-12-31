@@ -12,7 +12,8 @@ A powerful Visual Studio Code extension for Google BigQuery. Browse datasets and
 This fork includes the following improvements over [bstruct/vscode-bigquery](https://github.com/bstruct/vscode-bigquery):
 
 ### New Features
-- **Data Lineage Visualization** - dbt-style lineage graphs with CTE support, multi-query support, click-to-navigate to source, and hover tooltips
+- **Smart Column Autocomplete** - Type `alias.` or `cte_name.` to get column suggestions from tables and CTEs
+- **Data Lineage Visualization** - dbt-style lineage graphs with CTE support, multi-query support, click-to-navigate, hover tooltips, Query Result nodes, and right-click lineage for selection
 - **Query History** - Track all executed queries with re-run and copy capabilities
 - **Table Schema Hover** - Hover over table names to see schema details (supports JOINs, CTEs, and backtick-quoted identifiers)
 - **Cost Estimator** - Real-time query cost estimates with configurable $/TB pricing
@@ -35,7 +36,7 @@ This fork includes the following improvements over [bstruct/vscode-bigquery](htt
 - **Authentication** - User login, GDrive access, and service account support via gcloud CLI
 - **Project Explorer** - Browse projects, datasets, tables, views, functions, and ML models
 - **Query Execution** - Run queries with `Ctrl+Enter`, real-time error highlighting, and byte estimation
-- **SQL Intellisense** - Autocomplete for SQL keywords and BigQuery functions
+- **SQL Intellisense** - Autocomplete for SQL keywords, BigQuery functions, and table/CTE columns
 - **Syntax Highlighting** - Full support for `.bqsql` files with grammar injection for `.sql` files
 - **SQL Formatting** - Format queries with configurable style options
 - **Query History** - Track all executed queries with re-run and copy capabilities
@@ -140,6 +141,17 @@ The extension provides:
 - Intellisense/autocomplete for SQL keywords and BigQuery functions
 - Grammar injection for `.sql` files (syntax highlighting works automatically)
 
+#### Smart Column Autocomplete
+
+Type `.` after a table alias, CTE name, or table reference to get column suggestions:
+
+- **CTE columns** - Type `cte_name.` to see columns defined in the CTE's SELECT clause
+- **Table alias columns** - Type `alias.` to see columns from the aliased table (resolves aliases automatically)
+- **Physical table columns** - Type `` `project.dataset.table`. `` to see columns from BigQuery tables (schema must be cached first via hover)
+- **Column priority** - Columns appear at the top of the autocomplete list, above functions and keywords
+
+The autocomplete works during active typing even when SQL is incomplete, using regex fallback parsing when the full parser fails.
+
 ### Real-time Query Validation
 
 Queries are validated as you type. Errors are underlined in the editor:
@@ -207,14 +219,16 @@ The lineage graph shows:
 - **Source tables** (blue) - Tables your query reads from
 - **CTEs** (purple) - Common Table Expressions as intermediate nodes
 - **Target tables** (green) - Tables your query writes to (INSERT, CREATE, MERGE, etc.)
+- **Query Result** (orange) - Destination node for SELECT-only queries
 
 Features:
-- **Multi-Query Support** - Files with multiple queries show separate lineage diagrams stacked vertically
+- **Multi-Query Support** - Files with multiple queries show separate lineage diagrams stacked vertically, with collapsible sections
+- **Lineage for Selection** - Right-click on selected SQL text to generate lineage for just that portion
 - **Click to Navigate** - Click on any node to jump to its location in the SQL source code
 - **Hover Tooltips** - Hover over nodes to see the full qualified table name
 - **CTE Support** - CTEs are shown as intermediate nodes between sources and targets
 - **Layered DAG Layout** - Nodes are arranged left-to-right based on data flow
-- **Curved Connections** - Bezier curves show relationships between nodes
+- **Curved Connections** - Bezier curves show relationships between nodes (curves around overlapping edges)
 - **Statement Type Badges** - Target nodes show the operation type
 - **Zoom Controls** - Zoom in/out and reset buttons, plus Ctrl+scroll wheel support
 
