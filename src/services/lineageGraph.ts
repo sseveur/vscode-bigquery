@@ -2,7 +2,7 @@ import { extractCtes, CteDefinition } from "./cteExtractor";
 import { extractLineage, LineageTable } from "./lineageService";
 import { splitQueries } from "./querySplitter";
 
-export type NodeType = 'SOURCE' | 'CTE' | 'TARGET';
+export type NodeType = 'SOURCE' | 'CTE' | 'TARGET' | 'RESULT';
 
 export interface LineageNode {
     id: string;                    // Unique identifier
@@ -38,7 +38,16 @@ export function buildLineageGraph(sql: string): LineageGraph {
 
     const nodes: LineageNode[] = [];
     const edges: LineageEdge[] = [];
+    const edgeIds = new Set<string>(); // Track edge IDs to prevent duplicates
     const nodeMap = new Map<string, LineageNode>();
+
+    // Helper function to add edge with deduplication
+    const addEdge = (id: string, source: string, target: string): void => {
+        if (!edgeIds.has(id)) {
+            edgeIds.add(id);
+            edges.push({ id, source, target });
+        }
+    };
 
     // Track which tables are referenced by CTEs (to exclude from sources displayed)
     const cteReferencedTables = new Set<string>();
@@ -52,15 +61,16 @@ export function buildLineageGraph(sql: string): LineageGraph {
     }
 
     // 1. Add source table nodes (layer 0)
-    // Only include tables that are NOT referenced only inside CTEs
-    // or tables that appear in the main query
-    // Use a Map to preserve position info
+    // One node per unique physical table (deduplicated by table name)
     const allSourceTables = new Map<string, { line?: number; column?: number }>();
     for (const source of basicLineage.sources) {
-        allSourceTables.set(source.fullName.toLowerCase(), {
-            line: source.line,
-            column: source.column
-        });
+        const key = source.fullName.toLowerCase();
+        if (!allSourceTables.has(key)) {
+            allSourceTables.set(key, {
+                line: source.line,
+                column: source.column
+            });
+        }
     }
 
     // Add CTE source tables (no position info for these)
@@ -72,13 +82,14 @@ export function buildLineageGraph(sql: string): LineageGraph {
         }
     }
 
-    // Create source nodes
+    // Create source nodes - one per unique table
     for (const [tableName, position] of allSourceTables) {
         // Skip if this is a CTE name
         if (cteNames.has(tableName)) {continue;}
 
         const id = `source_${tableName}`;
         const displayName = getDisplayName(tableName);
+
         const node: LineageNode = {
             id,
             name: displayName,
@@ -134,7 +145,6 @@ export function buildLineageGraph(sql: string): LineageGraph {
     }
 
     // 4. Build edges
-
     // CTE edges: source tables -> CTEs
     for (const cte of ctes) {
         const cteNode = nodeMap.get(cte.name.toLowerCase());
@@ -144,11 +154,11 @@ export function buildLineageGraph(sql: string): LineageGraph {
         for (const sourceTable of cte.sourceTables) {
             const sourceNode = nodeMap.get(sourceTable.toLowerCase());
             if (sourceNode) {
-                edges.push({
-                    id: `edge_${sourceNode.id}_${cteNode.id}`,
-                    source: sourceNode.id,
-                    target: cteNode.id
-                });
+                addEdge(
+                    `edge_${sourceNode.id}_${cteNode.id}`,
+                    sourceNode.id,
+                    cteNode.id
+                );
             }
         }
 
@@ -156,11 +166,11 @@ export function buildLineageGraph(sql: string): LineageGraph {
         for (const refCte of cte.referencedCtes) {
             const refNode = nodeMap.get(refCte.toLowerCase());
             if (refNode) {
-                edges.push({
-                    id: `edge_${refNode.id}_${cteNode.id}`,
-                    source: refNode.id,
-                    target: cteNode.id
-                });
+                addEdge(
+                    `edge_${refNode.id}_${cteNode.id}`,
+                    refNode.id,
+                    cteNode.id
+                );
             }
         }
     }
@@ -171,8 +181,8 @@ export function buildLineageGraph(sql: string): LineageGraph {
         const mainQueryCtes = ctes.length > 0 ? findMainQueryCteReferences(sql, ctes) : [];
 
         // Find source tables referenced directly in main query (not just in CTEs)
-        const allSourceTableNames = new Set(allSourceTables.keys());
-        const mainQuerySources = findMainQuerySourceReferences(sql, allSourceTableNames, cteNames);
+        const sourceTableNames = new Set(allSourceTables.keys());
+        const mainQuerySources = findMainQuerySourceReferences(sql, sourceTableNames, cteNames);
 
         for (const target of basicLineage.targets) {
             const targetNode = nodeMap.get(target.fullName.toLowerCase());
@@ -182,11 +192,11 @@ export function buildLineageGraph(sql: string): LineageGraph {
             for (const cteName of mainQueryCtes) {
                 const cteNode = nodeMap.get(cteName.toLowerCase());
                 if (cteNode) {
-                    edges.push({
-                        id: `edge_${cteNode.id}_${targetNode.id}`,
-                        source: cteNode.id,
-                        target: targetNode.id
-                    });
+                    addEdge(
+                        `edge_${cteNode.id}_${targetNode.id}`,
+                        cteNode.id,
+                        targetNode.id
+                    );
                 }
             }
 
@@ -194,11 +204,11 @@ export function buildLineageGraph(sql: string): LineageGraph {
             for (const sourceName of mainQuerySources) {
                 const sourceNode = nodeMap.get(sourceName.toLowerCase());
                 if (sourceNode) {
-                    edges.push({
-                        id: `edge_${sourceNode.id}_${targetNode.id}`,
-                        source: sourceNode.id,
-                        target: targetNode.id
-                    });
+                    addEdge(
+                        `edge_${sourceNode.id}_${targetNode.id}`,
+                        sourceNode.id,
+                        targetNode.id
+                    );
                 }
             }
 
@@ -207,19 +217,74 @@ export function buildLineageGraph(sql: string): LineageGraph {
                 for (const source of basicLineage.sources) {
                     const sourceNode = nodeMap.get(source.fullName.toLowerCase());
                     if (sourceNode) {
-                        edges.push({
-                            id: `edge_${sourceNode.id}_${targetNode.id}`,
-                            source: sourceNode.id,
-                            target: targetNode.id
-                        });
+                        addEdge(
+                            `edge_${sourceNode.id}_${targetNode.id}`,
+                            sourceNode.id,
+                            targetNode.id
+                        );
                     }
                 }
             }
         }
     }
 
-    // For SELECT-only queries (no targets), connect last layer to a virtual "result" if needed
-    // We'll skip this for now - just show sources and CTEs
+    // For SELECT-only queries (no targets), add a "Query Result" node
+    if (basicLineage.targets.length === 0 && nodes.length > 0) {
+        const maxLayer = Math.max(0, ...nodes.map(n => n.layer));
+        const resultLayer = maxLayer + 1;
+
+        const resultNode: LineageNode = {
+            id: 'result_query',
+            name: 'Query Result',
+            fullName: 'SELECT Result',
+            nodeType: 'RESULT',
+            layer: resultLayer
+        };
+        nodes.push(resultNode);
+        nodeMap.set('__result__', resultNode);
+
+        // Connect CTEs or sources to the result
+        if (ctes.length > 0) {
+            // Find CTEs referenced in main query
+            const mainQueryCtes = findMainQueryCteReferences(sql, ctes);
+            for (const cteName of mainQueryCtes) {
+                const cteNode = nodeMap.get(cteName.toLowerCase());
+                if (cteNode) {
+                    addEdge(
+                        `edge_${cteNode.id}_${resultNode.id}`,
+                        cteNode.id,
+                        resultNode.id
+                    );
+                }
+            }
+
+            // Also connect source tables used directly in main query (not via CTEs)
+            const resultSourceTableNames = new Set(allSourceTables.keys());
+            const mainQuerySources = findMainQuerySourceReferences(sql, resultSourceTableNames, cteNames);
+            for (const sourceName of mainQuerySources) {
+                const sourceNode = nodeMap.get(sourceName.toLowerCase());
+                if (sourceNode) {
+                    addEdge(
+                        `edge_${sourceNode.id}_${resultNode.id}`,
+                        sourceNode.id,
+                        resultNode.id
+                    );
+                }
+            }
+        } else {
+            // No CTEs - connect all sources directly to result
+            for (const source of basicLineage.sources) {
+                const sourceNode = nodeMap.get(source.fullName.toLowerCase());
+                if (sourceNode) {
+                    addEdge(
+                        `edge_${sourceNode.id}_${resultNode.id}`,
+                        sourceNode.id,
+                        resultNode.id
+                    );
+                }
+            }
+        }
+    }
 
     return {
         nodes,

@@ -64,7 +64,7 @@ function getTableName(node: CstNode): string | null {
         return getMemberExprName(node.expr);
     }
 
-    // Aliased table - get the actual table
+    // Aliased table - get the actual table name (ignore the alias)
     if (node.type === 'alias') {
         return getTableName(node.expr);
     }

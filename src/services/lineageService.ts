@@ -20,18 +20,22 @@ export interface LineageData {
 export function extractLineage(sql: string): LineageData {
     const sources: LineageTable[] = [];
     const targets: LineageTable[] = [];
-    const seenSources = new Set<string>();
+    const seenSources = new Set<string>();  // Track by table name only (deduplicate physical tables)
     const seenTargets = new Set<string>();
 
     // Extract source tables using sql-parser-cst (handles JOINs, comma-separated, etc.)
     const tableRefs = extractTableReferences(sql);
     for (const tableRef of tableRefs) {
-        if (tableRef.name && !seenSources.has(tableRef.name.toLowerCase())) {
-            seenSources.add(tableRef.name.toLowerCase());
-            const table = parseTableName(tableRef.name, 'source');
-            table.line = tableRef.line;
-            table.column = tableRef.column;
-            sources.push(table);
+        if (tableRef.name) {
+            // Deduplicate by table name only (ignore aliases - one node per physical table)
+            const uniqueKey = tableRef.name.toLowerCase();
+            if (!seenSources.has(uniqueKey)) {
+                seenSources.add(uniqueKey);
+                const table = parseTableName(tableRef.name, 'source');
+                table.line = tableRef.line;
+                table.column = tableRef.column;
+                sources.push(table);
+            }
         }
     }
 

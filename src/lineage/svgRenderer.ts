@@ -8,7 +8,8 @@ import { LayoutConfig, getLayoutConfig } from "./dagLayout";
 const NODE_COLORS: Record<NodeType, string> = {
     'SOURCE': '#3794ff',    // Blue
     'CTE': '#9b59b6',       // Purple
-    'TARGET': '#89d185'     // Green
+    'TARGET': '#89d185',    // Green
+    'RESULT': '#f0a030'     // Orange - for SELECT query results
 };
 /* eslint-enable @typescript-eslint/naming-convention */
 
@@ -271,6 +272,10 @@ export function getGraphStyles(): string {
             stroke: ${NODE_COLORS.TARGET};
         }
 
+        .node-result .node-rect:hover {
+            stroke: ${NODE_COLORS.RESULT};
+        }
+
         .node-name {
             font-family: var(--vscode-font-family);
             pointer-events: none;
@@ -300,6 +305,10 @@ export function renderLegend(): string {
             <div class="legend-item">
                 <span class="legend-color" style="background: ${NODE_COLORS.TARGET}"></span>
                 <span>Target Table</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-color" style="background: ${NODE_COLORS.RESULT}"></span>
+                <span>Query Result</span>
             </div>
         </div>
     `;

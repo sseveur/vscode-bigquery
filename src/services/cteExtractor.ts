@@ -164,6 +164,33 @@ function parseCteBlock(
 }
 
 /**
+ * Extract the SQL text for a specific query item based on its range
+ */
+function extractSqlForQueryItem(queryItem: BqsqlDocumentItem, sql: string): string | null {
+    // Get all ranges from the query item to determine bounds
+    const ranges = getAllRanges(queryItem);
+    if (ranges.length === 0) { return null; }
+
+    const lines = sql.split('\n');
+
+    // Find min and max line numbers covered by this query item
+    let minLine = Infinity;
+    let maxLine = -1;
+    for (const range of ranges) {
+        if (range[0] < minLine) { minLine = range[0]; }
+        if (range[0] > maxLine) { maxLine = range[0]; }
+    }
+
+    if (minLine === Infinity || maxLine < 0 || minLine >= lines.length) {
+        return null;
+    }
+
+    // Extract the lines containing the CTE body
+    const relevantLines = lines.slice(minLine, maxLine + 1);
+    return relevantLines.join('\n');
+}
+
+/**
  * Extract table and CTE references from a query item
  * Uses sql-parser-cst for better extraction, with fallback to @bstruct/bqsql-parser
  */
@@ -174,19 +201,25 @@ function extractDependencies(
     knownCteNames: Set<string>,
     sql: string
 ): void {
-    // Try to use sql-parser-cst to extract all tables from the SQL
-    // This handles JOINs and other cases @bstruct misses
-    const allTables = extractTableReferences(sql);
+    // Try to extract just the SQL for this specific query item
+    // This ensures we only find tables within this CTE body, not the entire SQL
+    const cteSql = extractSqlForQueryItem(queryItem, sql);
 
-    for (const tableRef of allTables) {
-        const tableName = tableRef.name;
-        if (knownCteNames.has(tableName.toLowerCase())) {
-            if (!referencedCtes.includes(tableName)) {
-                referencedCtes.push(tableName);
-            }
-        } else {
-            if (!sourceTables.includes(tableName)) {
-                sourceTables.push(tableName);
+    if (cteSql) {
+        // Try to use sql-parser-cst to extract tables from just the CTE body
+        // This handles JOINs and other cases @bstruct misses
+        const allTables = extractTableReferences(cteSql);
+
+        for (const tableRef of allTables) {
+            const tableName = tableRef.name;
+            if (knownCteNames.has(tableName.toLowerCase())) {
+                if (!referencedCtes.includes(tableName)) {
+                    referencedCtes.push(tableName);
+                }
+            } else {
+                if (!sourceTables.includes(tableName)) {
+                    sourceTables.push(tableName);
+                }
             }
         }
     }
