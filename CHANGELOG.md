@@ -5,6 +5,15 @@ All notable changes to the BigQuery Studio extension will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-01-01
+
+### Added
+
+- **Hide Project Feature** - Hide GCP projects from the explorer tree to reduce clutter:
+  - Right-click on any project and click the "Hide" button (eye-closed icon)
+  - Use `BigQuery: Show Hidden Projects` command from the Command Palette to unhide projects via QuickPick selection
+  - Hidden projects can also be managed directly in settings via `vscode-bigquery.hidden-projects`
+
 ## [1.5.0] - 2026-01-01
 
 ### Added

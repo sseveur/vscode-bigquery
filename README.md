@@ -330,6 +330,20 @@ Pinned projects are stored in settings:
 
 <img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/settings_file.png" alt="settings file" width="600"/>
 
+### Hide a Project
+
+Hide projects from the explorer tree to reduce clutter. Hidden projects can be restored at any time.
+
+To hide a project:
+- Right-click on a project in the explorer and click the "Hide" button (eye-closed icon)
+
+To unhide a project:
+- Open the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`)
+- Run `BigQuery: Show Hidden Projects`
+- Select the project to unhide from the list
+
+Alternatively, you can manage hidden projects directly in settings via `vscode-bigquery.hidden-projects`.
+
 ### Add GCP Projects
 
 For cases where you only have read permissions at the dataset level (not project level), force a project to be listed:
@@ -369,6 +383,7 @@ Setting: `vscode-bigquery.associateSqlFiles`
 | `vscode-bigquery.formatLogicalOperatorNewline` | string | `before` | AND/OR newline: before, after |
 | `vscode-bigquery.formatNewlineBeforeSemicolon` | boolean | `false` | Semicolon on separate line |
 | `vscode-bigquery.pinned-projects` | array | `[]` | Pinned GCP project IDs |
+| `vscode-bigquery.hidden-projects` | array | `[]` | Hidden GCP project IDs |
 | `vscode-bigquery.projects` | array | `[]` | Additional GCP project IDs to list |
 | `vscode-bigquery.tables` | array | `[]` | Table IDs to list directly |
 

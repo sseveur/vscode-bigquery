@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { BigqueryTreeItem, BigqueryTreeItemType } from './bigqueryTreeItem';
 import { BigQuery, Dataset, Model, Routine, Table } from '@google-cloud/bigquery';
 import { Authentication } from '../services/authentication';
-import { getBigQueryClient, SETTING_PINNED_PROJECTS, SETTING_PROJECTS, SETTING_TABLES } from '../extensionCommands';
+import { getBigQueryClient, SETTING_PINNED_PROJECTS, SETTING_PROJECTS, SETTING_TABLES, SETTING_HIDDEN_PROJECTS } from '../extensionCommands';
 import { GetMetadataOptions, MetadataResponse } from '@google-cloud/common/build/src/service-object';
 import { TableReference } from '../services/tableMetadata';
 
@@ -138,8 +138,15 @@ export class BigQueryTreeDataProvider implements vscode.TreeDataProvider<Bigquer
             .get(SETTING_PINNED_PROJECTS) as string[] || []
                 .sort((a: string, b: string) => a.localeCompare(b));
 
+        const hiddenProjects = vscode.workspace
+            .getConfiguration()
+            .get(SETTING_HIDDEN_PROJECTS) as string[] || [];
+
+        // Filter out hidden projects
+        const visibleProjects = listProjects.filter(projectId => hiddenProjects.indexOf(projectId) < 0);
+
         const listProjectSorted =
-            listProjects
+            visibleProjects
                 .sort((a, b) =>
                     (
                         pinnedProjects.indexOf(a) >= 0

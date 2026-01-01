@@ -56,6 +56,9 @@ export const COMMAND_PLOT_CHART = "vscode-bigquery.plot-chart";
 export const SETTING_PINNED_PROJECTS = "vscode-bigquery.pinned-projects";
 export const SETTING_PROJECTS = "vscode-bigquery.projects";
 export const SETTING_TABLES = "vscode-bigquery.tables";
+export const SETTING_HIDDEN_PROJECTS = "vscode-bigquery.hidden-projects";
+export const COMMAND_PROJECT_HIDE = "vscode-bigquery.project-hide";
+export const COMMAND_SHOW_HIDDEN_PROJECTS = "vscode-bigquery.show-hidden-projects";
 export const AUTHENTICATION_TROUBLESHOOT = "vscode-bigquery.troubleshoot";
 export const OPEN_SETTING_PROJECTS = "vscode-bigquery.open-settings-projects";
 export const OPEN_SETTING_TABLES = "vscode-bigquery.open-settings-tables";
@@ -828,6 +831,63 @@ export const commandPinOrUnpinProject = function (...args: any[]) {
 	vscode.commands.executeCommand(COMMAND_EXPLORER_REFRESH);
 
 	// getTelemetryReporter()?.sendTelemetryEvent('commandPinOrUnpinProject', {});
+};
+
+export const commandHideProject = function (...args: any[]) {
+
+	const item = args[0] as BigqueryTreeItem;
+	const projectId = item.projectId || 'xxx';
+
+	let hiddenProjects = vscode.workspace
+		.getConfiguration()
+		.get(SETTING_HIDDEN_PROJECTS) as string[] || [];
+
+	if (hiddenProjects.indexOf(projectId) < 0) {
+		hiddenProjects.push(projectId);
+	}
+
+	vscode.workspace
+		.getConfiguration()
+		.update(SETTING_HIDDEN_PROJECTS, hiddenProjects);
+
+	vscode.commands.executeCommand(COMMAND_EXPLORER_REFRESH);
+
+	vscode.window.showInformationMessage(`Project "${projectId}" hidden. Use "BigQuery: Show Hidden Projects" command to unhide.`);
+};
+
+export const commandShowHiddenProjects = async function () {
+
+	const hiddenProjects = vscode.workspace
+		.getConfiguration()
+		.get(SETTING_HIDDEN_PROJECTS) as string[] || [];
+
+	if (hiddenProjects.length === 0) {
+		vscode.window.showInformationMessage('No hidden projects');
+		return;
+	}
+
+	const selected = await vscode.window.showQuickPick(
+		hiddenProjects.map(projectId => ({
+			label: projectId,
+			description: 'Click to unhide'
+		})),
+		{
+			placeHolder: 'Select a project to unhide',
+			canPickMany: false
+		}
+	);
+
+	if (selected) {
+		const updatedHiddenProjects = hiddenProjects.filter(c => c !== selected.label);
+
+		vscode.workspace
+			.getConfiguration()
+			.update(SETTING_HIDDEN_PROJECTS, updatedHiddenProjects);
+
+		vscode.commands.executeCommand(COMMAND_EXPLORER_REFRESH);
+
+		vscode.window.showInformationMessage(`Project "${selected.label}" is now visible`);
+	}
 };
 
 // export const commandPlotChart = async function (this: any, ...args: any[]) {

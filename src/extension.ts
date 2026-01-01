@@ -224,6 +224,20 @@ export function activate(context: ExtensionContext) {
 		)
 	);
 
+	context.subscriptions.push(
+		vscode.commands.registerCommand(
+			commands.COMMAND_PROJECT_HIDE,
+			commands.commandHideProject
+		)
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand(
+			commands.COMMAND_SHOW_HIDDEN_PROJECTS,
+			commands.commandShowHiddenProjects
+		)
+	);
+
 	// context.subscriptions.push(
 	// 	vscode.commands.registerCommand(
 	// 		commands.COMMAND_PLOT_CHART,
