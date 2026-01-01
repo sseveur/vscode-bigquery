@@ -5,6 +5,12 @@ All notable changes to the BigQuery Studio extension will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-01-01
+
+### Added
+
+- **Schema Refresh Command** - New command `BigQuery: Refresh Schema Cache` to clear cached table schemas when they become outdated. Access via Command Palette (`Ctrl+Shift+P`) when hovering over tables shows stale schema information.
+
 ## [1.4.0] - 2025-12-31
 
 ### Added

@@ -279,6 +279,14 @@ export function activate(context: ExtensionContext) {
 		)
 	);
 
+	// Refresh Schema Cache
+	context.subscriptions.push(
+		vscode.commands.registerCommand(
+			commands.COMMAND_REFRESH_SCHEMA_CACHE,
+			commands.commandRefreshSchemaCache
+		)
+	);
+
 	// Query History
 	const queryHistoryService = commands.initQueryHistoryService(context.globalState);
 	const queryHistoryTreeDataProvider = new QueryHistoryTreeDataProvider(queryHistoryService);

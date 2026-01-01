@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { BigQueryClient } from './services/bigqueryClient';
-import { bigQueryTreeDataProvider, QUERY_RESULTS_VIEW_TYPE, TABLE_RESULTS_VIEW_TYPE, TROUBLESHOOT_VIEW_TYPE, gcpAuthenticationTreeDataProvider, authenticationWebviewProvider } from './extension';
+import { bigQueryTreeDataProvider, QUERY_RESULTS_VIEW_TYPE, TABLE_RESULTS_VIEW_TYPE, TROUBLESHOOT_VIEW_TYPE, gcpAuthenticationTreeDataProvider, authenticationWebviewProvider, bigqueryTableSchemaService } from './extension';
 // import { ResultsGridRenderRequest } from './tableResultsPanel/resultsGridRenderRequest';
 import { Authentication } from './services/authentication';
 import { BigqueryTreeItem, BigqueryTreeItemType } from './activitybar/bigqueryTreeItem';
@@ -68,6 +68,7 @@ export const COMMAND_HISTORY_DELETE = "vscode-bigquery.history-delete";
 export const COMMAND_HISTORY_REFRESH = "vscode-bigquery.history-refresh";
 export const COMMAND_SHOW_LINEAGE = "vscode-bigquery.show-lineage";
 export const COMMAND_SHOW_LINEAGE_SELECTION = "vscode-bigquery.show-lineage-selection";
+export const COMMAND_REFRESH_SCHEMA_CACHE = "vscode-bigquery.refresh-schema-cache";
 
 export const commandRunQuery = async function (this: any, ...args: any[]) {
 
@@ -1139,5 +1140,17 @@ export const commandShowLineageSelection = function (context: vscode.ExtensionCo
 		showMultiLineagePanel(result, context);
 	} catch (error: any) {
 		vscode.window.showErrorMessage(`Failed to analyze lineage: ${error.message}`);
+	}
+};
+
+// Refresh Schema Cache
+export const commandRefreshSchemaCache = function (...args: any[]) {
+	const cachedCount = bigqueryTableSchemaService.getCachedTableCount();
+	bigqueryTableSchemaService.clearCache();
+
+	if (cachedCount > 0) {
+		vscode.window.showInformationMessage(`BigQuery: Schema cache cleared (${cachedCount} table${cachedCount === 1 ? '' : 's'} removed)`);
+	} else {
+		vscode.window.showInformationMessage('BigQuery: Schema cache was already empty');
 	}
 };

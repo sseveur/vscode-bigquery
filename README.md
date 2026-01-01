@@ -19,10 +19,12 @@ This fork includes the following improvements over [bstruct/vscode-bigquery](htt
 - **Cost Estimator** - Real-time query cost estimates with configurable $/TB pricing
 - **SQL Formatter** - Advanced formatting with leading commas, keyword casing, indent styles, and more options
 - **Copy to Clipboard** - Copy query results directly to clipboard with configurable size limits
+- **Schema Refresh Command** - Clear cached table schemas when they become outdated
 
 ### Improvements
 - **Offline-Ready Charting** - MorphCharts bundled locally instead of CDN for air-gapped environments
 - **Enhanced SQL Intellisense** - 400+ keywords/functions with syntax highlighting (including ALL, ANY, SOME)
+- **Block Comment Support** - Full `/* */` syntax highlighting and code folding
 - **Windows Support** - Fixed gcloud authentication issues on Windows
 - **Security Hardening** - XSS prevention, Content Security Policy, and input validation
 - **Better Panel State** - Webview panels retain context when hidden
@@ -138,6 +140,7 @@ Query results appear in the bottom panel under `Bigquery: Query results`. You ca
 
 The extension provides:
 - Syntax highlighting for SQL keywords (SELECT, FROM, WHERE, JOIN, CASE, WHEN, etc.)
+- Block comment support (`/* */`) with syntax highlighting and folding
 - Intellisense/autocomplete for SQL keywords and BigQuery functions
 - Grammar injection for `.sql` files (syntax highlighting works automatically)
 
@@ -202,6 +205,15 @@ Hover over any table name in your SQL query to see schema information:
 
 The schema is cached after first fetch for faster subsequent lookups.
 
+### Refresh Schema Cache
+
+If a table schema has changed in BigQuery, the cached schema may be outdated. To clear the cache and fetch fresh schemas:
+
+1. Open the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`)
+2. Run `BigQuery: Refresh Schema Cache`
+
+This clears all cached schemas. The next time you hover over a table, fresh schema data will be fetched from BigQuery.
+
 ### Supported Locations
 
 Schema hover works for tables in:
@@ -222,7 +234,8 @@ The lineage graph shows:
 - **Query Result** (orange) - Destination node for SELECT-only queries
 
 Features:
-- **Multi-Query Support** - Files with multiple queries show separate lineage diagrams stacked vertically, with collapsible sections
+- **Multi-Query Support** - Files with multiple queries show separate lineage diagrams stacked vertically
+- **Collapsible Query Sections** - Each query section has collapse/expand toggles with chevron icons for easier navigation
 - **Lineage for Selection** - Right-click on selected SQL text to generate lineage for just that portion
 - **Click to Navigate** - Click on any node to jump to its location in the SQL source code
 - **Hover Tooltips** - Hover over nodes to see the full qualified table name
@@ -231,6 +244,8 @@ Features:
 - **Curved Connections** - Bezier curves show relationships between nodes (curves around overlapping edges)
 - **Statement Type Badges** - Target nodes show the operation type
 - **Zoom Controls** - Zoom in/out and reset buttons, plus Ctrl+scroll wheel support
+
+> **Note:** Lineage requires valid SQL. If your query contains syntax errors, the lineage graph may be incomplete or unavailable.
 
 ## Format SQL
 

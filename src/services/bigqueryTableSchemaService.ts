@@ -8,6 +8,26 @@ export class BigqueryTableSchemaService {
     private schemas: BigqueryTableSchema[] = [];
     private defaultProjectId: string | null = null;
 
+    /**
+     * Clears all cached table schemas.
+     * Use this when schemas may have changed in BigQuery and you want fresh data.
+     */
+    public clearCache(): void {
+        const count = this.getCachedTableCount();
+        this.schemas = [];
+        this.defaultProjectId = null;
+    }
+
+    /**
+     * Returns the number of unique tables currently cached.
+     */
+    public getCachedTableCount(): number {
+        const uniqueTables = new Set(
+            this.schemas.map(s => `${s.project_id}.${s.dataset_name}.${s.table_name}`)
+        );
+        return uniqueTables.size;
+    }
+
     public async preLoadSchemaToCache(bqsql: & string, tableIdentifier: BqsqlDocumentItem): Promise<boolean> {
 
         if (this.defaultProjectId === null) {
