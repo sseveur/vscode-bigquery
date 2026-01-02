@@ -5,6 +5,12 @@ All notable changes to the BigQuery Studio extension will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.3] - 2026-01-02
+
+### Fixed
+
+- **Windows Query Results Display** - Fixed blank results panel on Windows by removing Content Security Policy (CSP) from results webview. The CSP added in v1.4.0 was blocking WebAssembly module loading on Windows, preventing query results from rendering. Results now display correctly on all platforms.
+
 ## [1.6.2] - 2026-01-02
 
 ### Fixed
