@@ -1,0 +1,11 @@
+{
+  "name": "bqsql-parser",
+  "version": "0.1.6",
+  "files": [
+    "bqsql_parser_bg.wasm",
+    "bqsql_parser.js",
+    "bqsql_parser.d.ts"
+  ],
+  "main": "bqsql_parser.js",
+  "types": "bqsql_parser.d.ts"
+}
