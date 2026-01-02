@@ -2,7 +2,7 @@
 
 'use strict';
 
-const { copyFileSync } = require('fs');
+const { copyFileSync, mkdirSync, existsSync } = require('fs');
 const path = require('path');
 
 //@ts-check
@@ -72,6 +72,10 @@ const extensionConfig = {
     //   );
     // },
     (a, b) => {
+      const distDir = path.join(__dirname, 'dist');
+      if (!existsSync(distDir)) {
+        mkdirSync(distDir, { recursive: true });
+      }
       copyFileSync(
         require('path').join(__dirname, 'node_modules', 'grid_render', 'grid_render_bg.wasm'),
         require('path').join(__dirname, 'dist', 'grid_render_bg.wasm')
