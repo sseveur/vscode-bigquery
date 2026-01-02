@@ -368,7 +368,7 @@ CLAUDE.md
 PLANNED_FEATURES.md
 DEVELOPMENT.md
 util.md
-new_features/*
+new_features/
 
 # macOS
 .DS_Store
