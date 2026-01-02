@@ -5,6 +5,12 @@ All notable changes to the BigQuery Studio extension will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.1] - 2026-01-02
+
+### Fixed
+
+- **Lineage Query Splitting** - Fixed data lineage visualization to properly split SQL files into multiple queries instead of treating the entire file as a single query. The `sql-parser-cst` library didn't support `NULLS LAST/FIRST` syntax, causing parsing to fail. Implemented preprocessing that replaces unsupported syntax with spaces (maintaining offset alignment) before parsing, then extracts from the original SQL to preserve all syntax.
+
 ## [1.6.0] - 2026-01-01
 
 ### Added

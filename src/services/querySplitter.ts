@@ -9,13 +9,31 @@ export interface SplitQuery {
 }
 
 /**
+ * Pre-process SQL to remove syntax that sql-parser-cst doesn't support
+ * This allows the parser to work, while we extract from the original SQL
+ * IMPORTANT: Replace with spaces to maintain offset alignment
+ */
+function preprocessForParser(sql: string): string {
+    // Replace "NULLS LAST" and "NULLS FIRST" with spaces to maintain offsets
+    // Pattern: match DESC/ASC followed by NULLS LAST/FIRST
+    const nullsPattern = /\b(DESC|ASC)(\s+NULLS\s+(?:LAST|FIRST))\b/gi;
+    return sql.replace(nullsPattern, (match, direction, nullsPart) => {
+        // Keep DESC/ASC, replace "NULLS LAST/FIRST" with spaces
+        return direction + ' '.repeat(nullsPart.length);
+    });
+}
+
+/**
  * Split SQL text into individual queries using sql-parser-cst
  * Properly handles semicolons in strings and comments
  */
 export function splitQueries(fullSql: string): SplitQuery[] {
     try {
+        // Pre-process SQL to handle unsupported syntax (NULLS LAST/FIRST)
+        const processedSql = preprocessForParser(fullSql);
+
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const cst: any = parse(fullSql, { dialect: "bigquery", includeRange: true });
+        const cst: any = parse(processedSql, { dialect: "bigquery", includeRange: true });
 
         if (cst.type !== 'program' || !cst.statements) {
             return [singleQuery(fullSql)];
@@ -25,6 +43,7 @@ export function splitQueries(fullSql: string): SplitQuery[] {
         for (const stmt of cst.statements) {
             if (!stmt.range) { continue; }
             const [startOffset, endOffset] = stmt.range;
+            // IMPORTANT: Extract from ORIGINAL SQL to preserve all syntax
             const sql = fullSql.substring(startOffset, endOffset).trim();
             if (!sql) { continue; }
 
@@ -37,7 +56,9 @@ export function splitQueries(fullSql: string): SplitQuery[] {
             });
         }
         return queries.length > 0 ? queries : [singleQuery(fullSql)];
-    } catch {
+    } catch (error) {
+        // Log parse errors for debugging
+        console.warn('[Lineage] Query splitting failed:', error instanceof Error ? error.message : String(error));
         return [singleQuery(fullSql)];
     }
 }
