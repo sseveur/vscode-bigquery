@@ -1,6 +1,6 @@
 // https://developer.mozilla.org/en-US/docs/WebAssembly/Rust_to_wasm#using_the_package_on_the_web
 
-import init, { get_web_components_list, register_custom_element, on_window_message_received } from "../dist/grid_render.js";
+import init, { get_web_components_list, register_custom_element, on_window_message_received } from "./grid_render.js";
 
 const p = init().then(() => {
 

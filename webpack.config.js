@@ -73,18 +73,29 @@ const extensionConfig = {
     // },
     (a, b) => {
       const distDir = path.join(__dirname, 'dist');
+      const resourcesDir = path.join(__dirname, 'resources');
       if (!existsSync(distDir)) {
         mkdirSync(distDir, { recursive: true });
       }
+      // Copy to both dist and resources
       copyFileSync(
         require('path').join(__dirname, 'node_modules', 'grid_render', 'grid_render_bg.wasm'),
         require('path').join(__dirname, 'dist', 'grid_render_bg.wasm')
       );
+      copyFileSync(
+        require('path').join(__dirname, 'node_modules', 'grid_render', 'grid_render_bg.wasm'),
+        require('path').join(__dirname, 'resources', 'grid_render_bg.wasm')
+      );
     },
     (a, b) => {
+      // Copy to both dist and resources
       copyFileSync(
         require('path').join(__dirname, 'node_modules', 'grid_render', 'grid_render.js'),
         require('path').join(__dirname, 'dist', 'grid_render.js')
+      );
+      copyFileSync(
+        require('path').join(__dirname, 'node_modules', 'grid_render', 'grid_render.js'),
+        require('path').join(__dirname, 'resources', 'grid_render.js')
       );
     },
     (a, b) => {
