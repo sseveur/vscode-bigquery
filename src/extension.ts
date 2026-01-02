@@ -9,6 +9,7 @@ import { BqsqlCompletionItemProvider } from './language/bqsqlCompletionItemProvi
 import { BqsqlDocumentSemanticTokensProvider } from './language/bqsqlDocumentSemanticTokensProvider';
 import { BqsqlInlayHintsProvider } from './language/bqsqlInlayHintsProvider';
 import { BqsqlHoverProvider } from './language/bqsqlHoverProvider';
+import { BqsqlFoldingRangeProvider } from './language/bqsqlFoldingRangeProvider';
 import { BigqueryTableSchemaService } from './services/bigqueryTableSchemaService';
 import { BqsqlDiagnostics } from './language/bqsqlDiagnostics';
 import { QueryResultsSerializer } from './tableResultsPanel/queryResultsSerializer';
@@ -483,6 +484,21 @@ export function activate(context: ExtensionContext) {
 		vscode.languages.registerHoverProvider(
 			{ language: 'sql' },
 			hoverProvider
+		)
+	);
+
+	// Folding range provider for collapsing queries
+	const foldingRangeProvider = new BqsqlFoldingRangeProvider();
+	context.subscriptions.push(
+		vscode.languages.registerFoldingRangeProvider(
+			{ language: 'bqsql' },
+			foldingRangeProvider
+		)
+	);
+	context.subscriptions.push(
+		vscode.languages.registerFoldingRangeProvider(
+			{ language: 'sql' },
+			foldingRangeProvider
 		)
 	);
 
