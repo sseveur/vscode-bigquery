@@ -5,6 +5,7 @@ import { bigqueryTableSchemaService } from '../extension';
 import { BqsqlSuggestion } from './bqsqlSuggestion';
 import { isBigQueryLanguage } from '../services/languageUtils';
 import { extractCteColumns, getCteNames, CteColumn } from '../services/cteExtractor';
+import { extractTableReferences } from '../services/sqlTableExtractor';
 
 
 export class BqsqlCompletionItemProvider implements CompletionItemProvider<CompletionItem> {
@@ -13,15 +14,22 @@ export class BqsqlCompletionItemProvider implements CompletionItemProvider<Compl
 
         if (!isBigQueryLanguage(document.languageId)) { return null; }
 
+        // Check if in SELECT clause without prefix - show all columns from all tables
+        if (this.isInSelectClauseWithoutPrefix(document, position)) {
+            const sql = document.getText();
+            const tables = this.extractTablesFromQuery(sql);
+
+            if (tables.length > 0) {
+                const list = this.getBaseCompletionList();
+                const allColumns = this.getAllColumnsFromTables(document, tables);
+                list.items.push(...allColumns);
+                return list;
+            }
+        }
 
         const suggestions = suggest(document.getText(), position.line, position.character) as BqsqlSuggestion[];
 
         const list = this.getBaseCompletionList();
-
-        function pad(num: number | string) {
-            var s = "0000" + num;
-            return s.substring(s.length - 4);
-        }
 
         if (suggestions.length > 0) {
             for (let index0 = 0; index0 < suggestions.length; index0++) {
@@ -45,7 +53,7 @@ export class BqsqlCompletionItemProvider implements CompletionItemProvider<Compl
                         //     command: "editor.action.triggerSuggest"
                         // } as vscode.Command;
                         // Use "0_" prefix to prioritize columns over functions/keywords
-                        c1.sortText = "0_" + pad(index0) + pad(element.ordinal_position);
+                        c1.sortText = "0_" + this.pad(index0) + this.pad(element.ordinal_position);
 
                         list.items.push(c1);
                     }
@@ -76,7 +84,7 @@ export class BqsqlCompletionItemProvider implements CompletionItemProvider<Compl
                 c1.insertText = col.name;
                 c1.detail = 'CTE Column';
                 // Use "0_" prefix to prioritize columns over functions/keywords
-                c1.sortText = "0_" + pad(0) + pad(i);
+                c1.sortText = "0_" + this.pad(0) + this.pad(i);
                 list.items.push(c1);
             }
         }
@@ -703,6 +711,121 @@ export class BqsqlCompletionItemProvider implements CompletionItemProvider<Compl
         }
 
         return columns;
+    }
+
+    /**
+     * Check if cursor is in SELECT clause (between SELECT and FROM/WHERE)
+     * Returns true if we should show all columns from all tables
+     */
+    private isInSelectClauseWithoutPrefix(document: TextDocument, position: Position): boolean {
+        const textBeforeCursor = document.getText(new vscode.Range(0, 0, position.line, position.character));
+
+        // Check if there's a SELECT keyword before cursor
+        const selectMatch = textBeforeCursor.match(/\bSELECT\b/i);
+        if (!selectMatch) {
+            return false;
+        }
+
+        // Get text from last SELECT to cursor
+        const textFromSelect = textBeforeCursor.substring(textBeforeCursor.lastIndexOf(selectMatch[0]));
+
+        // Check if there's a FROM/WHERE/GROUP/ORDER/LIMIT between SELECT and cursor
+        // If yes, we're NOT in the SELECT clause anymore
+        const clauseKeywords = /\b(FROM|WHERE|GROUP\s+BY|ORDER\s+BY|LIMIT|HAVING)\b/i;
+        if (clauseKeywords.test(textFromSelect)) {
+            return false;
+        }
+
+        // Check if we're right after "SELECT " or "SELECT DISTINCT " or after a comma
+        const lineText = document.lineAt(position.line).text;
+        const textBeforeCursorInLine = lineText.substring(0, position.character);
+
+        // Pattern: "SELECT " or "SELECT DISTINCT " or ", " or ",\n  "
+        const afterSelectPattern = /(?:SELECT(?:\s+DISTINCT)?\s+|,\s*)$/i;
+
+        if (afterSelectPattern.test(textBeforeCursorInLine.trimEnd())) {
+            // Check if there's a FROM clause anywhere in the document
+            const fullText = document.getText();
+            if (/\bFROM\b/i.test(fullText)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Extract all table references from FROM/JOIN clauses in the query
+     * Returns list of table names that we can get columns from
+     */
+    private extractTablesFromQuery(sql: string): string[] {
+        try {
+            const tableRefs = extractTableReferences(sql);
+            return tableRefs.map(ref => ref.name);
+        } catch (error) {
+            console.error('Failed to extract tables:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Get all columns from all tables (deduplicated)
+     * Returns columns as completion items ready to insert
+     */
+    private getAllColumnsFromTables(document: TextDocument, tables: string[]): CompletionItem[] {
+        const columns: CompletionItem[] = [];
+        const seenColumnNames = new Set<string>();
+
+        const sql = document.getText();
+
+        let sortIndex = 0;
+        for (const tableName of tables) {
+            // Check if this is a CTE
+            const cteNames = getCteNames(sql);
+            const matchedCte = cteNames.find(name => name.toLowerCase() === tableName.toLowerCase());
+
+            if (matchedCte) {
+                // This is a CTE - get CTE columns
+                const cteColumns = extractCteColumns(sql, matchedCte);
+                for (const col of cteColumns) {
+                    if (!seenColumnNames.has(col.name.toLowerCase())) {
+                        seenColumnNames.add(col.name.toLowerCase());
+
+                        const c1 = new CompletionItem(col.name, CompletionItemKind.Field);
+                        c1.insertText = col.name;
+                        c1.detail = `CTE: ${matchedCte}`;
+                        c1.sortText = "0_" + this.pad(sortIndex);
+                        columns.push(c1);
+                        sortIndex++;
+                    }
+                }
+            } else {
+                // This is a physical table - get columns from cache
+                const physicalColumns = this.getPhysicalTableColumns(tableName);
+                for (const col of physicalColumns) {
+                    if (!seenColumnNames.has(col.name.toLowerCase())) {
+                        seenColumnNames.add(col.name.toLowerCase());
+
+                        const c1 = new CompletionItem(col.name, CompletionItemKind.Field);
+                        c1.insertText = col.name;
+                        c1.detail = `Table: ${tableName}`;
+                        c1.sortText = "0_" + this.pad(sortIndex);
+                        columns.push(c1);
+                        sortIndex++;
+                    }
+                }
+            }
+        }
+
+        return columns;
+    }
+
+    /**
+     * Pad number with zeros for sorting
+     */
+    private pad(num: number | string): string {
+        var s = "0000" + num;
+        return s.substring(s.length - 4);
     }
 
 }
