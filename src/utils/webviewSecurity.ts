@@ -31,7 +31,7 @@ export function getContentSecurityPolicy(
         ? `${webview.cspSource} 'unsafe-inline'`
         : webview.cspSource;
 
-    let scriptSrc = `'nonce-${nonce}' ${webview.cspSource}`;
+    let scriptSrc = `'nonce-${nonce}' ${webview.cspSource} 'wasm-unsafe-eval'`;
     if (options?.allowExternalScripts) {
         scriptSrc += ' ' + options.allowExternalScripts.join(' ');
     }
