@@ -1,0 +1,15 @@
+{
+  "name": "grid_render",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "grid_render_bg.wasm",
+    "grid_render.js",
+    "grid_render.d.ts"
+  ],
+  "main": "grid_render.js",
+  "types": "grid_render.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}
