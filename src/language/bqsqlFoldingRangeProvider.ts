@@ -158,31 +158,32 @@ export class BqsqlFoldingRangeProvider implements FoldingRangeProvider {
         const lines = text.split('\n');
 
         let statementStartLine: number | null = null;
-        const statementKeywords = /^\s*(SELECT|WITH|CREATE|INSERT|UPDATE|DELETE|MERGE|DROP|ALTER|TRUNCATE)\b/i;
+        // Only start new statements on top-level keywords (not WITH, which can be inside queries)
+        const statementStartKeywords = /^\s*(SELECT|CREATE|INSERT|UPDATE|DELETE|MERGE|DROP|ALTER|TRUNCATE)\b/i;
 
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i].trim();
 
-            // Check if line starts a new statement
-            if (statementKeywords.test(line)) {
-                // If we had a previous statement, close it
-                if (statementStartLine !== null && i > statementStartLine + 1) {
-                    ranges.push(new FoldingRange(statementStartLine, i - 1));
-                }
+            // Check if line starts a new statement (only on semicolon boundary or start of file)
+            if (statementStartKeywords.test(line) && statementStartLine === null) {
+                // Start a new statement
                 statementStartLine = i;
+                console.log('[Folding] Statement starts at line', i);
             }
 
             // Check if line contains semicolon (statement end)
             if (line.includes(';') && statementStartLine !== null) {
                 if (i > statementStartLine) {
+                    console.log('[Folding] Statement ends at line', i, 'with semicolon');
                     ranges.push(new FoldingRange(statementStartLine, i));
                 }
-                statementStartLine = null;
+                statementStartLine = null; // Ready for next statement
             }
         }
 
         // Handle last statement without semicolon
         if (statementStartLine !== null && lines.length - 1 > statementStartLine) {
+            console.log('[Folding] Statement ends at EOF, line', lines.length - 1);
             ranges.push(new FoldingRange(statementStartLine, lines.length - 1));
         }
 
