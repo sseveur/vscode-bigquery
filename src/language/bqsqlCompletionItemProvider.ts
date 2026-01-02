@@ -39,7 +39,7 @@ export class BqsqlCompletionItemProvider implements CompletionItemProvider<Compl
                     for (let index1 = 0; index1 < columns.length; index1++) {
                         const element = columns[index1];
                         let c1 = new CompletionItem(element.column_name, CompletionItemKind.Field);
-                        c1.insertText = `${element.column_name},`;
+                        c1.insertText = element.column_name;
                         c1.detail = `${element.data_type}${element.is_partitioning_column === 'YES' ? " - PARTITION COLUMN" : ""}\n\n${element.description ? element.description : ""}`;
                         // c1.command = {
                         //     command: "editor.action.triggerSuggest"
@@ -73,7 +73,7 @@ export class BqsqlCompletionItemProvider implements CompletionItemProvider<Compl
             for (let i = 0; i < cteColumns.length; i++) {
                 const col = cteColumns[i];
                 let c1 = new CompletionItem(col.name, CompletionItemKind.Field);
-                c1.insertText = `${col.name},`;
+                c1.insertText = col.name;
                 c1.detail = 'CTE Column';
                 // Use "0_" prefix to prioritize columns over functions/keywords
                 c1.sortText = "0_" + pad(0) + pad(i);
