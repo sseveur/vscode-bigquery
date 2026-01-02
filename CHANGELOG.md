@@ -5,11 +5,17 @@ All notable changes to the BigQuery Studio extension will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.8.0] - 2026-01-02
+## [1.8.0] - 2026-01-03
 
 ### Added
 
-- **SQL Query Folding** - Collapse entire SQL queries (CREATE/SELECT/WITH to semicolon) for better code navigation. Click the folding arrow in the gutter to collapse queries to their first line.
+- **Hierarchical SQL Query Folding** - Multi-level code folding for better navigation of complex queries:
+  - **Top-level statements** - Collapse entire queries (CREATE/SELECT to semicolon)
+  - **CTE definitions** - Collapse each CTE independently (WITH cte_name AS (...))
+  - **SELECT clauses** - Collapse column lists (SELECT ... FROM)
+  - **FROM clauses** - Collapse entire FROM blocks with all JOINs
+  - **Individual JOINs** - Collapse each JOIN and its ON/USING conditions separately
+  - Supports nested folding: collapse parent to hide all children, or collapse children individually
 - **Smart Column Autocomplete Without Alias** - When typing in SELECT clause, autocomplete now shows all columns from all tables in FROM/JOIN clauses, even without typing a table prefix. Columns are deduplicated and work with CTEs.
 - **Auto-Preview CREATE TABLE Results** - Optionally show first 100 rows automatically after CREATE TABLE completes. Enable in settings: `vscode-bigquery.autoPreviewCreatedTables` (disabled by default).
 
