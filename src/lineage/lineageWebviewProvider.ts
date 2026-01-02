@@ -600,7 +600,7 @@ function getMultiQueryHtmlContent(result: MultiLineageResult): string {
             flex-direction: column;
             gap: 24px;
             overflow-y: auto;
-            max-height: calc(100vh - 100px);
+            flex: 1;
             padding-bottom: 40px;
         }
 
@@ -608,6 +608,9 @@ function getMultiQueryHtmlContent(result: MultiLineageResult): string {
             border: 1px solid var(--vscode-panel-border);
             border-radius: 8px;
             overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            max-height: 500px;
         }
 
         .query-header {
@@ -663,6 +666,10 @@ function getMultiQueryHtmlContent(result: MultiLineageResult): string {
 
         .query-body {
             padding: 16px;
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
         }
 
         .query-section.collapsed .query-body {
@@ -702,6 +709,7 @@ function getMultiQueryHtmlContent(result: MultiLineageResult): string {
             border-radius: 6px;
             background-color: var(--vscode-editor-background);
             min-height: 300px;
+            flex: 1;
         }
 
         .graph-wrapper {

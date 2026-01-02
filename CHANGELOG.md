@@ -5,6 +5,14 @@ All notable changes to the BigQuery Studio extension will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.2] - 2026-01-02
+
+### Fixed
+
+- **Lineage Panel Layout** - Fixed data lineage panel display to show each query section with uniform height (500px max) and proper scrolling. Users can now scroll through all lineages instead of having them all visible at once, making it easier to navigate files with many queries.
+- **Lineage Arrow Alignment** - Fixed arrowhead markers to properly align with curve direction. Arrowheads now rotate to match the exact angle of the Bezier curve at their endpoint, making them parallel to the line.
+- **Lineage Vertical Centering** - Graphs are now vertically centered based on output nodes (TARGET/RESULT) rather than all nodes, making the output the visual focal point.
+
 ## [1.6.1] - 2026-01-02
 
 ### Fixed

@@ -34,9 +34,9 @@ export function renderGraphToSvg(
     return `
         <svg viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" class="lineage-graph" xmlns="http://www.w3.org/2000/svg">
             <defs>
-                <marker id="arrowhead" markerWidth="8" markerHeight="6"
-                    refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
-                    <polygon points="0 0, 8 3, 0 6" fill="var(--vscode-descriptionForeground, #888)"/>
+                <marker id="arrowhead" viewBox="0 0 10 10" markerWidth="10" markerHeight="10"
+                    refX="9" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+                    <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--vscode-descriptionForeground, #888)"/>
                 </marker>
                 <!-- Glow filter for hover effect -->
                 <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">

@@ -72,11 +72,47 @@ export function calculateLayout(graph: LineageGraph, config: Partial<LayoutConfi
         });
     }
 
+    // Center graph vertically based on output nodes
+    centerOnOutputNodes(graph, totalHeight, cfg);
+
     return {
         graph,
         width: totalWidth,
         height: Math.max(totalHeight, 200) // Minimum height
     };
+}
+
+/**
+ * Center the layout vertically based on output nodes (TARGET/RESULT)
+ */
+function centerOnOutputNodes(graph: LineageGraph, totalHeight: number, cfg: LayoutConfig): void {
+    // Find all output nodes (TARGET or RESULT)
+    const outputNodes = graph.nodes.filter(n =>
+        n.nodeType === 'TARGET' || n.nodeType === 'RESULT'
+    );
+
+    if (outputNodes.length === 0 || outputNodes[0].y === undefined) {
+        return; // No output nodes or positions not set yet
+    }
+
+    // Calculate the vertical center of output nodes
+    const outputYPositions = outputNodes.map(n => n.y! + cfg.nodeHeight / 2);
+    const minY = Math.min(...outputYPositions);
+    const maxY = Math.max(...outputYPositions);
+    const outputCenterY = (minY + maxY) / 2;
+
+    // Calculate desired center (middle of total height)
+    const desiredCenterY = totalHeight / 2;
+
+    // Calculate offset needed
+    const offsetY = desiredCenterY - outputCenterY;
+
+    // Apply offset to all nodes
+    for (const node of graph.nodes) {
+        if (node.y !== undefined) {
+            node.y += offsetY;
+        }
+    }
 }
 
 /**
