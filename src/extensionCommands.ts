@@ -74,6 +74,23 @@ export const COMMAND_SHOW_LINEAGE_SELECTION = "vscode-bigquery.show-lineage-sele
 export const COMMAND_REFRESH_SCHEMA_CACHE = "vscode-bigquery.refresh-schema-cache";
 export const COMMAND_SET_LINEAGE_EXPORT_THEME = "vscode-bigquery.set-lineage-export-theme";
 
+/**
+ * Check if SQL is a CREATE TABLE statement
+ */
+function isCreateTableStatement(sql: string): boolean {
+	// Regex: CREATE [OR REPLACE] [TEMP|TEMPORARY] TABLE [IF NOT EXISTS]
+	return /^\s*CREATE\s+(?:OR\s+REPLACE\s+)?(?:TEMP(?:ORARY)?\s+)?TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?/i.test(sql.trim());
+}
+
+/**
+ * Extract the created table name from CREATE TABLE statement
+ */
+function extractCreatedTableName(sql: string): string | null {
+	// Match table name after CREATE TABLE keywords
+	const match = sql.match(/CREATE\s+(?:OR\s+REPLACE\s+)?(?:TEMP(?:ORARY)?\s+)?TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([`\w.\-]+)/i);
+	return match ? match[1] : null;
+}
+
 export const commandRunQuery = async function (this: any, ...args: any[]) {
 
 	return commandQuery(this, RunQueryType.query);
@@ -202,6 +219,42 @@ const runQuery = async function (globalState: vscode.Memento, queryResultsWebvie
 				projectId: projectId || 'unknown',
 				status: 'success'
 			});
+		}
+
+		// Check if auto-preview setting is enabled and this is CREATE TABLE
+		const config = vscode.workspace.getConfiguration('vscode-bigquery');
+		const autoPreview = config.get('autoPreviewCreatedTables', false);
+
+		if (autoPreview && isCreateTableStatement(queryText)) {
+			const createdTable = extractCreatedTableName(queryText);
+
+			if (createdTable) {
+				// Wait briefly for table to be available
+				await new Promise(resolve => setTimeout(resolve, 500));
+
+				// Run SELECT * LIMIT 100 on created table
+				const previewQuery = `SELECT * FROM ${createdTable} LIMIT 100`;
+
+				try {
+					const previewJob = await bqClient.runQuery(previewQuery);
+
+					// Send preview results to same webview panel
+					await resultsGridRender.postMessage({
+						requestType: ResultsGridRenderRequestV2Type.executeQuery.toString(),
+						projectId: projectId,
+						token: token,
+						job: previewJob.metadata,
+						error: null
+					} as ResultsGridRenderRequestV2);
+
+					vscode.window.showInformationMessage(
+						`Table created successfully. Showing first 100 rows.`
+					);
+				} catch (previewError) {
+					console.error('Failed to preview created table:', previewError);
+					// Don't fail the CREATE TABLE operation if preview fails
+				}
+			}
 		}
 
 	} catch (errorx) {

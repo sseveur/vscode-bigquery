@@ -225,6 +225,14 @@
 					"order": 19,
 					"title": "Lineage Export Theme",
 					"description": "Theme to use when exporting lineage charts as PNG or PDF. Light theme uses white background with dark text, which may improve text visibility and is better for printing."
+				},
+				"vscode-bigquery.autoPreviewCreatedTables": {
+					"type": "boolean",
+					"default": false,
+					"scope": "machine-overridable",
+					"order": 20,
+					"title": "Auto-Preview Created Tables",
+					"description": "Automatically preview first 100 rows when CREATE TABLE completes successfully (disabled by default)"
 				}
 			}
 		},
