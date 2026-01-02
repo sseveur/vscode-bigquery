@@ -245,6 +245,36 @@ Features:
 - **Statement Type Badges** - Target nodes show the operation type
 - **Zoom Controls** - Zoom in/out and reset buttons, plus Ctrl+scroll wheel support
 
+### Exporting Lineage Charts
+
+Export lineage visualizations to share, document, or print your data pipelines:
+
+- **PNG Export** - Click "↓ PNG" to save as high-quality image (2x resolution)
+  - Ideal for embedding in wikis, documentation, or presentations
+  - Preserves VS Code theme colors and styling
+
+- **PDF Export** - Click "↓ PDF" to save as vector PDF
+  - Perfect for printing or sharing with stakeholders
+  - Maintains quality at any zoom level
+
+- **Multi-Query Files** - Files with multiple queries show additional export options:
+  - **Individual export** - Click PNG/PDF button on each query section
+  - **Bulk export** - Click "↓ All PNG" (separate files) or "↓ All PDF" (multi-page document) in the header
+
+- **File Naming** - Files are automatically named with:
+  - Query number (for multi-query files)
+  - Line range (e.g., `lines1-15`)
+  - Timestamp (e.g., `20260102_143052`)
+  - Example: `lineage_query1_lines1-15_20260102_143052.png`
+
+- **Export Theme** - Switch between dark and light themes for exports:
+  - **Dark theme** (default) - Dark background with light text
+  - **Light theme** - White background with dark text (better for printing)
+  - Toggle via Command Palette: `BigQuery: Toggle Lineage Export Theme`
+  - Or configure in settings: `vscode-bigquery.lineageExportTheme`
+
+Exported files include the complete lineage graph with proper node colors, edges, and layout.
+
 > **Note:** Lineage requires valid SQL. If your query contains syntax errors, the lineage graph may be incomplete or unavailable.
 
 ## Format SQL

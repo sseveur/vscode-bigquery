@@ -5,6 +5,23 @@ All notable changes to the BigQuery Studio extension will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-01-02
+
+### Added
+
+- **Lineage Chart Export** - Export data lineage visualizations as PNG or PDF images:
+  - **PNG export** - High-quality raster images (2x resolution) ideal for documentation and wikis
+  - **PDF export** - Vector PDFs that scale perfectly, ideal for printing and sharing
+  - **Single-query export** - Download individual lineage chart from header buttons (↓ PNG / ↓ PDF)
+  - **Multi-query individual export** - Download each query's lineage separately using per-section PNG/PDF buttons
+  - **Multi-query bulk export** - Download all lineages at once:
+    - "↓ All PNG" creates separate files (lineage_query1.png, lineage_query2.png, etc.)
+    - "↓ All PDF" creates single multi-page document with all queries
+  - **Smart file naming** - Files automatically named with query info, line ranges, and timestamps (e.g., `lineage_query1_lines1-15_20260102_143052.png`)
+  - **Theme switching** - Toggle between dark (default) and light export themes via Command Palette (`BigQuery: Toggle Lineage Export Theme`) or settings
+  - Export buttons appear in lineage panel header and per-query sections
+  - Uses resvg-js for PNG conversion and jsPDF for PDF generation
+
 ## [1.6.3] - 2026-01-02
 
 ### Fixed

@@ -22,8 +22,12 @@ const extensionConfig = {
     wasmLoading: 'fetch',
   },
   externals: {
-    vscode: 'commonjs vscode' // the vscode-module is created on-the-fly and must be excluded. Add other modules that cannot be webpack'ed, 📖 -> https://webpack.js.org/configuration/externals/
+    vscode: 'commonjs vscode', // the vscode-module is created on-the-fly and must be excluded. Add other modules that cannot be webpack'ed, 📖 -> https://webpack.js.org/configuration/externals/
     // modules added here also need to be added in the .vscodeignore file
+    '@resvg/resvg-js': 'commonjs @resvg/resvg-js', // native module with .node bindings
+    'jspdf': 'commonjs jspdf',
+    'svg2pdf.js': 'commonjs svg2pdf.js',
+    'jsdom': 'commonjs jsdom' // DOM implementation for Node.js
   },
   resolve: {
     // support reading TypeScript and JavaScript files, 📖 -> https://github.com/TypeStrong/ts-loader

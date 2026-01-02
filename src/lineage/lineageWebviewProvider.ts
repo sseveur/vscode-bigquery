@@ -2,12 +2,19 @@ import * as vscode from 'vscode';
 import { LineageGraph, MultiLineageResult, QueryLineageInfo } from '../services/lineageGraph';
 import { calculateLayout } from './dagLayout';
 import { renderGraphToSvg, getGraphStyles, renderLegend } from './svgRenderer';
+import { LineageExportService } from './lineageExportService';
 
 const VIEW_TYPE = 'bigquery-lineage';
 
 let currentPanel: vscode.WebviewPanel | undefined;
 let messageHandlerDisposable: vscode.Disposable | undefined;
 let sourceDocument: vscode.TextDocument | undefined;
+
+// Store SVG strings for export functionality
+let currentSvgData: Array<{
+    svg: string;
+    queryInfo?: QueryLineageInfo;
+}> | null = null;
 
 export function showLineagePanel(graph: LineageGraph, context: vscode.ExtensionContext): void {
     const column = vscode.ViewColumn.Beside;
@@ -42,6 +49,10 @@ export function showLineagePanel(graph: LineageGraph, context: vscode.ExtensionC
     messageHandlerDisposable = currentPanel.webview.onDidReceiveMessage(message => {
         if (message.type === 'navigate') {
             navigateToPosition(message.line, message.column, message.fullName);
+        } else if (message.type === 'exportImage') {
+            handleExportImage(message.format, message.queryIndex);
+        } else if (message.type === 'exportAllImages') {
+            handleExportAllImages(message.format);
         }
     });
 
@@ -49,6 +60,7 @@ export function showLineagePanel(graph: LineageGraph, context: vscode.ExtensionC
     currentPanel.onDidDispose(() => {
         currentPanel = undefined;
         sourceDocument = undefined;
+        currentSvgData = null;
         if (messageHandlerDisposable) {
             messageHandlerDisposable.dispose();
             messageHandlerDisposable = undefined;
@@ -94,6 +106,10 @@ export function showMultiLineagePanel(result: MultiLineageResult, context: vscod
             navigateToPosition(message.line, message.column, message.fullName);
         } else if (message.type === 'scrollToQuery') {
             navigateToLine(message.line);
+        } else if (message.type === 'exportImage') {
+            handleExportImage(message.format, message.queryIndex);
+        } else if (message.type === 'exportAllImages') {
+            handleExportAllImages(message.format);
         }
     });
 
@@ -101,6 +117,7 @@ export function showMultiLineagePanel(result: MultiLineageResult, context: vscod
     currentPanel.onDidDispose(() => {
         currentPanel = undefined;
         sourceDocument = undefined;
+        currentSvgData = null;
         if (messageHandlerDisposable) {
             messageHandlerDisposable.dispose();
             messageHandlerDisposable = undefined;
@@ -109,7 +126,101 @@ export function showMultiLineagePanel(result: MultiLineageResult, context: vscod
 }
 
 function updateMultiPanelContent(panel: vscode.WebviewPanel, result: MultiLineageResult): void {
+    // Filter to queries with lineage
+    const queriesWithLineage = result.queries.filter(q => q.graph.nodes.length > 0);
+
+    // Store SVGs for export
+    currentSvgData = queriesWithLineage.map(queryInfo => {
+        const layoutResult = calculateLayout(queryInfo.graph);
+        const { width, height } = layoutResult;
+        const svgContent = renderGraphToSvg(queryInfo.graph, width, height);
+        return { svg: svgContent, queryInfo };
+    });
+
     panel.webview.html = getMultiQueryHtmlContent(result);
+}
+
+/**
+ * Handle export image request from webview
+ */
+async function handleExportImage(
+    format: 'png' | 'pdf',
+    queryIndex?: number
+): Promise<void> {
+    if (!currentSvgData || currentSvgData.length === 0) {
+        vscode.window.showWarningMessage('No lineage data to export');
+        return;
+    }
+
+    const dataIndex = queryIndex !== undefined ? queryIndex : 0;
+    const svgToExport = currentSvgData[dataIndex]?.svg;
+
+    if (!svgToExport) {
+        vscode.window.showErrorMessage('Failed to retrieve lineage data');
+        return;
+    }
+
+    const queryInfo = currentSvgData[dataIndex]?.queryInfo;
+    const lineRange = queryInfo ? `${queryInfo.startLine}-${queryInfo.endLine}` : undefined;
+    const filename = generateExportFilename(format, queryIndex, lineRange);
+
+    if (format === 'png') {
+        await LineageExportService.exportToPng(svgToExport, filename);
+    } else {
+        await LineageExportService.exportToPdf(svgToExport, filename);
+    }
+}
+
+/**
+ * Handle export all images request from webview
+ */
+async function handleExportAllImages(format: 'png' | 'pdf'): Promise<void> {
+    if (!currentSvgData || currentSvgData.length === 0) {
+        vscode.window.showWarningMessage('No lineage data to export');
+        return;
+    }
+
+    if (format === 'png') {
+        // Export as separate PNG files
+        const svgData = currentSvgData.map((data, idx) => ({
+            svg: data.svg,
+            queryIndex: idx,
+            lineRange: data.queryInfo ? `${data.queryInfo.startLine}-${data.queryInfo.endLine}` : ''
+        }));
+        await LineageExportService.exportMultipleToPng(svgData, 'lineage_all_queries.png');
+    } else {
+        // Export as multi-page PDF
+        const svgData = currentSvgData.map((data, idx) => ({
+            svg: data.svg,
+            title: `Query ${idx + 1}`
+        }));
+        await LineageExportService.exportMultipleToMultiPagePdf(svgData, 'lineage_all_queries.pdf');
+    }
+}
+
+/**
+ * Generate export filename with timestamp and optional query info
+ */
+function generateExportFilename(
+    format: 'png' | 'pdf',
+    queryIndex?: number,
+    lineRange?: string
+): string {
+    const date = new Date();
+    const timestamp =
+        `${date.getFullYear()}` +
+        `${String(date.getMonth() + 1).padStart(2, '0')}` +
+        `${String(date.getDate()).padStart(2, '0')}_` +
+        `${String(date.getHours()).padStart(2, '0')}` +
+        `${String(date.getMinutes()).padStart(2, '0')}` +
+        `${String(date.getSeconds()).padStart(2, '0')}`;
+
+    if (queryIndex !== undefined) {
+        const lineRangePart = lineRange ? `_lines${lineRange}` : '';
+        return `lineage_query${queryIndex + 1}${lineRangePart}_${timestamp}.${format}`;
+    }
+
+    return `lineage_query_${timestamp}.${format}`;
 }
 
 /**
@@ -202,6 +313,14 @@ function escapeRegex(str: string): string {
 }
 
 function updatePanelContent(panel: vscode.WebviewPanel, graph: LineageGraph): void {
+    // Calculate layout and render SVG
+    const layoutResult = calculateLayout(graph);
+    const { width, height } = layoutResult;
+    const svgContent = renderGraphToSvg(graph, width, height);
+
+    // Store SVG for export
+    currentSvgData = [{ svg: svgContent }];
+
     panel.webview.html = getHtmlContent(graph);
 }
 
@@ -286,6 +405,37 @@ function getHtmlContent(graph: LineageGraph): string {
             text-align: center;
             font-size: 11px;
             color: var(--vscode-descriptionForeground);
+        }
+
+        .export-controls {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-left: 12px;
+        }
+
+        .export-btn {
+            height: 28px;
+            padding: 0 12px;
+            border: 1px solid var(--vscode-button-secondaryBackground);
+            background: var(--vscode-button-secondaryBackground);
+            color: var(--vscode-button-secondaryForeground);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            white-space: nowrap;
+        }
+
+        .export-btn:hover:not(:disabled) {
+            background: var(--vscode-button-secondaryHoverBackground);
+        }
+
+        .export-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
 
         .legend {
@@ -397,6 +547,10 @@ function getHtmlContent(graph: LineageGraph): string {
                 <button class="zoom-btn" id="zoom-in" title="Zoom in">+</button>
                 <button class="zoom-btn" id="zoom-reset" title="Reset zoom">⟲</button>
             </div>
+            <div class="export-controls">
+                <button class="export-btn" id="export-png" title="Download as PNG"${graph.nodes.length === 0 ? ' disabled' : ''}>↓ PNG</button>
+                <button class="export-btn" id="export-pdf" title="Download as PDF"${graph.nodes.length === 0 ? ' disabled' : ''}>↓ PDF</button>
+            </div>
         </div>
         ${legend}
     </div>
@@ -503,6 +657,28 @@ function getHtmlContent(graph: LineageGraph): string {
                     });
                 });
             });
+
+            // Export button handlers
+            const exportPngBtn = document.getElementById('export-png');
+            const exportPdfBtn = document.getElementById('export-pdf');
+
+            if (exportPngBtn) {
+                exportPngBtn.addEventListener('click', function() {
+                    vscode.postMessage({
+                        type: 'exportImage',
+                        format: 'png'
+                    });
+                });
+            }
+
+            if (exportPdfBtn) {
+                exportPdfBtn.addEventListener('click', function() {
+                    vscode.postMessage({
+                        type: 'exportImage',
+                        format: 'pdf'
+                    });
+                });
+            }
         })();
     </script>
 </body>
@@ -753,6 +929,61 @@ function getMultiQueryHtmlContent(result: MultiLineageResult): string {
             color: var(--vscode-descriptionForeground);
         }
 
+        .export-controls {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-left: 12px;
+        }
+
+        .export-btn {
+            height: 24px;
+            padding: 0 10px;
+            border: 1px solid var(--vscode-button-secondaryBackground);
+            background: var(--vscode-button-secondaryBackground);
+            color: var(--vscode-button-secondaryForeground);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            white-space: nowrap;
+        }
+
+        .export-btn:hover:not(:disabled) {
+            background: var(--vscode-button-secondaryHoverBackground);
+        }
+
+        .export-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .query-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .export-btn-small {
+            height: 22px;
+            padding: 0 8px;
+            border: 1px solid var(--vscode-button-secondaryBackground);
+            background: var(--vscode-button-secondaryBackground);
+            color: var(--vscode-button-secondaryForeground);
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 10px;
+            text-transform: uppercase;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .export-btn-small:hover {
+            background: var(--vscode-button-secondaryHoverBackground);
+        }
+
         ${styles}
 
         .legend {
@@ -779,6 +1010,10 @@ function getMultiQueryHtmlContent(result: MultiLineageResult): string {
         <div class="header-left">
             <h2>Data Lineage</h2>
             <span class="query-count">${queriesWithLineage.length} ${queriesWithLineage.length === 1 ? 'query' : 'queries'} with lineage</span>
+            <div class="export-controls">
+                <button class="export-btn" id="export-all-png" title="Download all as separate PNG files">↓ All PNG</button>
+                <button class="export-btn" id="export-all-pdf" title="Download all as multi-page PDF">↓ All PDF</button>
+            </div>
         </div>
         ${legend}
     </div>
@@ -889,14 +1124,45 @@ function getMultiQueryHtmlContent(result: MultiLineageResult): string {
             // Click handler for query headers - navigate to query start
             document.querySelectorAll('.query-header').forEach(function(header) {
                 header.addEventListener('click', function(e) {
-                    // Don't trigger if clicking on zoom controls or collapse toggle
+                    // Don't trigger if clicking on zoom controls, collapse toggle, or export buttons
                     if (e.target.closest('.zoom-controls')) return;
                     if (e.target.closest('.collapse-toggle')) return;
+                    if (e.target.closest('.export-btn-small')) return;
+                    if (e.target.closest('.export-btn')) return;
 
                     const line = parseInt(this.getAttribute('data-start-line')) || 1;
                     vscode.postMessage({
                         type: 'scrollToQuery',
                         line: line
+                    });
+                });
+            });
+
+            // Export all buttons
+            document.getElementById('export-all-png')?.addEventListener('click', function() {
+                vscode.postMessage({
+                    type: 'exportAllImages',
+                    format: 'png'
+                });
+            });
+
+            document.getElementById('export-all-pdf')?.addEventListener('click', function() {
+                vscode.postMessage({
+                    type: 'exportAllImages',
+                    format: 'pdf'
+                });
+            });
+
+            // Per-query export buttons
+            document.querySelectorAll('.export-btn-small').forEach(function(btn) {
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();  // Don't trigger header click
+                    const queryIndex = parseInt(this.getAttribute('data-query-index'));
+                    const format = this.getAttribute('data-format');
+                    vscode.postMessage({
+                        type: 'exportImage',
+                        format: format,
+                        queryIndex: queryIndex
                     });
                 });
             });
@@ -939,10 +1205,14 @@ function renderQuerySection(queryInfo: QueryLineageInfo, displayIndex: number): 
                     <span class="query-lines">Lines ${startLine}-${endLine}</span>
                     <span class="query-preview-text">${escapeHtml(previewDisplay)}</span>
                 </div>
-                <div class="query-stats">
-                    <span>${sourceCount} source${sourceCount !== 1 ? 's' : ''}</span>
-                    ${cteCount > 0 ? `<span>${cteCount} CTE${cteCount !== 1 ? 's' : ''}</span>` : ''}
-                    ${targetCount > 0 ? `<span>${targetCount} target${targetCount !== 1 ? 's' : ''}</span>` : ''}
+                <div class="query-actions">
+                    <button class="export-btn-small" data-query-index="${displayIndex}" data-format="png" title="Download PNG">PNG</button>
+                    <button class="export-btn-small" data-query-index="${displayIndex}" data-format="pdf" title="Download PDF">PDF</button>
+                    <div class="query-stats">
+                        <span>${sourceCount} source${sourceCount !== 1 ? 's' : ''}</span>
+                        ${cteCount > 0 ? `<span>${cteCount} CTE${cteCount !== 1 ? 's' : ''}</span>` : ''}
+                        ${targetCount > 0 ? `<span>${targetCount} target${targetCount !== 1 ? 's' : ''}</span>` : ''}
+                    </div>
                 </div>
             </div>
             <div class="query-body">

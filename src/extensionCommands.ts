@@ -72,6 +72,7 @@ export const COMMAND_HISTORY_REFRESH = "vscode-bigquery.history-refresh";
 export const COMMAND_SHOW_LINEAGE = "vscode-bigquery.show-lineage";
 export const COMMAND_SHOW_LINEAGE_SELECTION = "vscode-bigquery.show-lineage-selection";
 export const COMMAND_REFRESH_SCHEMA_CACHE = "vscode-bigquery.refresh-schema-cache";
+export const COMMAND_SET_LINEAGE_EXPORT_THEME = "vscode-bigquery.set-lineage-export-theme";
 
 export const commandRunQuery = async function (this: any, ...args: any[]) {
 
@@ -1213,4 +1214,21 @@ export const commandRefreshSchemaCache = function (...args: any[]) {
 	} else {
 		vscode.window.showInformationMessage('BigQuery: Schema cache was already empty');
 	}
+};
+
+// Toggle Lineage Export Theme
+export const commandSetLineageExportTheme = async function (...args: any[]) {
+	const config = vscode.workspace.getConfiguration('vscode-bigquery');
+	const currentTheme = config.get<string>('lineageExportTheme', 'dark');
+
+	// Toggle between dark and light
+	const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+
+	await config.update('lineageExportTheme', newTheme, vscode.ConfigurationTarget.Global);
+
+	const themeDescription = newTheme === 'dark'
+		? 'dark background with light text'
+		: 'white background with dark text';
+
+	vscode.window.showInformationMessage(`BigQuery: Lineage export theme switched to ${newTheme} (${themeDescription})`);
 };

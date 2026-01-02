@@ -301,6 +301,14 @@ export function activate(context: ExtensionContext) {
 		)
 	);
 
+	// Set Lineage Export Theme
+	context.subscriptions.push(
+		vscode.commands.registerCommand(
+			commands.COMMAND_SET_LINEAGE_EXPORT_THEME,
+			commands.commandSetLineageExportTheme
+		)
+	);
+
 	// Query History
 	const queryHistoryService = commands.initQueryHistoryService(context.globalState);
 	const queryHistoryTreeDataProvider = new QueryHistoryTreeDataProvider(queryHistoryService);
