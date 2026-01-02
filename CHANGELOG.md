@@ -5,6 +5,18 @@ All notable changes to the BigQuery Studio extension will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0] - 2026-01-02
+
+### Added
+
+- **SQL Query Folding** - Collapse entire SQL queries (CREATE/SELECT/WITH to semicolon) for better code navigation. Click the folding arrow in the gutter to collapse queries to their first line.
+- **Smart Column Autocomplete Without Alias** - When typing in SELECT clause, autocomplete now shows all columns from all tables in FROM/JOIN clauses, even without typing a table prefix. Columns are deduplicated and work with CTEs.
+- **Auto-Preview CREATE TABLE Results** - Optionally show first 100 rows automatically after CREATE TABLE completes. Enable in settings: `vscode-bigquery.autoPreviewCreatedTables` (disabled by default).
+
+### Fixed
+
+- **Column Autocomplete Comma** - Column autocomplete no longer automatically adds trailing comma after column name insertion.
+
 ## [1.7.0] - 2026-01-02
 
 ### Added

@@ -60,3 +60,41 @@
 - ~~Clears all cached table schemas so fresh data is fetched on next hover~~
 
 ---
+
+## ~~Fix 1: Autocomplete column adds a comma after completion~~ DONE (v1.8.0)
+
+~~When autocompleting a column name based on the table, the features adds a comma.~~
+
+~~E.g.: User types "SELECT s. from [table_name] s", he autocomplete with the column name. It now gives "SELECT s.[column_name], from [table_name] s".~~
+~~We do not want this extra comma.~~
+
+## ~~Feature 7: Compact whole query~~ DONE (v1.8.0)
+
+~~You can compact sections of code in Visual Studio Code. I would like to compact the whole query.~~
+
+~~E.g: "
+CREATE TABLE AS XXX
+SELECT *
+FROM toto
+inner join tata
+    on toto.id = tata.id
+;"~~
+
+~~This would result in: "
+CREATE TABLE AS XXX
+;
+" with the code being hidden using the vertical > between the row number and code.~~
+
+
+## ~~Fix 2: Autocomplete doesn't return anything if missing alias~~ DONE (v1.8.0)
+
+~~When writing some SQL queries, the autocomplete does not always works.~~
+
+~~If we are typing a SELECT statement with a FROM clause already filled-in, we should see the list of columns. If multiple tables are listed but no alias/table/input, the concatenation of all tables' columns available should be presented.~~
+
+
+## ~~Feature 8: Running a create table should also run a SELECT * LIMIT 100~~ DONE (v1.8.0)
+
+~~Everytime a user is creating a table, the webview shows the table structure. Add the preview of the first 100 rows there too.~~
+
+~~As this is not an expected behaviour, this feature should have an option that is disabled by default but correctly mentionned in the extension documentation to guide the user.~~ 
