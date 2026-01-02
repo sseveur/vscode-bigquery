@@ -32,6 +32,13 @@ export class BqsqlFoldingRangeProvider implements FoldingRangeProvider {
                 }
             }
 
+            // If parser found statements but couldn't create ranges (no range data),
+            // fall back to regex
+            if (statements.length > 0 && ranges.length === 0) {
+                console.log('[Folding] Parser found statements but no ranges created, using regex fallback');
+                return this.findFoldingRangesRegex(text);
+            }
+
         } catch (error) {
             // Parser failed - fall back to regex-based detection
             console.log('[Folding] Parser failed, using regex fallback:', error);

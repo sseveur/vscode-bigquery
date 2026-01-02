@@ -226,14 +226,13 @@ const runQuery = async function (globalState: vscode.Memento, queryResultsWebvie
 		const autoPreview = config.get('autoPreviewCreatedTables', false);
 		console.log('[Auto-Preview] Setting enabled:', autoPreview);
 
-		// Only preview if CREATE TABLE succeeded (check job status)
-		const jobSucceeded = job.metadata?.status?.state === 'DONE' && !job.metadata?.status?.errorResult;
-		console.log('[Auto-Preview] Job succeeded:', jobSucceeded, 'state:', job.metadata?.status?.state);
-
 		const isCreateTable = isCreateTableStatement(queryText);
 		console.log('[Auto-Preview] Is CREATE TABLE:', isCreateTable);
 
-		if (autoPreview && isCreateTable && jobSucceeded) {
+		// Don't check job state here - the job may still be running
+		// If we got here without throwing, the query was submitted successfully
+		// The webview will handle fetching results asynchronously
+		if (autoPreview && isCreateTable) {
 			const createdTable = extractCreatedTableName(queryText);
 
 			if (createdTable) {
