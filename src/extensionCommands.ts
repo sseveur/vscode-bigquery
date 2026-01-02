@@ -225,7 +225,10 @@ const runQuery = async function (globalState: vscode.Memento, queryResultsWebvie
 		const config = vscode.workspace.getConfiguration('vscode-bigquery');
 		const autoPreview = config.get('autoPreviewCreatedTables', false);
 
-		if (autoPreview && isCreateTableStatement(queryText)) {
+		// Only preview if CREATE TABLE succeeded (check job status)
+		const jobSucceeded = job.metadata?.status?.state === 'DONE' && !job.metadata?.status?.errorResult;
+
+		if (autoPreview && isCreateTableStatement(queryText) && jobSucceeded) {
 			const createdTable = extractCreatedTableName(queryText);
 
 			if (createdTable) {
