@@ -224,11 +224,16 @@ const runQuery = async function (globalState: vscode.Memento, queryResultsWebvie
 		// Check if auto-preview setting is enabled and this is CREATE TABLE
 		const config = vscode.workspace.getConfiguration('vscode-bigquery');
 		const autoPreview = config.get('autoPreviewCreatedTables', false);
+		console.log('[Auto-Preview] Setting enabled:', autoPreview);
 
 		// Only preview if CREATE TABLE succeeded (check job status)
 		const jobSucceeded = job.metadata?.status?.state === 'DONE' && !job.metadata?.status?.errorResult;
+		console.log('[Auto-Preview] Job succeeded:', jobSucceeded, 'state:', job.metadata?.status?.state);
 
-		if (autoPreview && isCreateTableStatement(queryText) && jobSucceeded) {
+		const isCreateTable = isCreateTableStatement(queryText);
+		console.log('[Auto-Preview] Is CREATE TABLE:', isCreateTable);
+
+		if (autoPreview && isCreateTable && jobSucceeded) {
 			const createdTable = extractCreatedTableName(queryText);
 
 			if (createdTable) {

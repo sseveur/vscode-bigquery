@@ -89,14 +89,19 @@ export class BqsqlFoldingRangeProvider implements FoldingRangeProvider {
      */
     private createFoldingRangeForStatement(stmt: BqsqlDocumentItem, text: string): FoldingRange | null {
         if (!stmt.range || stmt.range.length < 3) {
+            console.log('[Folding] Statement has no range data');
             return null;
         }
 
         const startLine = stmt.range[0];
+        const statementStartOffset = stmt.range[1];
+        const statementEndOffset = stmt.range[2];
+
+        console.log('[Folding] Statement range:', startLine, 'offset:', statementStartOffset, '->', statementEndOffset);
+
         let endLine = stmt.range[0]; // Default to start line
 
         // Find the semicolon after the statement
-        const statementEndOffset = stmt.range[2]; // End offset of statement
         const remainingText = text.substring(statementEndOffset);
         const semicolonMatch = remainingText.match(/;/);
 
@@ -104,16 +109,22 @@ export class BqsqlFoldingRangeProvider implements FoldingRangeProvider {
             // Found semicolon - count lines from statement end to semicolon
             const semicolonOffset = statementEndOffset + semicolonMatch.index;
             endLine = this.offsetToLine(text, semicolonOffset);
+            console.log('[Folding] Found semicolon at offset', semicolonOffset, '-> line', endLine);
         } else {
             // No semicolon - use statement's last line
             endLine = this.offsetToLine(text, statementEndOffset);
+            console.log('[Folding] No semicolon, using end offset line:', endLine);
         }
+
+        console.log('[Folding] Final range: line', startLine, '->', endLine);
 
         // Only create folding range if there are multiple lines
         if (endLine > startLine) {
+            console.log('[Folding] ✓ Creating folding range');
             return new FoldingRange(startLine, endLine);
         }
 
+        console.log('[Folding] ✗ Single line statement, no folding');
         return null;
     }
 
