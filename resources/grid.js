@@ -2,7 +2,7 @@
 
 import init, { get_web_components_list, register_custom_element, on_window_message_received } from "./grid_render.js";
 
-const p = init().then(() => {
+const p = init(window.GRID_RENDER_WASM_URL).then(() => {
 
     let webComponentsList = get_web_components_list();
 

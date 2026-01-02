@@ -52,6 +52,11 @@ export class ResultsGridRender {
             'grid.css']
         );
 
+        const gridRenderWasm = this.getUri(this.webViewPanel.webview, extensionUri, [
+            'resources',
+            'grid_render_bg.wasm']
+        );
+
         const nonce = getNonce();
         const cspMetaTag = getCspMetaTag(this.webViewPanel.webview, nonce, { allowUnsafeInlineStyles: true });
 
@@ -78,6 +83,7 @@ export class ResultsGridRender {
                     <link rel="stylesheet" href="${gridCss}">
                     <script nonce="${nonce}">
                         const vscode = acquireVsCodeApi();
+                        window.GRID_RENDER_WASM_URL = '${gridRenderWasm}';
                     </script>
                 </head>
                 <body style="padding:0;">
@@ -105,6 +111,11 @@ export class ResultsGridRender {
             'grid.css']
         );
 
+        const gridRenderWasm = this.getUri(this.webViewPanel.webview, extensionUri, [
+            'resources',
+            'grid_render_bg.wasm']
+        );
+
         const nonce = getNonce();
         const cspMetaTag = getCspMetaTag(this.webViewPanel.webview, nonce, { allowUnsafeInlineStyles: true });
 
@@ -122,6 +133,7 @@ export class ResultsGridRender {
                 <link rel="stylesheet" href="${gridCss}">
                 <script nonce="${nonce}">
                     const vscode = acquireVsCodeApi();
+                    window.GRID_RENDER_WASM_URL = '${gridRenderWasm}';
                 </script>
             </head>
             <body style="padding:0;">
