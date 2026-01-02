@@ -2,7 +2,6 @@ import * as vscode from 'vscode';
 import { getExtensionUri } from '../extension';
 import { COMMAND_DOWNLOAD_CSV, COMMAND_DOWNLOAD_JSONL, COMMAND_SEND_PUBSUB, COMMAND_COPY_CLIPBOARD } from '../extensionCommands';
 import { ResultsGridRenderRequestV2 } from './resultsGridRenderRequestV2';
-import { getNonce, getCspMetaTag } from '../utils/webviewSecurity';
 
 //https://github.com/microsoft/vscode-webview-ui-toolkit/blob/main/docs/getting-started.md
 
@@ -57,9 +56,6 @@ export class ResultsGridRender {
             'grid_render_bg.wasm']
         );
 
-        const nonce = getNonce();
-        const cspMetaTag = getCspMetaTag(this.webViewPanel.webview, nonce, { allowUnsafeInlineStyles: true });
-
         return new Promise((resolve, reject) => {
 
             const timer = setTimeout(() => {
@@ -79,17 +75,16 @@ export class ResultsGridRender {
             <html lang="en">
                 <head>
                     <meta charset="UTF-8">
-                    ${cspMetaTag}
                     <link rel="stylesheet" href="${gridCss}">
-                    <script nonce="${nonce}">
+                    <script>
                         const vscode = acquireVsCodeApi();
                         window.GRID_RENDER_WASM_URL = '${gridRenderWasm}';
                     </script>
                 </head>
                 <body style="padding:0;">
                     <div id="q1"></div>
-                    <script nonce="${nonce}" type="module" src="${gridJs}"></script>
-                    <script nonce="${nonce}">
+                    <script type="module" src="${gridJs}"></script>
+                    <script>
                         vscode.postMessage({command:'load_complete'});
                     </script>
                 </body>
@@ -116,9 +111,6 @@ export class ResultsGridRender {
             'grid_render_bg.wasm']
         );
 
-        const nonce = getNonce();
-        const cspMetaTag = getCspMetaTag(this.webViewPanel.webview, nonce, { allowUnsafeInlineStyles: true });
-
         this.webViewPanel.webview.onDidReceiveMessage(c => {
             if ((c as any).command !== 'load_complete') {
                 ResultsGridRender.executeCommand(c);
@@ -129,17 +121,16 @@ export class ResultsGridRender {
         <html lang="en">
             <head>
                 <meta charset="UTF-8">
-                ${cspMetaTag}
                 <link rel="stylesheet" href="${gridCss}">
-                <script nonce="${nonce}">
+                <script>
                     const vscode = acquireVsCodeApi();
                     window.GRID_RENDER_WASM_URL = '${gridRenderWasm}';
                 </script>
             </head>
             <body style="padding:0;">
                 <div id="q1"></div>
-                <script nonce="${nonce}" type="module" src="${gridJs}"></script>
-                <script nonce="${nonce}">
+                <script type="module" src="${gridJs}"></script>
+                <script>
                     vscode.postMessage({command:'load_complete'});
                 </script>
             </body>
