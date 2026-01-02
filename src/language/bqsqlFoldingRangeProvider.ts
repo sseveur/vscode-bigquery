@@ -8,29 +8,37 @@ export class BqsqlFoldingRangeProvider implements FoldingRangeProvider {
 
     provideFoldingRanges(document: TextDocument, token: CancellationToken): ProviderResult<FoldingRange[]> {
 
-        if (!isBigQueryLanguage(document.languageId)) { return null; }
+        if (!isBigQueryLanguage(document.languageId)) {
+            console.log('[Folding] Not a BigQuery language:', document.languageId);
+            return null;
+        }
 
         const text = document.getText();
         const ranges: FoldingRange[] = [];
 
         try {
+            console.log('[Folding] Parsing document...');
             const parsed = parse(text) as BqsqlDocument;
 
             // Find top-level statements
             const statements = this.findTopLevelStatements(parsed.items);
+            console.log('[Folding] Found', statements.length, 'statements');
 
             for (const stmt of statements) {
                 const foldingRange = this.createFoldingRangeForStatement(stmt, text);
                 if (foldingRange) {
+                    console.log('[Folding] Created range:', foldingRange.start, '->', foldingRange.end);
                     ranges.push(foldingRange);
                 }
             }
 
         } catch (error) {
             // Parser failed - fall back to regex-based detection
+            console.log('[Folding] Parser failed, using regex fallback:', error);
             return this.findFoldingRangesRegex(text);
         }
 
+        console.log('[Folding] Returning', ranges.length, 'folding ranges');
         return ranges;
     }
 
@@ -127,6 +135,7 @@ export class BqsqlFoldingRangeProvider implements FoldingRangeProvider {
      * Used when WASM parser fails
      */
     private findFoldingRangesRegex(text: string): FoldingRange[] {
+        console.log('[Folding] Using regex fallback');
         const ranges: FoldingRange[] = [];
         const lines = text.split('\n');
 
@@ -159,6 +168,7 @@ export class BqsqlFoldingRangeProvider implements FoldingRangeProvider {
             ranges.push(new FoldingRange(statementStartLine, lines.length - 1));
         }
 
+        console.log('[Folding] Regex found', ranges.length, 'ranges');
         return ranges;
     }
 }

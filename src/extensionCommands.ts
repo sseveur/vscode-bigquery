@@ -239,7 +239,9 @@ const runQuery = async function (globalState: vscode.Memento, queryResultsWebvie
 				const previewQuery = `SELECT * FROM ${createdTable} LIMIT 100`;
 
 				try {
+					console.log('[Auto-Preview] Running preview query:', previewQuery);
 					const previewJob = await bqClient.runQuery(previewQuery);
+					console.log('[Auto-Preview] Preview job succeeded:', previewJob.metadata?.statistics);
 
 					// Send preview results to same webview panel
 					await resultsGridRender.postMessage({
@@ -250,12 +252,16 @@ const runQuery = async function (globalState: vscode.Memento, queryResultsWebvie
 						error: null
 					} as ResultsGridRenderRequestV2);
 
+					const rowCount = previewJob.metadata?.statistics?.query?.totalBytesProcessed || 'unknown';
+					console.log('[Auto-Preview] Posted preview results to webview');
 					vscode.window.showInformationMessage(
-						`Table created successfully. Showing first 100 rows.`
+						`Table created successfully. Showing preview (first 100 rows).`
 					);
 				} catch (previewError) {
-					console.error('Failed to preview created table:', previewError);
-					// Don't fail the CREATE TABLE operation if preview fails
+					console.error('[Auto-Preview] Failed to preview created table:', previewError);
+					vscode.window.showWarningMessage(
+						`Table created successfully, but preview failed: ${(previewError as any).message}`
+					);
 				}
 			}
 		}
