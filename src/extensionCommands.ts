@@ -73,6 +73,7 @@ export const COMMAND_SHOW_LINEAGE = "vscode-bigquery.show-lineage";
 export const COMMAND_SHOW_LINEAGE_SELECTION = "vscode-bigquery.show-lineage-selection";
 export const COMMAND_REFRESH_SCHEMA_CACHE = "vscode-bigquery.refresh-schema-cache";
 export const COMMAND_SET_LINEAGE_EXPORT_THEME = "vscode-bigquery.set-lineage-export-theme";
+export const COMMAND_REVOKE_SESSION = "vscode-bigquery.revoke-session";
 
 /**
  * Check if SQL is a CREATE TABLE statement
@@ -1297,4 +1298,36 @@ export const commandSetLineageExportTheme = async function (...args: any[]) {
 		: 'white background with dark text';
 
 	vscode.window.showInformationMessage(`BigQuery: Lineage export theme switched to ${newTheme} (${themeDescription})`);
+};
+
+// Revoke Session (via Command Palette)
+export const commandRevokeSession = async function (...args: any[]) {
+	try {
+		const accounts = await Authentication.list(false);
+
+		if (accounts.length === 0) {
+			vscode.window.showInformationMessage('No authenticated accounts found');
+			return;
+		}
+
+		const items = accounts.map(account => ({
+			label: account.account,
+			description: account.status === 'ACTIVE' ? '(Active)' : ''
+		}));
+
+		const selected = await vscode.window.showQuickPick(items, {
+			placeHolder: 'Select account to revoke',
+			title: 'Revoke Authentication'
+		});
+
+		if (selected) {
+			resetBigQueryClient();
+
+			await Authentication.revoke(selected.label);
+			vscode.window.showInformationMessage(`Revoked authentication for ${selected.label}`);
+			vscode.commands.executeCommand(COMMAND_AUTHENTICATION_REFRESH);
+		}
+	} catch (error: any) {
+		vscode.window.showErrorMessage(`Failed to revoke session: ${error.message || error}`);
+	}
 };

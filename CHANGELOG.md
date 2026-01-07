@@ -5,6 +5,23 @@ All notable changes to the BigQuery Studio extension will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.1] - 2026-01-07
+
+### Added
+
+- **Revoke Session Command** - New command `BigQuery: Revoke Session` in Command Palette to sign out from authenticated Google accounts
+- **Command Palette Documentation** - README now includes full list of all 27 available commands organized by category
+
+### Fixed
+
+- **Windows Authentication** - Reverted to `cp.exec()` for gcloud commands to fix authentication hanging/failing on Windows. The `cp.execFile()` approach with `shell: true` was failing silently on Windows.
+- **Command Naming** - Fixed typo "BigueryView" to "BigQuery" in all command titles for consistent naming
+- **Missing Commands** - Added missing commands to package.json: User Login with Google Drive, Initialize gcloud, Copy to Clipboard
+
+### Changed
+
+- **Standardized Command Titles** - All command palette commands now use consistent "BigQuery:" prefix and proper Title Case
+
 ## [1.8.0] - 2026-01-03
 
 ### Added

@@ -310,6 +310,14 @@ export function activate(context: ExtensionContext) {
 		)
 	);
 
+	// Revoke Session
+	context.subscriptions.push(
+		vscode.commands.registerCommand(
+			commands.COMMAND_REVOKE_SESSION,
+			commands.commandRevokeSession
+		)
+	);
+
 	// Query History
 	const queryHistoryService = commands.initQueryHistoryService(context.globalState);
 	const queryHistoryTreeDataProvider = new QueryHistoryTreeDataProvider(queryHistoryService);

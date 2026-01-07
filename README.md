@@ -77,6 +77,43 @@ Or install from the [VS Code Marketplace](https://marketplace.visualstudio.com/i
 | `Ctrl+E` | <img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/icon_run_selected.png" alt="run selected" width="16"/> | Run Selected Query | Execute only the selected text |
 | `Shift+Alt+F` | | Format SQL | Format the current SQL document |
 
+## Command Palette
+
+All commands are available via the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`). Type "BigQuery" to see all available commands:
+
+| Command | Description |
+|---------|-------------|
+| **Authentication** | |
+| BigQuery: User Login | Sign in with Google account (opens browser) |
+| BigQuery: User Login with Google Drive | Sign in with Google Drive access for Drive-based tables |
+| BigQuery: User Login via Console | Sign in without browser (for remote/headless environments) |
+| BigQuery: Service Account Login | Authenticate with a service account JSON key file |
+| BigQuery: Initialize gcloud | Run `gcloud init` to configure the CLI |
+| BigQuery: Refresh Authentication | Refresh the authentication panel |
+| BigQuery: Revoke Session | Sign out from a Google account |
+| **Query Execution** | |
+| BigQuery: Run Query | Execute the entire query (`Ctrl+Enter`) |
+| BigQuery: Run Selected Query | Execute selected text only (`Ctrl+E`) |
+| BigQuery: Format SQL | Format the current SQL document (`Shift+Alt+F`) |
+| **Explorer** | |
+| BigQuery: Refresh Explorer | Refresh the project/dataset tree |
+| BigQuery: Show Hidden Projects | Unhide previously hidden projects |
+| BigQuery: Refresh Schema Cache | Clear cached table schemas |
+| **Query History** | |
+| BigQuery: Re-run Query | Execute a query from history |
+| BigQuery: Copy Query | Copy query text to clipboard |
+| BigQuery: Show Query | Open query in a new editor |
+| BigQuery: Delete from History | Remove a query from history |
+| BigQuery: Clear All History | Remove all query history |
+| BigQuery: Refresh History | Refresh the history panel |
+| **Data Lineage** | |
+| BigQuery: Show Data Lineage | Visualize data flow for the current query |
+| BigQuery: Show Data Lineage for Selection | Visualize lineage for selected SQL |
+| BigQuery: Toggle Lineage Export Theme | Switch between dark/light export theme |
+| **Other** | |
+| BigQuery: Troubleshoot | Open troubleshooting guide |
+| BigQuery: Open Settings - Projects | Open project settings |
+
 ## Authentication
 
 The extension uses the [gcloud CLI](https://cloud.google.com/sdk/docs/install) for authentication. Three authentication methods are supported:
@@ -416,6 +453,8 @@ Setting: `vscode-bigquery.associateSqlFiles`
 | `vscode-bigquery.hidden-projects` | array | `[]` | Hidden GCP project IDs |
 | `vscode-bigquery.projects` | array | `[]` | Additional GCP project IDs to list |
 | `vscode-bigquery.tables` | array | `[]` | Table IDs to list directly |
+| `vscode-bigquery.lineageExportTheme` | string | `dark` | Lineage export theme: dark, light |
+| `vscode-bigquery.autoPreviewCreatedTables` | boolean | `false` | Auto-preview first 100 rows after CREATE TABLE |
 
 Access settings via:
 

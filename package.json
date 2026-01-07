@@ -2,7 +2,7 @@
 	"name": "bigquery-studio",
 	"displayName": "BigQuery Studio",
 	"description": "Fork of bstruct/vscode-bigquery. A powerful Google BigQuery extension with offline-ready charting, query execution, data browsing, SQL intellisense, cost estimation, and data lineage visualization.",
-	"version": "1.8.0",
+	"version": "1.8.1",
 	"publisher": "s-seveur",
 	"icon": "logo.png",
 	"repository": {
@@ -284,79 +284,87 @@
 		"commands": [
 			{
 				"command": "vscode-bigquery.run-query",
-				"title": "BigueryView: Run Query",
+				"title": "BigQuery: Run Query",
 				"icon": "$(debug-start)"
 			},
 			{
 				"command": "vscode-bigquery.run-selected-query",
-				"title": "BigueryView: Run Selected Query",
+				"title": "BigQuery: Run Selected Query",
 				"icon": "$(debug-line-by-line)"
 			},
 			{
 				"command": "vscode-bigquery.user-login",
-				"title": "BigueryView: User login"
+				"title": "BigQuery: User Login"
 			},
 			{
 				"command": "vscode-bigquery.service-account-login",
-				"title": "BigueryView: Service account login"
+				"title": "BigQuery: Service Account Login"
 			},
 			{
 				"command": "vscode-bigquery.user-login-no-launch-browser",
-				"title": "BigueryView: User login via console"
+				"title": "BigQuery: User Login via Console"
+			},
+			{
+				"command": "vscode-bigquery.user-login-drive",
+				"title": "BigQuery: User Login with Google Drive"
+			},
+			{
+				"command": "vscode-bigquery.gcloud-init",
+				"title": "BigQuery: Initialize gcloud"
 			},
 			{
 				"command": "vscode-bigquery.authentication-refresh",
-				"title": "BigueryView: Authentication refresh",
+				"title": "BigQuery: Refresh Authentication",
 				"icon": "$(refresh)"
 			},
 			{
 				"command": "vscode-bigquery.gcp-user-activate",
-				"title": "BigueryView: Activate User",
+				"title": "BigQuery: Activate User",
 				"icon": "$(check)"
 			},
 			{
 				"command": "vscode-bigquery.gcp-user-remove",
-				"title": "BigueryView: Remove User",
+				"title": "BigQuery: Remove User",
 				"icon": "$(close)"
 			},
 			{
 				"command": "vscode-bigquery.explorer-refresh",
-				"title": "BigueryView: Explorer refresh",
+				"title": "BigQuery: Refresh Explorer",
 				"icon": "$(refresh)"
 			},
 			{
 				"command": "vscode-bigquery.view-table",
-				"title": "BigueryView: Preview",
+				"title": "BigQuery: Preview",
 				"icon": "$(link-external)"
 			},
 			{
 				"command": "vscode-bigquery.view-table-schema",
-				"title": "BigueryView: Preview Schema",
+				"title": "BigQuery: Preview Schema",
 				"icon": "$(symbol-class)"
 			},
 			{
 				"command": "vscode-bigquery.create-table-default-query",
-				"title": "BigueryView: Create query",
+				"title": "BigQuery: Create Query",
 				"icon": "$(file-text)"
 			},
 			{
 				"command": "vscode-bigquery.open-ddl",
-				"title": "BigueryView: Open DDL",
+				"title": "BigQuery: Open DDL",
 				"icon": "$(link-external)"
 			},
 			{
 				"command": "vscode-bigquery.set-default-project",
-				"title": "BigueryView: Set as default project",
+				"title": "BigQuery: Set Default Project",
 				"icon": "$(issue-closed)"
 			},
 			{
 				"command": "vscode-bigquery.project-pin",
-				"title": "BigueryView: Pin or unpin project",
+				"title": "BigQuery: Pin/Unpin Project",
 				"icon": "$(pin)"
 			},
 			{
 				"command": "vscode-bigquery.project-hide",
-				"title": "BigQueryView: Hide Project",
+				"title": "BigQuery: Hide Project",
 				"icon": "$(eye-closed)"
 			},
 			{
@@ -365,69 +373,74 @@
 			},
 			{
 				"command": "vscode-bigquery.download-csv",
-				"title": "BigueryView: Download CSV",
+				"title": "BigQuery: Download CSV",
 				"icon": "$(cloud-download)"
 			},
 			{
 				"command": "vscode-bigquery.send-pubsub",
-				"title": "BigueryView: Send to Pub/Sub",
+				"title": "BigQuery: Send to Pub/Sub",
 				"icon": "$(outline-view-icon)"
 			},
 			{
 				"command": "vscode-bigquery.download-jsonl",
-				"title": "BigueryView: Download JSONL",
+				"title": "BigQuery: Download JSONL",
 				"icon": "$(json)"
 			},
 			{
+				"command": "vscode-bigquery.copy-to-clipboard",
+				"title": "BigQuery: Copy to Clipboard",
+				"icon": "$(clippy)"
+			},
+			{
 				"command": "vscode-bigquery.troubleshoot",
-				"title": "BigueryView: troubleshoot"
+				"title": "BigQuery: Troubleshoot"
 			},
 			{
 				"command": "vscode-bigquery.open-settings-projects",
-				"title": "BigueryView: open settings - projects"
+				"title": "BigQuery: Open Settings - Projects"
 			},
 			{
 				"command": "vscode-bigquery.format-query",
-				"title": "BigQueryView: Format SQL",
+				"title": "BigQuery: Format SQL",
 				"icon": "$(symbol-structure)"
 			},
 			{
 				"command": "vscode-bigquery.history-rerun",
-				"title": "BigQueryView: Re-run Query",
+				"title": "BigQuery: Re-run Query",
 				"icon": "$(debug-start)"
 			},
 			{
 				"command": "vscode-bigquery.history-copy",
-				"title": "BigQueryView: Copy Query",
+				"title": "BigQuery: Copy Query",
 				"icon": "$(copy)"
 			},
 			{
 				"command": "vscode-bigquery.history-show",
-				"title": "BigQueryView: Show Query"
+				"title": "BigQuery: Show Query"
 			},
 			{
 				"command": "vscode-bigquery.history-delete",
-				"title": "BigQueryView: Delete from History",
+				"title": "BigQuery: Delete from History",
 				"icon": "$(trash)"
 			},
 			{
 				"command": "vscode-bigquery.history-clear",
-				"title": "BigQueryView: Clear All History",
+				"title": "BigQuery: Clear All History",
 				"icon": "$(clear-all)"
 			},
 			{
 				"command": "vscode-bigquery.history-refresh",
-				"title": "BigQueryView: Refresh History",
+				"title": "BigQuery: Refresh History",
 				"icon": "$(refresh)"
 			},
 			{
 				"command": "vscode-bigquery.show-lineage",
-				"title": "BigQueryView: Show Data Lineage",
+				"title": "BigQuery: Show Data Lineage",
 				"icon": "$(type-hierarchy)"
 			},
 			{
 				"command": "vscode-bigquery.show-lineage-selection",
-				"title": "BigQueryView: Show Data Lineage for Selection",
+				"title": "BigQuery: Show Data Lineage for Selection",
 				"icon": "$(type-hierarchy)"
 			},
 			{
@@ -439,6 +452,11 @@
 				"command": "vscode-bigquery.set-lineage-export-theme",
 				"title": "BigQuery: Toggle Lineage Export Theme",
 				"icon": "$(arrow-swap)"
+			},
+			{
+				"command": "vscode-bigquery.revoke-session",
+				"title": "BigQuery: Revoke Session",
+				"icon": "$(sign-out)"
 			}
 		],
 		"menus": {
