@@ -52,6 +52,10 @@ export class BigqueryAuthenticationWebviewViewProvider implements vscode.Webview
         const nonce = getNonce();
         const cspMetaTag = getCspMetaTag(webviewView.webview, nonce, { allowUnsafeInlineStyles: true });
 
+        // Show loading state immediately
+        webviewView.webview.html = this.getLoadingHtml(toolkitUri, codiconsUri, nonce, cspMetaTag);
+
+        // Then fetch accounts and update
         Authentication
             .list(forceShowConsole)
             .then(result => {
@@ -381,6 +385,92 @@ export class BigqueryAuthenticationWebviewViewProvider implements vscode.Webview
                                 e.preventDefault();
                                 const command = target.dataset.command;
                                 vscode.postMessage(command);
+                            }
+                        });
+                    </script>
+                </body>
+            </html>`;
+    }
+
+    private getLoadingHtml(toolkitUri: vscode.Uri, codiconsUri: vscode.Uri, nonce: string, cspMetaTag: string): string {
+        return `<!DOCTYPE html>
+            <html lang="en">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    ${cspMetaTag}
+                    <script nonce="${nonce}" type="module" src="${toolkitUri}"></script>
+                    <link rel="stylesheet" href="${codiconsUri}">
+                    ${this.getStyles()}
+                    <style>
+                        @keyframes spin {
+                            0% { transform: rotate(0deg); }
+                            100% { transform: rotate(360deg); }
+                        }
+                        .loading-spinner {
+                            animation: spin 1s linear infinite;
+                            display: inline-block;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="section">
+                        <div class="empty-state">
+                            <div class="codicon codicon-sync loading-spinner"></div>
+                            <div>Loading accounts...</div>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <div class="section-title">
+                            <span class="codicon codicon-add"></span>
+                            Add Authentication
+                        </div>
+                        <div class="auth-buttons">
+                            <div class="auth-button" data-command="user_login">
+                                <span class="codicon codicon-sign-in"></span>
+                                <div class="auth-button-text">
+                                    <div class="auth-button-title">User Login</div>
+                                    <div class="auth-button-desc">Sign in with your Google account</div>
+                                </div>
+                            </div>
+                            <div class="auth-button" data-command="user_login_drive">
+                                <span class="codicon codicon-file"></span>
+                                <div class="auth-button-text">
+                                    <div class="auth-button-title">User Login + Google Drive</div>
+                                    <div class="auth-button-desc">Include Google Drive access scope</div>
+                                </div>
+                            </div>
+                            <div class="auth-button" data-command="service_account_login">
+                                <span class="codicon codicon-key"></span>
+                                <div class="auth-button-text">
+                                    <div class="auth-button-title">Service Account</div>
+                                    <div class="auth-button-desc">Use a service account JSON key file</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="footer">
+                        <p>Authentication is powered by the <a href="https://cloud.google.com/sdk/docs/install">gcloud CLI</a>.</p>
+                        <p>Having issues? Check the <a href="#" data-command="troubleshoot">troubleshooting guide</a> or run <a href="#" data-command="gcloud_init">gcloud init</a>.</p>
+                    </div>
+
+                    <script nonce="${nonce}">
+                        const vscode = acquireVsCodeApi();
+
+                        // Handle all clicks on elements with data-command attribute
+                        document.addEventListener('click', (e) => {
+                            const target = e.target.closest('[data-command]');
+                            if (target) {
+                                e.preventDefault();
+                                const command = target.dataset.command;
+                                const value = target.dataset.value;
+                                if (value) {
+                                    vscode.postMessage({ command, value });
+                                } else {
+                                    vscode.postMessage(command);
+                                }
                             }
                         });
                     </script>
