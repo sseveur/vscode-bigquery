@@ -5,6 +5,12 @@ All notable changes to the BigQuery Studio extension will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.2] - 2026-01-07
+
+### Fixed
+
+- **Windows Authentication** - Properly fixed Windows authentication using `cp.execFile()` with array arguments and `shell: true` on Windows only. This allows PATH resolution of `gcloud.cmd` while maintaining security (no shell injection). Added helpful error message when gcloud CLI is not found.
+
 ## [1.8.1] - 2026-01-07
 
 ### Added
@@ -14,7 +20,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **Windows Authentication** - Reverted to `cp.exec()` for gcloud commands to fix authentication hanging/failing on Windows. The `cp.execFile()` approach with `shell: true` was failing silently on Windows.
 - **Command Naming** - Fixed typo "BigueryView" to "BigQuery" in all command titles for consistent naming
 - **Missing Commands** - Added missing commands to package.json: User Login with Google Drive, Initialize gcloud, Copy to Clipboard
 
