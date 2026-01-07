@@ -1293,6 +1293,10 @@ export const commandSetLineageExportTheme = async function (...args: any[]) {
 
 	await config.update('lineageExportTheme', newTheme, vscode.ConfigurationTarget.Global);
 
+	// Update the lineage panel if it's open
+	const { updateExportTheme } = await import('./lineage/lineageWebviewProvider');
+	updateExportTheme(newTheme as 'dark' | 'light');
+
 	const themeDescription = newTheme === 'dark'
 		? 'dark background with light text'
 		: 'white background with dark text';

@@ -171,6 +171,7 @@ function renderNode(node: LineageNode, cfg: LayoutConfig): string {
                 text-anchor="middle"
                 class="node-name"
                 fill="var(--vscode-foreground, #ccc)"
+                font-family="var(--vscode-font-family)"
                 font-size="12"
                 font-weight="600">
                 ${escapeHtml(truncateName(node.name, 18))}
@@ -182,6 +183,7 @@ function renderNode(node: LineageNode, cfg: LayoutConfig): string {
                 text-anchor="middle"
                 class="node-type"
                 fill="var(--vscode-descriptionForeground, #888)"
+                font-family="var(--vscode-font-family)"
                 font-size="10">
                 ${escapeHtml(typeLabel)}
             </text>
@@ -200,6 +202,7 @@ function renderEmptyState(width: number, height: number): string {
                 y="${height / 2}"
                 text-anchor="middle"
                 fill="var(--vscode-descriptionForeground, #888)"
+                font-family="var(--vscode-font-family)"
                 font-size="14">
                 No lineage data detected
             </text>
@@ -238,10 +241,15 @@ function escapeHtml(text: string): string {
 }
 
 /**
- * Escape attribute value
+ * Escape attribute value for valid XML
  */
 function escapeAttr(text: string): string {
-    return text.replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 }
 
 /**

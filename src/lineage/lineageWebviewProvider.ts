@@ -1,9 +1,12 @@
 import * as vscode from 'vscode';
+import * as fs from 'fs';
+import * as path from 'path';
 import { LineageGraph, MultiLineageResult, QueryLineageInfo } from '../services/lineageGraph';
 import { calculateLayout } from './dagLayout';
 import { renderGraphToSvg, getGraphStyles, renderLegend } from './svgRenderer';
 import { LineageExportService } from './lineageExportService';
 import { getNonce, getCspMetaTag } from '../utils/webviewSecurity';
+import { getExtensionUri } from '../extension';
 
 const VIEW_TYPE = 'bigquery-lineage';
 
@@ -16,6 +19,15 @@ let currentSvgData: Array<{
     svg: string;
     queryInfo?: QueryLineageInfo;
 }> | null = null;
+
+/**
+ * Update the export theme in the current lineage panel
+ */
+export function updateExportTheme(theme: 'dark' | 'light'): void {
+    if (currentPanel) {
+        currentPanel.webview.postMessage({ type: 'updateTheme', theme });
+    }
+}
 
 export function showLineagePanel(graph: LineageGraph, context: vscode.ExtensionContext): void {
     const column = vscode.ViewColumn.Beside;
@@ -50,10 +62,12 @@ export function showLineagePanel(graph: LineageGraph, context: vscode.ExtensionC
     messageHandlerDisposable = currentPanel.webview.onDidReceiveMessage(message => {
         if (message.type === 'navigate') {
             navigateToPosition(message.line, message.column, message.fullName);
-        } else if (message.type === 'exportImage') {
-            handleExportImage(message.format, message.queryIndex);
-        } else if (message.type === 'exportAllImages') {
-            handleExportAllImages(message.format);
+        } else if (message.type === 'saveFile') {
+            handleSaveFile(message.format, message.data, message.filename);
+        } else if (message.type === 'saveMultipleFiles') {
+            handleSaveMultipleFiles(message.files);
+        } else if (message.type === 'exportError') {
+            vscode.window.showErrorMessage(`Export failed: ${message.message}`);
         }
     });
 
@@ -107,10 +121,12 @@ export function showMultiLineagePanel(result: MultiLineageResult, context: vscod
             navigateToPosition(message.line, message.column, message.fullName);
         } else if (message.type === 'scrollToQuery') {
             navigateToLine(message.line);
-        } else if (message.type === 'exportImage') {
-            handleExportImage(message.format, message.queryIndex);
-        } else if (message.type === 'exportAllImages') {
-            handleExportAllImages(message.format);
+        } else if (message.type === 'saveFile') {
+            handleSaveFile(message.format, message.data, message.filename);
+        } else if (message.type === 'saveMultipleFiles') {
+            handleSaveMultipleFiles(message.files);
+        } else if (message.type === 'exportError') {
+            vscode.window.showErrorMessage(`Export failed: ${message.message}`);
         }
     });
 
@@ -142,60 +158,76 @@ function updateMultiPanelContent(panel: vscode.WebviewPanel, result: MultiLineag
 }
 
 /**
- * Handle export image request from webview
+ * Handle save file request from webview (browser-side export complete)
  */
-async function handleExportImage(
+async function handleSaveFile(
     format: 'png' | 'pdf',
-    queryIndex?: number
+    base64Data: string,
+    defaultFilename: string
 ): Promise<void> {
-    if (!currentSvgData || currentSvgData.length === 0) {
-        vscode.window.showWarningMessage('No lineage data to export');
-        return;
-    }
+    try {
+        const uri = await LineageExportService.showSaveDialog(defaultFilename, format);
+        if (!uri) {
+            return;
+        }
 
-    const dataIndex = queryIndex !== undefined ? queryIndex : 0;
-    const svgToExport = currentSvgData[dataIndex]?.svg;
+        await vscode.window.withProgress({
+            location: vscode.ProgressLocation.Notification,
+            title: `Saving lineage ${format.toUpperCase()}...`,
+            cancellable: false
+        }, async () => {
+            const buffer = Buffer.from(base64Data, 'base64');
+            fs.writeFileSync(uri.fsPath, buffer);
+        });
 
-    if (!svgToExport) {
-        vscode.window.showErrorMessage('Failed to retrieve lineage data');
-        return;
-    }
-
-    const queryInfo = currentSvgData[dataIndex]?.queryInfo;
-    const lineRange = queryInfo ? `${queryInfo.startLine}-${queryInfo.endLine}` : undefined;
-    const filename = generateExportFilename(format, queryIndex, lineRange);
-
-    if (format === 'png') {
-        await LineageExportService.exportToPng(svgToExport, filename);
-    } else {
-        await LineageExportService.exportToPdf(svgToExport, filename);
+        vscode.window.showInformationMessage(`Lineage exported to: ${path.basename(uri.fsPath)}`);
+    } catch (error: any) {
+        vscode.window.showErrorMessage(`Failed to save file: ${error.message}`);
     }
 }
 
 /**
- * Handle export all images request from webview
+ * Handle save multiple files request from webview
  */
-async function handleExportAllImages(format: 'png' | 'pdf'): Promise<void> {
-    if (!currentSvgData || currentSvgData.length === 0) {
-        vscode.window.showWarningMessage('No lineage data to export');
-        return;
-    }
+async function handleSaveMultipleFiles(
+    files: Array<{ data: string; filename: string }>
+): Promise<void> {
+    try {
+        // Ask user for directory
+        const uri = await vscode.window.showSaveDialog({
+            title: 'Save lineage files to directory',
+            filters: { 'PNG': ['png'] },
+            defaultUri: vscode.workspace.workspaceFolders?.[0]?.uri
+                ? vscode.Uri.joinPath(vscode.workspace.workspaceFolders[0].uri, files[0].filename)
+                : undefined
+        });
 
-    if (format === 'png') {
-        // Export as separate PNG files
-        const svgData = currentSvgData.map((data, idx) => ({
-            svg: data.svg,
-            queryIndex: idx,
-            lineRange: data.queryInfo ? `${data.queryInfo.startLine}-${data.queryInfo.endLine}` : ''
-        }));
-        await LineageExportService.exportMultipleToPng(svgData, 'lineage_all_queries.png');
-    } else {
-        // Export as multi-page PDF
-        const svgData = currentSvgData.map((data, idx) => ({
-            svg: data.svg,
-            title: `Query ${idx + 1}`
-        }));
-        await LineageExportService.exportMultipleToMultiPagePdf(svgData, 'lineage_all_queries.pdf');
+        if (!uri) {
+            return;
+        }
+
+        const dirPath = path.dirname(uri.fsPath);
+
+        await vscode.window.withProgress({
+            location: vscode.ProgressLocation.Notification,
+            title: `Saving ${files.length} lineage files...`,
+            cancellable: false
+        }, async (progress) => {
+            const increment = 100 / files.length;
+            let count = 0;
+
+            for (const file of files) {
+                const buffer = Buffer.from(file.data, 'base64');
+                const fullPath = path.join(dirPath, file.filename);
+                fs.writeFileSync(fullPath, buffer);
+                count++;
+                progress.report({ increment, message: `${count}/${files.length}` });
+            }
+        });
+
+        vscode.window.showInformationMessage(`Exported ${files.length} lineage chart${files.length !== 1 ? 's' : ''}`);
+    } catch (error: any) {
+        vscode.window.showErrorMessage(`Failed to save files: ${error.message}`);
     }
 }
 
@@ -344,12 +376,22 @@ function getHtmlContent(panel: vscode.WebviewPanel, graph: LineageGraph): string
     const nonce = getNonce();
     const cspMetaTag = getCspMetaTag(panel.webview, nonce, { allowUnsafeInlineStyles: true });
 
+    // Get lineage export script URI
+    const lineageExportUri = panel.webview.asWebviewUri(
+        vscode.Uri.joinPath(getExtensionUri(), 'resources', 'lineageExport.js')
+    );
+
+    // Get export theme setting
+    const config = vscode.workspace.getConfiguration('vscode-bigquery');
+    const exportTheme = config.get<string>('lineageExportTheme', 'dark');
+
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     ${cspMetaTag}
+    <script nonce="${nonce}" src="${lineageExportUri}"></script>
     <title>Data Lineage</title>
     <style>
         body {
@@ -664,26 +706,87 @@ function getHtmlContent(panel: vscode.WebviewPanel, graph: LineageGraph): string
                 });
             });
 
-            // Export button handlers
+            // Export configuration (mutable to allow live updates)
+            let exportTheme = '${exportTheme}';
+
+            // Listen for theme updates from extension
+            window.addEventListener('message', event => {
+                const message = event.data;
+                if (message.type === 'updateTheme') {
+                    exportTheme = message.theme;
+                }
+            });
+
+            // Export button handlers - use browser-side conversion
             const exportPngBtn = document.getElementById('export-png');
             const exportPdfBtn = document.getElementById('export-pdf');
 
-            if (exportPngBtn) {
-                exportPngBtn.addEventListener('click', function() {
+            async function exportToPng() {
+                const svgElement = document.querySelector('.graph-wrapper svg');
+                if (!svgElement) {
+                    vscode.postMessage({ type: 'exportError', message: 'No SVG found to export' });
+                    return;
+                }
+
+                try {
+                    exportPngBtn.disabled = true;
+                    exportPngBtn.textContent = 'Exporting...';
+
+                    const svgString = svgElement.outerHTML;
+                    const pngDataUrl = await LineageExport.svgToPng(svgString, exportTheme);
+                    const base64Data = LineageExport.extractBase64(pngDataUrl);
+                    const filename = LineageExport.generateFilename('png');
+
                     vscode.postMessage({
-                        type: 'exportImage',
-                        format: 'png'
+                        type: 'saveFile',
+                        format: 'png',
+                        data: base64Data,
+                        filename: filename
                     });
-                });
+                } catch (error) {
+                    vscode.postMessage({ type: 'exportError', message: error.message });
+                } finally {
+                    exportPngBtn.disabled = false;
+                    exportPngBtn.textContent = '↓ PNG';
+                }
+            }
+
+            async function exportToPdf() {
+                const svgElement = document.querySelector('.graph-wrapper svg');
+                if (!svgElement) {
+                    vscode.postMessage({ type: 'exportError', message: 'No SVG found to export' });
+                    return;
+                }
+
+                try {
+                    exportPdfBtn.disabled = true;
+                    exportPdfBtn.textContent = 'Exporting...';
+
+                    const svgString = svgElement.outerHTML;
+                    const pdfDataUrl = await LineageExport.svgToPdf(svgString, exportTheme);
+                    const base64Data = LineageExport.extractBase64(pdfDataUrl);
+                    const filename = LineageExport.generateFilename('pdf');
+
+                    vscode.postMessage({
+                        type: 'saveFile',
+                        format: 'pdf',
+                        data: base64Data,
+                        filename: filename
+                    });
+                } catch (error) {
+                    vscode.postMessage({ type: 'exportError', message: error.message || String(error) });
+                } finally {
+                    exportPdfBtn.disabled = false;
+                    exportPdfBtn.textContent = '↓ PDF';
+                }
+            }
+
+            if (exportPngBtn) {
+                exportPngBtn.addEventListener('click', exportToPng);
             }
 
             if (exportPdfBtn) {
-                exportPdfBtn.addEventListener('click', function() {
-                    vscode.postMessage({
-                        type: 'exportImage',
-                        format: 'pdf'
-                    });
-                });
+                exportPdfBtn.addEventListener('click', exportToPdf);
             }
         })();
     </script>
@@ -719,12 +822,41 @@ function getMultiQueryHtmlContent(panel: vscode.WebviewPanel, result: MultiLinea
     const nonce = getNonce();
     const cspMetaTag = getCspMetaTag(panel.webview, nonce, { allowUnsafeInlineStyles: true });
 
+    // Get lineage export script URI
+    const lineageExportUri = panel.webview.asWebviewUri(
+        vscode.Uri.joinPath(getExtensionUri(), 'resources', 'lineageExport.js')
+    );
+
+    // Get export theme setting
+    const config = vscode.workspace.getConfiguration('vscode-bigquery');
+    const exportTheme = config.get<string>('lineageExportTheme', 'dark');
+
+    // Build query info data for export (line ranges)
+    const queryInfoData = queriesWithLineage.map((q, i) => ({
+        index: i,
+        startLine: q.startLine,
+        endLine: q.endLine
+    }));
+
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     ${cspMetaTag}
+    <script nonce="${nonce}" src="${lineageExportUri}"></script>
+    <script nonce="${nonce}">
+        var QUERY_INFO = ${JSON.stringify(queryInfoData)};
+        var EXPORT_THEME = '${exportTheme}';
+
+        // Listen for theme updates from extension
+        window.addEventListener('message', function(event) {
+            var message = event.data;
+            if (message.type === 'updateTheme') {
+                EXPORT_THEME = message.theme;
+            }
+        });
+    </script>
     <title>Data Lineage</title>
     <style>
         @font-face {
@@ -1149,20 +1281,165 @@ function getMultiQueryHtmlContent(panel: vscode.WebviewPanel, result: MultiLinea
                 });
             });
 
-            // Export all buttons
-            document.getElementById('export-all-png')?.addEventListener('click', function() {
-                vscode.postMessage({
-                    type: 'exportAllImages',
-                    format: 'png'
-                });
-            });
+            // Helper: Get SVG for a specific query section
+            function getSvgForQuery(queryIndex) {
+                const section = document.querySelector('.query-section[data-query-index="' + queryIndex + '"]');
+                if (!section) return null;
+                return section.querySelector('.graph-wrapper svg');
+            }
 
-            document.getElementById('export-all-pdf')?.addEventListener('click', function() {
-                vscode.postMessage({
-                    type: 'exportAllImages',
-                    format: 'pdf'
+            // Helper: Get all SVG elements
+            function getAllSvgs() {
+                return Array.from(document.querySelectorAll('.query-section .graph-wrapper svg'));
+            }
+
+            // Export single query to PNG
+            async function exportSinglePng(btn, queryIndex) {
+                const svgElement = getSvgForQuery(queryIndex);
+                if (!svgElement) {
+                    vscode.postMessage({ type: 'exportError', message: 'No SVG found for query ' + (queryIndex + 1) });
+                    return;
+                }
+
+                try {
+                    btn.disabled = true;
+                    btn.textContent = '...';
+
+                    const svgString = svgElement.outerHTML;
+                    const pngDataUrl = await LineageExport.svgToPng(svgString, EXPORT_THEME);
+                    const base64Data = LineageExport.extractBase64(pngDataUrl);
+                    const info = QUERY_INFO[queryIndex];
+                    const lineRange = info ? (info.startLine + '-' + info.endLine) : undefined;
+                    const filename = LineageExport.generateFilename('png', queryIndex, lineRange);
+
+                    vscode.postMessage({
+                        type: 'saveFile',
+                        format: 'png',
+                        data: base64Data,
+                        filename: filename
+                    });
+                } catch (error) {
+                    vscode.postMessage({ type: 'exportError', message: error.message });
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = 'PNG';
+                }
+            }
+
+            // Export single query to PDF
+            async function exportSinglePdf(btn, queryIndex) {
+                const svgElement = getSvgForQuery(queryIndex);
+                if (!svgElement) {
+                    vscode.postMessage({ type: 'exportError', message: 'No SVG found for query ' + (queryIndex + 1) });
+                    return;
+                }
+
+                try {
+                    btn.disabled = true;
+                    btn.textContent = '...';
+
+                    const svgString = svgElement.outerHTML;
+                    const pdfDataUrl = await LineageExport.svgToPdf(svgString, EXPORT_THEME);
+                    const base64Data = LineageExport.extractBase64(pdfDataUrl);
+                    const info = QUERY_INFO[queryIndex];
+                    const lineRange = info ? (info.startLine + '-' + info.endLine) : undefined;
+                    const filename = LineageExport.generateFilename('pdf', queryIndex, lineRange);
+
+                    vscode.postMessage({
+                        type: 'saveFile',
+                        format: 'pdf',
+                        data: base64Data,
+                        filename: filename
+                    });
+                } catch (error) {
+                    vscode.postMessage({ type: 'exportError', message: error.message });
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = 'PDF';
+                }
+            }
+
+            // Export all to separate PNGs
+            async function exportAllPng(btn) {
+                const svgElements = getAllSvgs();
+                if (svgElements.length === 0) {
+                    vscode.postMessage({ type: 'exportError', message: 'No SVGs to export' });
+                    return;
+                }
+
+                try {
+                    btn.disabled = true;
+                    btn.textContent = 'Exporting...';
+
+                    const files = [];
+                    for (let i = 0; i < svgElements.length; i++) {
+                        const svgString = svgElements[i].outerHTML;
+                        const pngDataUrl = await LineageExport.svgToPng(svgString, EXPORT_THEME);
+                        const base64Data = LineageExport.extractBase64(pngDataUrl);
+                        const info = QUERY_INFO[i];
+                        const lineRange = info ? (info.startLine + '-' + info.endLine) : undefined;
+                        const filename = LineageExport.generateFilename('png', i, lineRange);
+                        files.push({ data: base64Data, filename: filename });
+                    }
+
+                    vscode.postMessage({
+                        type: 'saveMultipleFiles',
+                        files: files
+                    });
+                } catch (error) {
+                    vscode.postMessage({ type: 'exportError', message: error.message });
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = '↓ All PNG';
+                }
+            }
+
+            // Export all to multi-page PDF
+            async function exportAllPdf(btn) {
+                const svgElements = getAllSvgs();
+                if (svgElements.length === 0) {
+                    vscode.postMessage({ type: 'exportError', message: 'No SVGs to export' });
+                    return;
+                }
+
+                try {
+                    btn.disabled = true;
+                    btn.textContent = 'Exporting...';
+
+                    const svgStrings = svgElements.map(svg => svg.outerHTML);
+                    const pdfDataUrl = await LineageExport.svgsToMultiPagePdf(svgStrings, EXPORT_THEME);
+                    const base64Data = LineageExport.extractBase64(pdfDataUrl);
+                    const filename = LineageExport.generateFilename('pdf');
+
+                    vscode.postMessage({
+                        type: 'saveFile',
+                        format: 'pdf',
+                        data: base64Data,
+                        filename: 'lineage_all_queries_' + filename
+                    });
+                } catch (error) {
+                    vscode.postMessage({ type: 'exportError', message: error.message });
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = '↓ All PDF';
+                }
+            }
+
+            // Export all buttons
+            const exportAllPngBtn = document.getElementById('export-all-png');
+            const exportAllPdfBtn = document.getElementById('export-all-pdf');
+
+            if (exportAllPngBtn) {
+                exportAllPngBtn.addEventListener('click', function() {
+                    exportAllPng(this);
                 });
-            });
+            }
+
+            if (exportAllPdfBtn) {
+                exportAllPdfBtn.addEventListener('click', function() {
+                    exportAllPdf(this);
+                });
+            }
 
             // Per-query export buttons
             document.querySelectorAll('.export-btn-small').forEach(function(btn) {
@@ -1170,11 +1447,11 @@ function getMultiQueryHtmlContent(panel: vscode.WebviewPanel, result: MultiLinea
                     e.stopPropagation();  // Don't trigger header click
                     const queryIndex = parseInt(this.getAttribute('data-query-index'));
                     const format = this.getAttribute('data-format');
-                    vscode.postMessage({
-                        type: 'exportImage',
-                        format: format,
-                        queryIndex: queryIndex
-                    });
+                    if (format === 'png') {
+                        exportSinglePng(this, queryIndex);
+                    } else {
+                        exportSinglePdf(this, queryIndex);
+                    }
                 });
             });
         })();

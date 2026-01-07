@@ -40,7 +40,7 @@ export function getContentSecurityPolicy(
         default-src 'none';
         script-src ${scriptSrc};
         style-src ${stylesSrc};
-        img-src ${webview.cspSource} data: https:;
+        img-src ${webview.cspSource} data: blob: https:;
         font-src ${webview.cspSource};
         connect-src https://bigquery.googleapis.com;
     `.replace(/\s+/g, ' ').trim();
