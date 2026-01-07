@@ -4,6 +4,7 @@ import { getExtensionUri } from '../extension';
 import { BigQueryClient } from '../services/bigqueryClient';
 import { JobReference } from '../services/queryResultsMapping';
 import { SimpleQueryRowsResponseError } from '../services/simpleQueryRowsResponseError';
+import { getNonce, getCspMetaTag } from '../utils/webviewSecurity';
 
 /**
  * Escapes JSON strings for safe embedding in HTML script tags.
@@ -48,12 +49,16 @@ export class ChartRender {
             'morphcharts.bundle.js'
         ]);
 
+        const nonce = getNonce();
+        const cspMetaTag = getCspMetaTag(this.webViewPanel.webview, nonce, { allowUnsafeInlineStyles: true });
+
         return `<!DOCTYPE html>
         <html lang="en-us">
 
         <head>
             <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, initial-scale=1">
+            ${cspMetaTag}
             <title>Transition</title>
             <style type="text/css">
                 html,
@@ -66,11 +71,11 @@ export class ChartRender {
                     margin: 8px;
                 }
             </style>
-            <script id="chart-data-schema" type="application/json">${schema}</script>
-            <script id="chart-data" type="application/json">${data}</script>
+            <script nonce="${nonce}" id="chart-data-schema" type="application/json">${schema}</script>
+            <script nonce="${nonce}" id="chart-data" type="application/json">${data}</script>
 
             <!-- MorphCharts loaded from local bundle (no external CDN dependency) -->
-            <script type="module">
+            <script nonce="${nonce}" type="module">
                 import * as MorphCharts from "${morphchartsUri}";
                 window.onload = () => {
         
@@ -379,6 +384,9 @@ export class ChartRender {
             "toolkit.min.js",
         ]);
 
+        const nonce = getNonce();
+        const cspMetaTag = getCspMetaTag(this.webViewPanel.webview, nonce, { allowUnsafeInlineStyles: true });
+
         if (exception.errors) {
 
             const errors = (exception as SimpleQueryRowsResponseError).errors;
@@ -396,12 +404,13 @@ export class ChartRender {
                 <head>
                     <meta charset="UTF-8">
                     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                    <script type="module" src="${toolkitUri}"></script>
+                    ${cspMetaTag}
+                    <script nonce="${nonce}" type="module" src="${toolkitUri}"></script>
                 </head>
                 <body>
                 <vscode-data-grid id="basic-grid" generate-header="sticky" aria-label="Default"></vscode-data-grid>
-    
-                <script>
+
+                <script nonce="${nonce}">
                     document.getElementById('basic-grid').rowsData = ${rows};
                 </script>
                 </body>
@@ -415,12 +424,13 @@ export class ChartRender {
             <html lang="en">
                 <head>
                     <meta charset="UTF-8">
-                    <script type="module" src="${toolkitUri}"></script>
+                    ${cspMetaTag}
+                    <script nonce="${nonce}" type="module" src="${toolkitUri}"></script>
                 </head>
                 <body>
                 <vscode-data-grid id="basic-grid" generate-header="sticky" aria-label="Default"></vscode-data-grid>
-    
-                <script>
+
+                <script nonce="${nonce}">
                     document.getElementById('basic-grid').rowsData = ${rows};
                 </script>
                 </body>

@@ -3,6 +3,7 @@ import { LineageGraph, MultiLineageResult, QueryLineageInfo } from '../services/
 import { calculateLayout } from './dagLayout';
 import { renderGraphToSvg, getGraphStyles, renderLegend } from './svgRenderer';
 import { LineageExportService } from './lineageExportService';
+import { getNonce, getCspMetaTag } from '../utils/webviewSecurity';
 
 const VIEW_TYPE = 'bigquery-lineage';
 
@@ -137,7 +138,7 @@ function updateMultiPanelContent(panel: vscode.WebviewPanel, result: MultiLineag
         return { svg: svgContent, queryInfo };
     });
 
-    panel.webview.html = getMultiQueryHtmlContent(result);
+    panel.webview.html = getMultiQueryHtmlContent(panel, result);
 }
 
 /**
@@ -321,10 +322,10 @@ function updatePanelContent(panel: vscode.WebviewPanel, graph: LineageGraph): vo
     // Store SVG for export
     currentSvgData = [{ svg: svgContent }];
 
-    panel.webview.html = getHtmlContent(graph);
+    panel.webview.html = getHtmlContent(panel, graph);
 }
 
-function getHtmlContent(graph: LineageGraph): string {
+function getHtmlContent(panel: vscode.WebviewPanel, graph: LineageGraph): string {
     // Calculate layout positions
     const layoutResult = calculateLayout(graph);
     const { width, height } = layoutResult;
@@ -339,11 +340,16 @@ function getHtmlContent(graph: LineageGraph): string {
     const cteCount = graph.nodes.filter(n => n.nodeType === 'CTE').length;
     const targetCount = graph.nodes.filter(n => n.nodeType === 'TARGET').length;
 
+    // Generate nonce and CSP for security
+    const nonce = getNonce();
+    const cspMetaTag = getCspMetaTag(panel.webview, nonce, { allowUnsafeInlineStyles: true });
+
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    ${cspMetaTag}
     <title>Data Lineage</title>
     <style>
         body {
@@ -585,7 +591,7 @@ function getHtmlContent(graph: LineageGraph): string {
         ` : ''}
     </div>
 
-    <script>
+    <script nonce="${nonce}">
         (function() {
             // Acquire VS Code API
             const vscode = acquireVsCodeApi();
@@ -697,7 +703,7 @@ function escapeHtml(text: string): string {
 /**
  * Generate HTML content for multi-query lineage view
  */
-function getMultiQueryHtmlContent(result: MultiLineageResult): string {
+function getMultiQueryHtmlContent(panel: vscode.WebviewPanel, result: MultiLineageResult): string {
     const styles = getGraphStyles();
     const legend = renderLegend();
 
@@ -709,11 +715,16 @@ function getMultiQueryHtmlContent(result: MultiLineageResult): string {
         .map((queryInfo, displayIndex) => renderQuerySection(queryInfo, displayIndex))
         .join('\n');
 
+    // Generate nonce and CSP for security
+    const nonce = getNonce();
+    const cspMetaTag = getCspMetaTag(panel.webview, nonce, { allowUnsafeInlineStyles: true });
+
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    ${cspMetaTag}
     <title>Data Lineage</title>
     <style>
         @font-face {
@@ -1022,7 +1033,7 @@ function getMultiQueryHtmlContent(result: MultiLineageResult): string {
         ${querySections}
     </div>
 
-    <script>
+    <script nonce="${nonce}">
         (function() {
             const vscode = acquireVsCodeApi();
 

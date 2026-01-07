@@ -4,6 +4,7 @@ import { getExtensionUri } from '../extension';
 import { getBigQueryClient } from '../extensionCommands';
 import { SimpleQueryRowsResponseError } from '../services/simpleQueryRowsResponseError';
 import { ResultsChartRenderRequest } from './ResultsChartRenderRequest';
+import { getNonce, getCspMetaTag } from '../utils/webviewSecurity';
 
 /**
  * Escapes JSON strings for safe embedding in HTML script tags.
@@ -54,19 +55,23 @@ export class ResultsChartRender {
             "toolkit.min.js",
         ]);
 
+        const nonce = getNonce();
+        const cspMetaTag = getCspMetaTag(this.webViewPanel.webview, nonce, { allowUnsafeInlineStyles: true });
+
         return `<!DOCTYPE html>
 		<html lang="en">
 			<head>
 				<meta charset="UTF-8">
 				<meta name="viewport" content="width=device-width, initial-scale=1.0">
-				<script type="module" src="${toolkitUri}"></script>
-                <script>
+				${cspMetaTag}
+				<script nonce="${nonce}" type="module" src="${toolkitUri}"></script>
+                <script nonce="${nonce}">
                     const qElement = document.querySelectorAll('div.editor-actions ul.actions-container > li.action-item a[aria-label="\${x1}"]');
                     if(qElement.length >0){
                         const element = qElement[0];
                         element.innerText = 'trying';
                     }
-                
+
                     const vscode = acquireVsCodeApi();
                     vscode.setState({ jobIndex: ${jobIndex} });
                 </script>
@@ -128,14 +133,18 @@ export class ResultsChartRender {
             'morphcharts.bundle.js'
         ]);
 
+        const nonce = getNonce();
+        const cspMetaTag = getCspMetaTag(this.webViewPanel.webview, nonce, { allowUnsafeInlineStyles: true });
+
         return [`<!DOCTYPE html>
         <html lang="en-us">
 
         <head>
             <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, initial-scale=1">
+            ${cspMetaTag}
             <title>Transition</title>
-        	<script type="module" src="${toolkitUri}"></script>
+        	<script nonce="${nonce}" type="module" src="${toolkitUri}"></script>
             <style type="text/css">
                 html,
                 body {
@@ -147,15 +156,15 @@ export class ResultsChartRender {
                     margin: 8px;
                 }
             </style>
-            <script>
+            <script nonce="${nonce}">
                 const vscode = acquireVsCodeApi();
                 vscode.setState({ jobIndex: ${request.jobIndex} });
             </script>
-            <script id="chart-data-schema" type="application/json">${schema}</script>
-            <script id="chart-data" type="application/json">${data}</script>
+            <script nonce="${nonce}" id="chart-data-schema" type="application/json">${schema}</script>
+            <script nonce="${nonce}" id="chart-data" type="application/json">${data}</script>
 
             <!-- MorphCharts loaded from local bundle (no external CDN dependency) -->
-            <script type="module">
+            <script nonce="${nonce}" type="module">
                 import * as MorphCharts from "${morphchartsUri}";
                 window.onload = () => {
         
@@ -467,6 +476,9 @@ export class ResultsChartRender {
             "toolkit.min.js",
         ]);
 
+        const nonce = getNonce();
+        const cspMetaTag = getCspMetaTag(this.webViewPanel.webview, nonce, { allowUnsafeInlineStyles: true });
+
         if (exception.errors) {
 
             const errors = (exception as SimpleQueryRowsResponseError).errors;
@@ -484,12 +496,13 @@ export class ResultsChartRender {
                 <head>
                     <meta charset="UTF-8">
                     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                    <script type="module" src="${toolkitUri}"></script>
+                    ${cspMetaTag}
+                    <script nonce="${nonce}" type="module" src="${toolkitUri}"></script>
                 </head>
                 <body>
                 <vscode-data-grid id="basic-grid" generate-header="sticky" aria-label="Default"></vscode-data-grid>
-    
-                <script>
+
+                <script nonce="${nonce}">
                     document.getElementById('basic-grid').rowsData = ${rows};
                 </script>
                 </body>
@@ -503,12 +516,13 @@ export class ResultsChartRender {
             <html lang="en">
                 <head>
                     <meta charset="UTF-8">
-                    <script type="module" src="${toolkitUri}"></script>
+                    ${cspMetaTag}
+                    <script nonce="${nonce}" type="module" src="${toolkitUri}"></script>
                 </head>
                 <body>
                 <vscode-data-grid id="basic-grid" generate-header="sticky" aria-label="Default"></vscode-data-grid>
-    
-                <script>
+
+                <script nonce="${nonce}">
                     document.getElementById('basic-grid').rowsData = ${rows};
                 </script>
                 </body>
