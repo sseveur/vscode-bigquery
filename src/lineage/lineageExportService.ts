@@ -1,8 +1,6 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import { Resvg } from '@resvg/resvg-js';
-import { jsPDF } from 'jspdf';
 
 /**
  * Service for exporting lineage charts as PNG or PDF files
@@ -126,7 +124,10 @@ export class LineageExportService {
                 title: `Creating multi-page PDF...`,
                 cancellable: false
             }, async (progress) => {
-                let pdf: jsPDF | null = null;
+                // Dynamic import to avoid loading module at extension activation
+                const { jsPDF } = await import('jspdf');
+
+                let pdf: InstanceType<typeof jsPDF> | null = null;
                 const increment = 100 / svgStrings.length;
 
                 for (let i = 0; i < svgStrings.length; i++) {
@@ -175,6 +176,9 @@ export class LineageExportService {
      * Convert SVG string to PNG buffer using resvg-js
      */
     private static async convertSvgToPng(svgString: string): Promise<Buffer> {
+        // Dynamic import to avoid loading native module at extension activation
+        const { Resvg } = await import('@resvg/resvg-js');
+
         // Get theme setting
         const config = vscode.workspace.getConfiguration('vscode-bigquery');
         const theme = config.get<string>('lineageExportTheme', 'dark');
@@ -254,6 +258,9 @@ export class LineageExportService {
      * This is more reliable than svg2pdf.js in Node.js environment
      */
     private static async convertSvgToPdf(svgString: string): Promise<Buffer> {
+        // Dynamic import to avoid loading module at extension activation
+        const { jsPDF } = await import('jspdf');
+
         // Convert SVG to PNG first
         const pngBuffer = await this.convertSvgToPng(svgString);
 

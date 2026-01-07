@@ -5,6 +5,12 @@ All notable changes to the BigQuery Studio extension will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.7] - 2026-01-07
+
+### Fixed
+
+- **Windows Extension Activation** - Fixed extension failing to activate on Windows. Native modules (`@resvg/resvg-js`, `jspdf`) were imported at top level causing crash on startup. Changed to lazy/dynamic imports so they only load when user exports lineage charts.
+
 ## [1.8.5] - 2026-01-07
 
 ### Fixed
