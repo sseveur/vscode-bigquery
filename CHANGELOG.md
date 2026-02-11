@@ -5,6 +5,17 @@ All notable changes to the BigQuery Studio extension will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0] - 2026-02-11
+
+### Added
+
+- **Table Search** - Search tables across all projects and datasets via the explorer title bar search icon. Uses a local cached index for instant results.
+- **Build Table Index** - New command `BigQuery: Build Table Index` crawls all projects/datasets/tables and caches them locally in VS Code globalState. Required before search works. Cancellable with per-project progress.
+- **Pinned Tables** - Pin frequently-used tables to a "Pinned Tables" folder at the top of the explorer tree. Pin/unpin via inline icons on table context menus.
+- **Pinned Table Visual Feedback** - Tables that are already pinned show a filled pin icon in the normal tree, making it easy to see which tables are pinned at a glance.
+- **Copy Table Path** - Right-click any table to copy its full qualified path (`project.dataset.table`) to clipboard.
+- **Pinned Tables Setting** - New setting `vscode-bigquery.pinned-tables` to manage pinned tables. Format: `project.dataset.table`.
+
 ## [1.8.8] - 2026-01-07
 
 ### Fixed
