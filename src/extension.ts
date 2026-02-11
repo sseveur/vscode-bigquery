@@ -356,6 +356,16 @@ export function activate(context: ExtensionContext) {
 		)
 	);
 
+	// Table Index
+	commands.initTableIndexService(context.globalState);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand(
+			commands.COMMAND_BUILD_TABLE_INDEX,
+			commands.commandBuildTableIndex
+		)
+	);
+
 	// Query History
 	const queryHistoryService = commands.initQueryHistoryService(context.globalState);
 	const queryHistoryTreeDataProvider = new QueryHistoryTreeDataProvider(queryHistoryService);

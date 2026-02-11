@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { BigqueryTreeItem, BigqueryTreeItemType } from './bigqueryTreeItem';
 import { BigQuery, Dataset, Model, Routine, Table } from '@google-cloud/bigquery';
 import { Authentication } from '../services/authentication';
-import { getBigQueryClient, SETTING_PINNED_PROJECTS, SETTING_PROJECTS, SETTING_TABLES, SETTING_HIDDEN_PROJECTS, SETTING_PINNED_TABLES } from '../extensionCommands';
+import { getBigQueryClient, SETTING_PINNED_PROJECTS, SETTING_PROJECTS, SETTING_TABLES, SETTING_HIDDEN_PROJECTS, SETTING_PINNED_TABLES, getTableIndexService } from '../extensionCommands';
 import { GetMetadataOptions, MetadataResponse } from '@google-cloud/common/build/src/service-object';
 import { TableReference } from '../services/tableMetadata';
 
@@ -282,6 +282,8 @@ export class BigQueryTreeDataProvider implements vscode.TreeDataProvider<Bigquer
             }
         }
 
+        const pinnedRefs = this.getPinnedTablesFromSettings();
+
         return tables
             .map(c => {
                 const tableId = c.id ?? 'xxx';
@@ -294,7 +296,14 @@ export class BigQueryTreeDataProvider implements vscode.TreeDataProvider<Bigquer
                         treeItemType = BigqueryTreeItemType.tableView;
                     }
                 }
-                return new BigqueryTreeItem(treeItemType, projectId, datasetId, tableId, tableId, '', false, vscode.TreeItemCollapsibleState.None);
+                const item = new BigqueryTreeItem(treeItemType, projectId, datasetId, tableId, tableId, '', false, vscode.TreeItemCollapsibleState.None);
+
+                const isPinned = pinnedRefs.some(r => r.projectId === projectId && r.datasetId === datasetId && r.tableId === tableId);
+                if (isPinned) {
+                    (item as any).contextValue = 'bq-table-already-pinned';
+                }
+
+                return item;
             });
 
     }
@@ -404,62 +413,21 @@ export class BigQueryTreeDataProvider implements vscode.TreeDataProvider<Bigquer
             });
     }
 
-    private async searchTables(term: string): Promise<BigqueryTreeItem[]> {
-        return vscode.window.withProgress(
-            { location: vscode.ProgressLocation.Notification, title: 'Searching tables...', cancellable: false },
-            async () => {
-                const results: BigqueryTreeItem[] = [];
-                const lowerTerm = term.toLowerCase();
+    private searchTables(term: string): BigqueryTreeItem[] {
+        const indexService = getTableIndexService();
+        if (!indexService) { return []; }
 
-                try {
-                    const bqClient = await getBigQueryClient();
-                    const bqProjects = await bqClient.getProjects();
-
-                    let projectIds = this.getProjectsFromSettings();
-                    for (const project of bqProjects.projects || []) {
-                        const projectId = (project.id || 'xxx').toLowerCase();
-                        if (projectIds.indexOf(projectId) < 0) {
-                            projectIds.push(projectId);
-                        }
-                    }
-
-                    for (const projectId of projectIds) {
-                        try {
-                            const bigqueryClient = new BigQuery({ projectId: projectId });
-                            const datasets = await bigqueryClient.getDatasets({ all: true, filter: '' });
-                            const datasetList = datasets[0].filter(c => c.id !== null && (!c.id?.startsWith('_')));
-
-                            for (const dataset of datasetList) {
-                                try {
-                                    const datasetId = dataset.id ?? 'xxx';
-                                    const getTablesResponse = await dataset.getTables();
-                                    const tables = getTablesResponse[0]
-                                        .filter(c => c.id !== null && (!c.id?.startsWith('_')));
-
-                                    for (const table of tables) {
-                                        const tableId = table.id ?? 'xxx';
-                                        if (tableId.toLowerCase().includes(lowerTerm)) {
-                                            results.push(new BigqueryTreeItem(
-                                                BigqueryTreeItemType.table,
-                                                projectId,
-                                                datasetId,
-                                                tableId,
-                                                tableId,
-                                                `${projectId}.${datasetId}`,
-                                                false,
-                                                vscode.TreeItemCollapsibleState.None
-                                            ));
-                                        }
-                                    }
-                                } catch (error) { }
-                            }
-                        } catch (error) { }
-                    }
-                } catch (error) { }
-
-                return results;
-            }
-        );
+        return indexService.search(term)
+            .map(entry => new BigqueryTreeItem(
+                BigqueryTreeItemType.table,
+                entry.projectId,
+                entry.datasetId,
+                entry.tableId,
+                entry.tableId,
+                `${entry.projectId}.${entry.datasetId}`,
+                false,
+                vscode.TreeItemCollapsibleState.None
+            ));
     }
 
     refresh(): void {

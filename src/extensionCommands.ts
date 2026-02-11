@@ -28,6 +28,7 @@ import { AuthenticationTreeItem, AuthenticationTreeItemType } from './activityba
 import { Dataset, Table } from '@google-cloud/bigquery';
 import { formatBigQuerySQL } from './language/bqsqlFormatter';
 import { QueryHistoryItem, QueryHistoryService } from './services/queryHistoryService';
+import { TableIndexService } from './services/tableIndexService';
 import { buildMultiQueryLineage } from './services/lineageGraph';
 import { showMultiLineagePanel } from './lineage/lineageWebviewProvider';
 
@@ -80,6 +81,7 @@ export const COMMAND_SEARCH_TABLES = "vscode-bigquery.search-tables";
 export const COMMAND_CLEAR_SEARCH = "vscode-bigquery.clear-search";
 export const SETTING_PINNED_TABLES = "vscode-bigquery.pinned-tables";
 export const COMMAND_COPY_TABLE_PATH = "vscode-bigquery.copy-table-path";
+export const COMMAND_BUILD_TABLE_INDEX = "vscode-bigquery.build-table-index";
 
 /**
  * Check if SQL is a CREATE TABLE statement
@@ -1125,6 +1127,20 @@ export const commandFormatQuery = async function () {
 	}
 };
 
+// Table Index
+let tableIndexService: TableIndexService | null = null;
+
+export function initTableIndexService(globalState: vscode.Memento): TableIndexService {
+	if (!tableIndexService) {
+		tableIndexService = new TableIndexService(globalState);
+	}
+	return tableIndexService;
+}
+
+export function getTableIndexService(): TableIndexService | null {
+	return tableIndexService;
+}
+
 // Query History
 let queryHistoryService: QueryHistoryService | null = null;
 
@@ -1388,16 +1404,31 @@ export const commandUnpinTable = function (...args: any[]) {
 	vscode.commands.executeCommand(COMMAND_EXPLORER_REFRESH);
 };
 
-// Search Tables
+// Search Tables (uses local index from globalState)
 export const commandSearchTables = async function (...args: any[]) {
 
+	const tableIndexService = getTableIndexService();
+	if (!tableIndexService) { return; }
+
+	const index = tableIndexService.getIndex();
+	if (index.length === 0) {
+		const action = await vscode.window.showWarningMessage(
+			'No table index found. Build the index first to enable search.',
+			'Build Index'
+		);
+		if (action === 'Build Index') {
+			vscode.commands.executeCommand(COMMAND_BUILD_TABLE_INDEX);
+		}
+		return;
+	}
+
 	const term = await vscode.window.showInputBox({
-		prompt: 'Search for tables across all projects and datasets',
+		prompt: `Search ${index.length} indexed tables`,
 		placeHolder: 'Table name...'
 	});
 
 	if (term === undefined) {
-		return; // user pressed Escape
+		return;
 	}
 
 	if (term === '') {
@@ -1411,6 +1442,16 @@ export const commandSearchTables = async function (...args: any[]) {
 // Clear Search
 export const commandClearSearch = function (...args: any[]) {
 	bigQueryTreeDataProvider.setSearchTerm(null);
+};
+
+// Build Table Index
+export const commandBuildTableIndex = async function (...args: any[]) {
+
+	const tableIndexService = getTableIndexService();
+	if (!tableIndexService) { return; }
+
+	const count = await tableIndexService.buildIndex();
+	vscode.window.showInformationMessage(`Table index built: ${count} tables indexed`);
 };
 
 // Copy Table Path
