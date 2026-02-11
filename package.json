@@ -2,7 +2,7 @@
 	"name": "bigquery-studio",
 	"displayName": "BigQuery Studio",
 	"description": "Fork of bstruct/vscode-bigquery. A powerful Google BigQuery extension with offline-ready charting, query execution, data browsing, SQL intellisense, cost estimation, and data lineage visualization.",
-	"version": "1.8.8",
+	"version": "1.9.0",
 	"publisher": "s-seveur",
 	"icon": "logo.png",
 	"repository": {
@@ -233,6 +233,14 @@
 					"order": 20,
 					"title": "Auto-Preview Created Tables",
 					"description": "Automatically preview first 100 rows when CREATE TABLE completes successfully (disabled by default)"
+				},
+				"vscode-bigquery.pinned-tables": {
+					"type": "array",
+					"default": [],
+					"scope": "machine-overridable",
+					"order": 21,
+					"title": "Pinned Tables",
+					"description": "Tables pinned in explorer for quick access. Format: project.dataset.table"
 				}
 			}
 		},
@@ -457,6 +465,31 @@
 				"command": "vscode-bigquery.revoke-session",
 				"title": "BigQuery: Revoke Session",
 				"icon": "$(sign-out)"
+			},
+			{
+				"command": "vscode-bigquery.pin-table",
+				"title": "BigQuery: Pin Table",
+				"icon": "$(pin)"
+			},
+			{
+				"command": "vscode-bigquery.unpin-table",
+				"title": "BigQuery: Unpin Table",
+				"icon": "$(pinned)"
+			},
+			{
+				"command": "vscode-bigquery.search-tables",
+				"title": "BigQuery: Search Tables",
+				"icon": "$(search)"
+			},
+			{
+				"command": "vscode-bigquery.clear-search",
+				"title": "BigQuery: Clear Search",
+				"icon": "$(close)"
+			},
+			{
+				"command": "vscode-bigquery.copy-table-path",
+				"title": "BigQuery: Copy Table Path",
+				"icon": "$(copy)"
 			}
 		],
 		"menus": {
@@ -496,6 +529,16 @@
 					"when": "view == 'bigquery-tree-data-provider'"
 				},
 				{
+					"command": "vscode-bigquery.search-tables",
+					"group": "navigation",
+					"when": "view == 'bigquery-tree-data-provider'"
+				},
+				{
+					"command": "vscode-bigquery.clear-search",
+					"group": "navigation",
+					"when": "view == 'bigquery-tree-data-provider' && bigquery.isSearching"
+				},
+				{
 					"command": "vscode-bigquery.history-refresh",
 					"group": "navigation",
 					"when": "view == 'bigquery-query-history'"
@@ -509,19 +552,33 @@
 			"view/item/context": [
 				{
 					"command": "vscode-bigquery.view-table",
-					"when": "viewItem == 'bq-table'"
+					"when": "viewItem == 'bq-table' || viewItem == 'bq-pinned-table'"
 				},
 				{
 					"command": "vscode-bigquery.view-table-schema",
-					"when": "viewItem == 'bq-table'"
+					"when": "viewItem == 'bq-table' || viewItem == 'bq-pinned-table'"
 				},
 				{
 					"command": "vscode-bigquery.create-table-default-query",
-					"when": "viewItem == 'bq-table'"
+					"when": "viewItem == 'bq-table' || viewItem == 'bq-pinned-table'"
 				},
 				{
 					"command": "vscode-bigquery.open-ddl",
-					"when": "viewItem == 'bq-table' || viewItem == 'bq-routine'"
+					"when": "viewItem == 'bq-table' || viewItem == 'bq-pinned-table' || viewItem == 'bq-routine'"
+				},
+				{
+					"command": "vscode-bigquery.pin-table",
+					"when": "viewItem == 'bq-table'",
+					"group": "inline"
+				},
+				{
+					"command": "vscode-bigquery.unpin-table",
+					"when": "viewItem == 'bq-pinned-table'",
+					"group": "inline"
+				},
+				{
+					"command": "vscode-bigquery.copy-table-path",
+					"when": "viewItem == 'bq-table' || viewItem == 'bq-pinned-table'"
 				},
 				{
 					"command": "vscode-bigquery.gcp-user-activate",

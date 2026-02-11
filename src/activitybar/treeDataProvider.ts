@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { BigqueryTreeItem, BigqueryTreeItemType } from './bigqueryTreeItem';
 import { BigQuery, Dataset, Model, Routine, Table } from '@google-cloud/bigquery';
 import { Authentication } from '../services/authentication';
-import { getBigQueryClient, SETTING_PINNED_PROJECTS, SETTING_PROJECTS, SETTING_TABLES, SETTING_HIDDEN_PROJECTS } from '../extensionCommands';
+import { getBigQueryClient, SETTING_PINNED_PROJECTS, SETTING_PROJECTS, SETTING_TABLES, SETTING_HIDDEN_PROJECTS, SETTING_PINNED_TABLES } from '../extensionCommands';
 import { GetMetadataOptions, MetadataResponse } from '@google-cloud/common/build/src/service-object';
 import { TableReference } from '../services/tableMetadata';
 
@@ -13,6 +13,7 @@ export class BigQueryTreeDataProvider implements vscode.TreeDataProvider<Bigquer
 
     private routineTreeItems: BigqueryTreeItem[] = [];
     private modelTreeItems: BigqueryTreeItem[] = [];
+    private searchTerm: string | null = null;
 
     constructor() {
     }
@@ -29,7 +30,18 @@ export class BigQueryTreeDataProvider implements vscode.TreeDataProvider<Bigquer
         return new Promise(async (resolve, reject) => {
 
             if (element === null || element === undefined) {
-                resolve(this.getProjects());
+                if (this.searchTerm) {
+                    resolve(this.searchTables(this.searchTerm));
+                } else {
+                    const pinnedItems = this.getPinnedTableItems();
+                    if (pinnedItems.length > 0) {
+                        const pinnedFolder = new BigqueryTreeItem(BigqueryTreeItemType.pinnedTablesFolder, null, null, null, 'Pinned Tables', '', false, vscode.TreeItemCollapsibleState.Collapsed);
+                        const projects = await this.getProjects();
+                        resolve([pinnedFolder, ...projects]);
+                    } else {
+                        resolve(this.getProjects());
+                    }
+                }
                 return;
             }
 
@@ -38,6 +50,9 @@ export class BigQueryTreeDataProvider implements vscode.TreeDataProvider<Bigquer
             const datasetId = element.datasetId ?? 'xxx';
 
             switch (treeItemType) {
+                case BigqueryTreeItemType.pinnedTablesFolder:
+                    resolve(this.getPinnedTableItems());
+                    break;
                 case BigqueryTreeItemType.project:
 
                     // const savedQueries = await this.getSavedQueries(projectId)
@@ -354,6 +369,97 @@ export class BigQueryTreeDataProvider implements vscode.TreeDataProvider<Bigquer
         const list = treeItems.filter(c => c.projectId !== projectId && c.datasetId !== datasetId);
         list.push(...newItems);
         return list;
+    }
+
+    setSearchTerm(term: string | null): void {
+        this.searchTerm = term;
+        vscode.commands.executeCommand('setContext', 'bigquery.isSearching', term !== null);
+        this._onDidChangeTreeData.fire();
+    }
+
+    private getPinnedTablesFromSettings(): TableReference[] {
+        return (vscode.workspace
+            .getConfiguration()
+            .get(SETTING_PINNED_TABLES) as string[] || [])
+            .map(c => c.split('.'))
+            .filter(c => c.length === 3)
+            .map(c => { return { projectId: c[0], datasetId: c[1], tableId: c[2] } as TableReference; });
+    }
+
+    private getPinnedTableItems(): BigqueryTreeItem[] {
+        return this.getPinnedTablesFromSettings()
+            .map(ref => {
+                const item = new BigqueryTreeItem(
+                    BigqueryTreeItemType.table,
+                    ref.projectId,
+                    ref.datasetId,
+                    ref.tableId,
+                    ref.tableId,
+                    `${ref.projectId}.${ref.datasetId}`,
+                    false,
+                    vscode.TreeItemCollapsibleState.None
+                );
+                (item as any).contextValue = 'bq-pinned-table';
+                return item;
+            });
+    }
+
+    private async searchTables(term: string): Promise<BigqueryTreeItem[]> {
+        return vscode.window.withProgress(
+            { location: vscode.ProgressLocation.Notification, title: 'Searching tables...', cancellable: false },
+            async () => {
+                const results: BigqueryTreeItem[] = [];
+                const lowerTerm = term.toLowerCase();
+
+                try {
+                    const bqClient = await getBigQueryClient();
+                    const bqProjects = await bqClient.getProjects();
+
+                    let projectIds = this.getProjectsFromSettings();
+                    for (const project of bqProjects.projects || []) {
+                        const projectId = (project.id || 'xxx').toLowerCase();
+                        if (projectIds.indexOf(projectId) < 0) {
+                            projectIds.push(projectId);
+                        }
+                    }
+
+                    for (const projectId of projectIds) {
+                        try {
+                            const bigqueryClient = new BigQuery({ projectId: projectId });
+                            const datasets = await bigqueryClient.getDatasets({ all: true, filter: '' });
+                            const datasetList = datasets[0].filter(c => c.id !== null && (!c.id?.startsWith('_')));
+
+                            for (const dataset of datasetList) {
+                                try {
+                                    const datasetId = dataset.id ?? 'xxx';
+                                    const getTablesResponse = await dataset.getTables();
+                                    const tables = getTablesResponse[0]
+                                        .filter(c => c.id !== null && (!c.id?.startsWith('_')));
+
+                                    for (const table of tables) {
+                                        const tableId = table.id ?? 'xxx';
+                                        if (tableId.toLowerCase().includes(lowerTerm)) {
+                                            results.push(new BigqueryTreeItem(
+                                                BigqueryTreeItemType.table,
+                                                projectId,
+                                                datasetId,
+                                                tableId,
+                                                tableId,
+                                                `${projectId}.${datasetId}`,
+                                                false,
+                                                vscode.TreeItemCollapsibleState.None
+                                            ));
+                                        }
+                                    }
+                                } catch (error) { }
+                            }
+                        } catch (error) { }
+                    }
+                } catch (error) { }
+
+                return results;
+            }
+        );
     }
 
     refresh(): void {

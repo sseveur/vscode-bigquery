@@ -318,6 +318,44 @@ export function activate(context: ExtensionContext) {
 		)
 	);
 
+	// Pin/Unpin Table
+	context.subscriptions.push(
+		vscode.commands.registerCommand(
+			commands.COMMAND_PIN_TABLE,
+			commands.commandPinTable
+		)
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand(
+			commands.COMMAND_UNPIN_TABLE,
+			commands.commandUnpinTable
+		)
+	);
+
+	// Search/Clear Tables
+	context.subscriptions.push(
+		vscode.commands.registerCommand(
+			commands.COMMAND_SEARCH_TABLES,
+			commands.commandSearchTables
+		)
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand(
+			commands.COMMAND_CLEAR_SEARCH,
+			commands.commandClearSearch
+		)
+	);
+
+	// Copy Table Path
+	context.subscriptions.push(
+		vscode.commands.registerCommand(
+			commands.COMMAND_COPY_TABLE_PATH,
+			commands.commandCopyTablePath
+		)
+	);
+
 	// Query History
 	const queryHistoryService = commands.initQueryHistoryService(context.globalState);
 	const queryHistoryTreeDataProvider = new QueryHistoryTreeDataProvider(queryHistoryService);

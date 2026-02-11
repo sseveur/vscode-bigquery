@@ -74,6 +74,12 @@ export const COMMAND_SHOW_LINEAGE_SELECTION = "vscode-bigquery.show-lineage-sele
 export const COMMAND_REFRESH_SCHEMA_CACHE = "vscode-bigquery.refresh-schema-cache";
 export const COMMAND_SET_LINEAGE_EXPORT_THEME = "vscode-bigquery.set-lineage-export-theme";
 export const COMMAND_REVOKE_SESSION = "vscode-bigquery.revoke-session";
+export const COMMAND_PIN_TABLE = "vscode-bigquery.pin-table";
+export const COMMAND_UNPIN_TABLE = "vscode-bigquery.unpin-table";
+export const COMMAND_SEARCH_TABLES = "vscode-bigquery.search-tables";
+export const COMMAND_CLEAR_SEARCH = "vscode-bigquery.clear-search";
+export const SETTING_PINNED_TABLES = "vscode-bigquery.pinned-tables";
+export const COMMAND_COPY_TABLE_PATH = "vscode-bigquery.copy-table-path";
 
 /**
  * Check if SQL is a CREATE TABLE statement
@@ -1330,4 +1336,93 @@ export const commandRevokeSession = async function (...args: any[]) {
 	} catch (error: any) {
 		vscode.window.showErrorMessage(`Failed to revoke session: ${error.message || error}`);
 	}
+};
+
+// Pin Table
+export const commandPinTable = function (...args: any[]) {
+
+	const item = args[0] as BigqueryTreeItem;
+
+	if (!item.projectId || !item.datasetId || !item.tableId) {
+		return;
+	}
+
+	const tableRef = `${item.projectId}.${item.datasetId}.${item.tableId}`;
+
+	let pinnedTables = vscode.workspace
+		.getConfiguration()
+		.get(SETTING_PINNED_TABLES) as string[] || [];
+
+	if (pinnedTables.indexOf(tableRef) < 0) {
+		pinnedTables.push(tableRef);
+	}
+
+	vscode.workspace
+		.getConfiguration()
+		.update(SETTING_PINNED_TABLES, pinnedTables);
+
+	vscode.commands.executeCommand(COMMAND_EXPLORER_REFRESH);
+};
+
+// Unpin Table
+export const commandUnpinTable = function (...args: any[]) {
+
+	const item = args[0] as BigqueryTreeItem;
+
+	if (!item.projectId || !item.datasetId || !item.tableId) {
+		return;
+	}
+
+	const tableRef = `${item.projectId}.${item.datasetId}.${item.tableId}`;
+
+	let pinnedTables = vscode.workspace
+		.getConfiguration()
+		.get(SETTING_PINNED_TABLES) as string[] || [];
+
+	pinnedTables = pinnedTables.filter(c => c !== tableRef);
+
+	vscode.workspace
+		.getConfiguration()
+		.update(SETTING_PINNED_TABLES, pinnedTables);
+
+	vscode.commands.executeCommand(COMMAND_EXPLORER_REFRESH);
+};
+
+// Search Tables
+export const commandSearchTables = async function (...args: any[]) {
+
+	const term = await vscode.window.showInputBox({
+		prompt: 'Search for tables across all projects and datasets',
+		placeHolder: 'Table name...'
+	});
+
+	if (term === undefined) {
+		return; // user pressed Escape
+	}
+
+	if (term === '') {
+		bigQueryTreeDataProvider.setSearchTerm(null);
+		return;
+	}
+
+	bigQueryTreeDataProvider.setSearchTerm(term);
+};
+
+// Clear Search
+export const commandClearSearch = function (...args: any[]) {
+	bigQueryTreeDataProvider.setSearchTerm(null);
+};
+
+// Copy Table Path
+export const commandCopyTablePath = async function (...args: any[]) {
+
+	const item = args[0] as BigqueryTreeItem;
+
+	if (!item.projectId || !item.datasetId || !item.tableId) {
+		return;
+	}
+
+	const tablePath = `${item.projectId}.${item.datasetId}.${item.tableId}`;
+	await vscode.env.clipboard.writeText(tablePath);
+	vscode.window.showInformationMessage(`Copied: ${tablePath}`);
 };

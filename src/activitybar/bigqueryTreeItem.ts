@@ -13,7 +13,8 @@ export enum BigqueryTreeItemType {
     tableView,
     routine,
     datasetLink,
-    model
+    model,
+    pinnedTablesFolder
 }
 
 export class BigqueryTreeItem extends vscode.TreeItem {
@@ -69,6 +70,10 @@ export class BigqueryTreeItem extends vscode.TreeItem {
                 break;
             case BigqueryTreeItemType.model:
                 this.iconPath = bigqueryIcons.model;
+                break;
+            case BigqueryTreeItemType.pinnedTablesFolder:
+                this.iconPath = new vscode.ThemeIcon('pinned');
+                this.contextValue = 'bq-pinned-tables-folder';
                 break;
         }
 
