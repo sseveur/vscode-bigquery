@@ -5,6 +5,12 @@ All notable changes to the BigQuery Studio extension will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.10.0] - 2026-04-08
+
+### Added
+
+- **Logical Operator Style** - New `formatLogicalOperatorStyle` formatter setting with three options: `keywordAligned` (default, current behavior), `contentAligned` (AND/OR/ON align with parent clause content), and `indented` (AND/OR/ON indented under parent keyword). Also splits inline ON from JOIN lines for cleaner formatting. Works with all indent styles.
+
 ## [1.9.0] - 2026-02-11
 
 ### Added
