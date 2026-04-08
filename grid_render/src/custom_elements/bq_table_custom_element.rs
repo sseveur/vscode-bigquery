@@ -4,7 +4,7 @@ use super::{
     custom_element_definition::CustomElementDefinition,
     data_table_controls_element::{
         DataTableControls, EVENT_GO_TO_FIRST_PAGE, EVENT_GO_TO_LAST_PAGE, EVENT_GO_TO_NEXT_PAGE,
-        EVENT_GO_TO_PREVIOUS_PAGE,
+        EVENT_GO_TO_PAGE, EVENT_GO_TO_PREVIOUS_PAGE,
     },
     data_table_element::{DataTable, DataTableItem},
 };
@@ -66,6 +66,7 @@ impl BigqueryTableCustomElement {
     pub(crate) fn to_data_table_controls(&self) -> DataTableControls {
         DataTableControls::new(
             Some(self.page_start_index),
+            self.page_size,
             self.rows_in_page,
             self.rows_total,
             None,
@@ -275,6 +276,18 @@ impl BigqueryTableCustomElement {
         //return bool true if value was changed
         previous_value != current_value
     }
+    pub(crate) fn go_to_page(&self, target_start_index: usize) -> bool {
+        assert!(self.element.is_some());
+        let element = self.element.as_ref().unwrap();
+
+        let previous_value = element.get_attribute(PAGE_START_INDEX_ATT);
+        element
+            .set_attribute(PAGE_START_INDEX_ATT, &format!("{}", target_start_index))
+            .unwrap();
+        let current_value = element.get_attribute(PAGE_START_INDEX_ATT);
+
+        previous_value != current_value
+    }
 }
 
 impl CustomElementDefinition for BigqueryTableCustomElement {
@@ -352,6 +365,18 @@ impl CustomElementDefinition for BigqueryTableCustomElement {
             )
             .unwrap();
         on_event_type_closure.forget();
+
+        //EVENT_GO_TO_PAGE
+        let on_event_type_closure =
+            Closure::wrap(Box::new(go_to_page) as Box<dyn Fn(&web_sys::Event)>);
+        element
+            .add_event_listener_with_callback_and_bool(
+                EVENT_GO_TO_PAGE,
+                on_event_type_closure.as_ref().unchecked_ref(),
+                false,
+            )
+            .unwrap();
+        on_event_type_closure.forget();
     }
 }
 
@@ -419,6 +444,21 @@ fn last_page(event: &web_sys::Event) {
 
     let bq_table = BigqueryTableCustomElement::from_element(&element);
     if bq_table.last_page() {
+        dispatch_on_render_event(&element);
+    }
+}
+
+fn go_to_page(event: &web_sys::Event) {
+    let element = event.current_target().unwrap();
+    let element = element.dyn_into::<web_sys::Element>().unwrap();
+
+    assert_eq!(element.tag_name(), TAG_NAME.to_uppercase());
+
+    let custom_event = event.dyn_ref::<web_sys::CustomEvent>().unwrap();
+    let target_start_index = custom_event.detail().as_f64().unwrap() as usize;
+
+    let bq_table = BigqueryTableCustomElement::from_element(&element);
+    if bq_table.go_to_page(target_start_index) {
         dispatch_on_render_event(&element);
     }
 }

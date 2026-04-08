@@ -10,6 +10,8 @@ const BTN_FIRST_PAGE: &str = "btn_first_page";
 const BTN_PREVIOUS_PAGE: &str = "btn_prev_page";
 const BTN_NEXT_PAGE: &str = "btn_next_page";
 const BTN_LAST_PAGE: &str = "btn_last_page";
+const PAGE_INPUT: &str = "page_input";
+const PAGE_TOTAL_LABEL: &str = "page_total_label";
 const BTN_DOWNLOAD_CSV: &str = "btn_download_csv";
 const BTN_DOWNLOAD_JSONL: &str = "btn_download_json";
 const BTN_SEND_PUBSUB: &str = "btn_send_pubsub";
@@ -19,11 +21,12 @@ pub(crate) const EVENT_GO_TO_FIRST_PAGE: &str = "go_to_first_page";
 pub(crate) const EVENT_GO_TO_PREVIOUS_PAGE: &str = "go_to_previous_page";
 pub(crate) const EVENT_GO_TO_NEXT_PAGE: &str = "go_to_next_page";
 pub(crate) const EVENT_GO_TO_LAST_PAGE: &str = "go_to_last_page";
+pub(crate) const EVENT_GO_TO_PAGE: &str = "go_to_page";
 
 #[derive(Debug)]
 pub(crate) struct DataTableControls {
-    // parent_bq_table_id: String,
     page_start_index: Option<usize>,
+    page_size: usize,
     rows_in_page: Option<usize>,
     rows_total: Option<usize>,
 
@@ -34,17 +37,19 @@ pub(crate) struct DataTableControls {
 impl DataTableControls {
     pub(crate) fn new(
         page_start_index: Option<usize>,
+        page_size: usize,
         rows_in_page: Option<usize>,
         rows_total: Option<usize>,
         job_reference: Option<JobReference>,
         table_reference: Option<TableReference>,
     ) -> DataTableControls {
         DataTableControls {
-            page_start_index: page_start_index,
-            rows_in_page: rows_in_page,
-            rows_total: rows_total,
-            job_reference: job_reference,
-            table_reference: table_reference,
+            page_start_index,
+            page_size,
+            rows_in_page,
+            rows_total,
+            job_reference,
+            table_reference,
         }
     }
 }
@@ -57,11 +62,13 @@ impl BaseElementTrait for DataTableControls {
     fn render(&self, parent_node: &web_sys::Node) -> BaseElement {
         BaseElement::new_and_append(parent_node, "div", &self.get_element_id())
             .append_child("div", "controls")
-            .append_child_fn("span", PAGING, &modify_controls, self)
-            .append_sibling_fn("button", BTN_FIRST_PAGE, &modify_controls, self)
+            .append_child_fn("button", BTN_FIRST_PAGE, &modify_controls, self)
             .append_sibling_fn("button", BTN_PREVIOUS_PAGE, &modify_controls, self)
+            .append_sibling_fn("input", PAGE_INPUT, &modify_controls, self)
+            .append_sibling_fn("span", PAGE_TOTAL_LABEL, &modify_controls, self)
             .append_sibling_fn("button", BTN_NEXT_PAGE, &modify_controls, self)
             .append_sibling_fn("button", BTN_LAST_PAGE, &modify_controls, self)
+            .append_sibling_fn("span", PAGING, &modify_controls, self)
             .append_sibling_fn("button", BTN_COPY_CLIPBOARD, &modify_controls, self)
             .append_sibling_fn("button", BTN_DOWNLOAD_CSV, &modify_controls, self)
             .append_sibling_fn("button", BTN_DOWNLOAD_JSONL, &modify_controls, self)
@@ -105,6 +112,58 @@ fn modify_controls(base_element: &BaseElement, settings: &DataTableControls) {
             } else {
                 base_element.element().set_inner_html("");
             }
+        }
+        PAGE_INPUT => {
+            let element = &base_element.element();
+            let input = element.dyn_ref::<web_sys::HtmlInputElement>().unwrap();
+            input.set_type("number");
+            input.set_min("1");
+
+            let page_size = settings.page_size;
+            let rows_total = settings.rows_total.unwrap_or(0);
+            let page_start_index = settings.page_start_index.unwrap_or(0);
+
+            let total_pages = if rows_total == 0 || page_size == 0 {
+                1
+            } else {
+                (rows_total + page_size - 1) / page_size
+            };
+            let current_page = if page_size == 0 {
+                1
+            } else {
+                page_start_index / page_size + 1
+            };
+
+            input.set_max(&total_pages.to_string());
+            input.set_value(&current_page.to_string());
+
+            // Store page_size and rows_total as data attributes for the event handler
+            element
+                .set_attribute("data-page-size", &page_size.to_string())
+                .unwrap();
+            element
+                .set_attribute("data-rows-total", &rows_total.to_string())
+                .unwrap();
+
+            if total_pages <= 1 {
+                element.set_attribute("disabled", "disabled").unwrap();
+            } else {
+                element.remove_attribute("disabled").unwrap();
+            }
+
+            add_page_input_listener(element);
+        }
+        PAGE_TOTAL_LABEL => {
+            let page_size = settings.page_size;
+            let rows_total = settings.rows_total.unwrap_or(0);
+            let total_pages = if rows_total == 0 || page_size == 0 {
+                1
+            } else {
+                (rows_total + page_size - 1) / page_size
+            };
+            base_element
+                .element()
+                .set_inner_html(&format!("of {}", total_pages));
         }
         BTN_FIRST_PAGE => {
             let element = &base_element.element();
@@ -200,6 +259,90 @@ fn add_event_listener(element: &Element, _event_type: &str) {
 
         on_event_type_closure.forget();
     }
+}
+
+fn add_page_input_listener(element: &Element) {
+    if element.get_attribute("bee").is_none() {
+        let on_keydown = Closure::wrap(Box::new(on_page_input_keydown) as Box<dyn Fn(&web_sys::Event)>);
+
+        element
+            .add_event_listener_with_callback("keydown", on_keydown.as_ref().unchecked_ref())
+            .unwrap();
+
+        element.set_attribute("bee", "1").unwrap();
+        on_keydown.forget();
+    }
+}
+
+fn on_page_input_keydown(event: &web_sys::Event) {
+    let keyboard_event = event.dyn_ref::<web_sys::KeyboardEvent>().unwrap();
+    if keyboard_event.key() != "Enter" {
+        return;
+    }
+
+    let element = event
+        .target()
+        .unwrap()
+        .dyn_into::<web_sys::HtmlInputElement>()
+        .unwrap();
+
+    let page_num: usize = match element.value().parse() {
+        Ok(n) => n,
+        Err(_) => return,
+    };
+
+    let page_size: usize = element
+        .get_attribute("data-page-size")
+        .and_then(|v: String| v.parse().ok())
+        .unwrap_or(50);
+
+    let rows_total: usize = element
+        .get_attribute("data-rows-total")
+        .and_then(|v: String| v.parse().ok())
+        .unwrap_or(0);
+
+    let total_pages = if rows_total == 0 || page_size == 0 {
+        1
+    } else {
+        (rows_total + page_size - 1) / page_size
+    };
+
+    if page_num < 1 || page_num > total_pages {
+        return;
+    }
+
+    let target_start_index = (page_num - 1) * page_size;
+
+    // Cast to Element for DOM traversal and event dispatch
+    let input_element: &Element = element.unchecked_ref();
+
+    // Clear table content and show loading
+    let controls = input_element.closest(":host > [be_id=\"controls-background\"]");
+    if let Ok(Some(controls_el)) = controls {
+        if let Some(shadow) = controls_el.parent_node() {
+            if let Some(st1) = shadow.last_child() {
+                if let Some(last) = st1.last_child() {
+                    st1.remove_child(&last).unwrap();
+                }
+                let loading_div = &crate::createElement("div");
+                loading_div.set_text_content(Some("Loading..."));
+                st1.append_child(loading_div).unwrap();
+            }
+        }
+    }
+
+    // Dispatch go_to_page event with target index as detail
+    let mut custom_event_init = web_sys::CustomEventInit::new();
+    custom_event_init.bubbles(true);
+    custom_event_init.cancelable(true);
+    custom_event_init.composed(true);
+    custom_event_init.detail(&wasm_bindgen::JsValue::from_f64(target_start_index as f64));
+
+    let action_event =
+        web_sys::CustomEvent::new_with_event_init_dict(EVENT_GO_TO_PAGE, &custom_event_init)
+            .unwrap();
+
+    input_element.dispatch_event(&action_event).unwrap();
 }
 
 fn add_event_listener_command(

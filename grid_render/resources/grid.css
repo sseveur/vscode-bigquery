@@ -37,6 +37,26 @@ div[be_id='controls'] button:disabled {
     color: var(--vscode-button-secondaryHoverBackground);
 }
 
+div[be_id='controls'] input[be_id='page_input'] {
+    width: 50px;
+    text-align: center;
+    background-color: var(--vscode-input-background);
+    color: var(--vscode-input-foreground);
+    border: 1px solid var(--vscode-input-border, var(--vscode-button-separator));
+    margin-right: 2px;
+    padding: 1px 4px;
+}
+
+div[be_id='controls'] input[be_id='page_input']:disabled {
+    opacity: 0.5;
+}
+
+div[be_id='controls'] span[be_id='page_total_label'] {
+    padding: 5px 5px 5px 0;
+    display: inline-block;
+    margin-right: 5px;
+}
+
 div[be_id='controls'] span.button {
     cursor: pointer;
     min-width: 80px;
