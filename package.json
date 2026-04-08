@@ -170,11 +170,24 @@
 					"title": "Format: Logical Operator Newline",
 					"description": "Where to place newlines for AND/OR operators"
 				},
+				"vscode-bigquery.formatLogicalOperatorStyle": {
+					"type": "string",
+					"default": "keywordAligned",
+					"enum": [
+						"keywordAligned",
+						"contentAligned",
+						"indented"
+					],
+					"scope": "machine-overridable",
+					"order": 14,
+					"title": "Format: Logical Operator Style",
+					"description": "How AND/OR/ON are positioned relative to their parent clause. 'keywordAligned' treats them as alignment keywords (default), 'contentAligned' aligns them with the clause content, 'indented' indents them under the parent keyword."
+				},
 				"vscode-bigquery.formatNewlineBeforeSemicolon": {
 					"type": "boolean",
 					"default": false,
 					"scope": "machine-overridable",
-					"order": 14,
+					"order": 15,
 					"title": "Format: Newline Before Semicolon",
 					"description": "Place semicolon on a separate line at the end of statements"
 				},

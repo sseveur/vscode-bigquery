@@ -10,6 +10,7 @@ export interface FormatOptions {
     expressionWidth: number;
     functionCase: 'upper' | 'lower' | 'preserve';
     logicalOperatorNewline: 'before' | 'after';
+    logicalOperatorStyle: 'keywordAligned' | 'contentAligned' | 'indented';
     identifierCase: 'upper' | 'lower' | 'preserve';
     dataTypeCase: 'upper' | 'lower' | 'preserve';
     denseOperators: boolean;
@@ -29,6 +30,7 @@ export function getFormatOptions(): FormatOptions {
         expressionWidth: config.get<number>('formatExpressionWidth', 50),
         functionCase: config.get<'upper' | 'lower' | 'preserve'>('formatFunctionCase', 'preserve'),
         logicalOperatorNewline: config.get<'before' | 'after'>('formatLogicalOperatorNewline', 'before'),
+        logicalOperatorStyle: config.get<'keywordAligned' | 'contentAligned' | 'indented'>('formatLogicalOperatorStyle', 'keywordAligned'),
         identifierCase: config.get<'upper' | 'lower' | 'preserve'>('formatIdentifierCase', 'preserve'),
         dataTypeCase: config.get<'upper' | 'lower' | 'preserve'>('formatDataTypeCase', 'preserve'),
         denseOperators: config.get<boolean>('formatDenseOperators', false),
@@ -55,12 +57,246 @@ export function formatBigQuerySQL(sql: string, options?: Partial<FormatOptions>)
         newlineBeforeSemicolon: opts.newlineBeforeSemicolon,
     });
 
+    // Transform logical operator positioning if not default
+    if (opts.logicalOperatorStyle !== 'keywordAligned') {
+        formatted = transformLogicalOperatorStyle(formatted, opts);
+    }
+
     // Convert trailing commas to leading commas if enabled
     if (opts.leadingCommas) {
         formatted = convertToLeadingCommas(formatted, opts.tabWidth, opts.useTabs);
     }
 
     return formatted;
+}
+
+/** Matches a line starting with AND, OR, or ON (after whitespace). */
+const LOGICAL_OP_LINE = /^(\s*)(AND|OR|ON)(\s+)(.*)/i;
+
+/** Matches a JOIN line with an inline ON clause. */
+const JOIN_INLINE_ON = /^(\s*(?:LEFT\s+|RIGHT\s+|FULL\s+|CROSS\s+|INNER\s+)?JOIN\s+.*?)\s+(ON)(\s+)(.*)/i;
+
+/** Matches a clause keyword at the start of a line. Allows keyword at end of line (standard style). */
+const CLAUSE_KEYWORD = /^(\s*)(SELECT|FROM|WHERE|HAVING|QUALIFY|GROUP\s+BY|ORDER\s+BY|LIMIT|WINDOW|(?:LEFT\s+|RIGHT\s+|FULL\s+|CROSS\s+|INNER\s+)?JOIN)(\s+|$)/i;
+
+/** Multi-word SQL keywords for content-start detection. */
+const MULTI_WORD_KEYWORD = /^((?:LEFT|RIGHT|FULL|CROSS|INNER)\s+JOIN|ORDER\s+BY|GROUP\s+BY|PARTITION\s+BY)\s*/i;
+
+/**
+ * Transforms AND/OR/ON positioning based on the selected logical operator style.
+ *
+ * For 'contentAligned': AND/OR/ON align with the content column of their parent clause.
+ * For 'indented': AND/OR/ON are indented by tabWidth under their parent keyword.
+ */
+function transformLogicalOperatorStyle(sql: string, opts: FormatOptions): string {
+    const lines = sql.split('\n');
+    const indent = opts.useTabs ? '\t' : ' '.repeat(opts.tabWidth);
+
+    // First pass: split inline ON from JOIN lines
+    const expandedLines: string[] = [];
+    for (const line of lines) {
+        const joinMatch = line.match(JOIN_INLINE_ON);
+        if (joinMatch) {
+            const [, joinPart, onKeyword, , onCondition] = joinMatch;
+            expandedLines.push(joinPart);
+            const parentKeywordStart = joinPart.length - joinPart.trimStart().length;
+            const contentStart = getContentStart(joinPart);
+            if (opts.logicalOperatorStyle === 'contentAligned') {
+                expandedLines.push(' '.repeat(contentStart) + onKeyword + ' ' + onCondition);
+            } else {
+                expandedLines.push(' '.repeat(parentKeywordStart) + indent + onKeyword + ' ' + onCondition);
+            }
+        } else {
+            expandedLines.push(line);
+        }
+    }
+
+    // Second pass: build clause context and re-indent AND/OR/ON lines
+    interface ClauseContext {
+        keywordStart: number;
+        contentStart: number;  // -1 means "look ahead" (keyword on its own line)
+        depth: number;
+    }
+
+    const result: string[] = [];
+    let parenDepth = 0;
+    let currentClause: ClauseContext | null = null;
+    const clauseStack: ClauseContext[] = [];
+
+    for (let i = 0; i < expandedLines.length; i++) {
+        const line = expandedLines[i];
+        const trimmed = line.trimStart();
+        if (!trimmed) {
+            result.push(line);
+            continue;
+        }
+
+        const depthChange = countParenChanges(line);
+        const lineStartDepth = parenDepth;
+
+        // Check if this line is a clause keyword
+        const clauseMatch = line.match(CLAUSE_KEYWORD);
+        if (clauseMatch) {
+            const keywordStart = clauseMatch[1].length;
+            let contentStart = getContentStart(line);
+
+            // If keyword is alone on its line (standard style), look ahead for content indent
+            if (contentStart === keywordStart + clauseMatch[2].length || trimmed === clauseMatch[2]) {
+                contentStart = findNextContentIndent(expandedLines, i + 1);
+            }
+
+            currentClause = { keywordStart, contentStart, depth: lineStartDepth };
+            while (clauseStack.length > 0 && clauseStack[clauseStack.length - 1].depth >= lineStartDepth) {
+                clauseStack.pop();
+            }
+            clauseStack.push(currentClause);
+            result.push(line);
+            parenDepth += depthChange;
+            continue;
+        }
+
+        // Check if this line starts with AND/OR/ON
+        const opMatch = line.match(LOGICAL_OP_LINE);
+        if (opMatch && !isInsideStringOrComment(line)) {
+            const [, , keyword, , rest] = opMatch;
+
+            // Find the appropriate parent clause for current nesting depth
+            let parent = currentClause;
+            if (parent && lineStartDepth > parent.depth) {
+                for (let j = clauseStack.length - 1; j >= 0; j--) {
+                    if (clauseStack[j].depth <= lineStartDepth) {
+                        parent = clauseStack[j];
+                        break;
+                    }
+                }
+            }
+
+            if (parent) {
+                let newIndent: string;
+                if (lineStartDepth > parent.depth) {
+                    // Inside deeper parens: align with preceding content line
+                    newIndent = ' '.repeat(findPreviousContentIndent(result));
+                } else if (opts.logicalOperatorStyle === 'contentAligned') {
+                    newIndent = ' '.repeat(parent.contentStart);
+                } else {
+                    newIndent = ' '.repeat(parent.keywordStart) + indent;
+                }
+                result.push(newIndent + keyword + ' ' + rest);
+            } else {
+                result.push(line);
+            }
+
+            parenDepth += depthChange;
+            continue;
+        }
+
+        result.push(line);
+        parenDepth += depthChange;
+    }
+
+    return result.join('\n');
+}
+
+/**
+ * Gets the column where content starts after the keyword on a line.
+ * Handles multi-word keywords like "LEFT JOIN", "ORDER BY".
+ * For "WHERE     foo" → 10. For "LEFT JOIN t" → 10 (in tabularLeft with padding).
+ */
+function getContentStart(line: string): number {
+    const trimmed = line.trimStart();
+    const leading = line.length - trimmed.length;
+
+    // Try multi-word keywords first
+    const multiMatch = trimmed.match(MULTI_WORD_KEYWORD);
+    if (multiMatch) {
+        return leading + multiMatch[0].length;
+    }
+
+    // Single-word keyword
+    const singleMatch = trimmed.match(/^(\S+)\s+/);
+    if (singleMatch) {
+        return leading + singleMatch[0].length;
+    }
+
+    // Keyword alone on line (no content after)
+    return leading + trimmed.length;
+}
+
+/**
+ * Looks ahead from a given line index to find the indent of the next non-empty content line.
+ * Used when a clause keyword is alone on its line (standard indent style).
+ */
+function findNextContentIndent(lines: string[], startIdx: number): number {
+    for (let i = startIdx; i < lines.length; i++) {
+        const trimmed = lines[i].trimStart();
+        if (trimmed) {
+            return lines[i].length - trimmed.length;
+        }
+    }
+    return 0;
+}
+
+/**
+ * Looks backward through already-processed lines to find the indent of the most recent
+ * non-empty, non-logical-operator line. Used for AND/OR inside parenthesized groups
+ * to align with sibling content.
+ */
+function findPreviousContentIndent(lines: string[]): number {
+    for (let i = lines.length - 1; i >= 0; i--) {
+        const trimmed = lines[i].trimStart();
+        if (trimmed && !trimmed.match(/^(AND|OR|ON)\s/i)) {
+            return lines[i].length - trimmed.length;
+        }
+    }
+    return 0;
+}
+
+/**
+ * Counts net parenthesis depth change in a line, ignoring parens inside strings/comments.
+ */
+function countParenChanges(line: string): number {
+    let depth = 0;
+    let inSingleQuote = false;
+    let inDoubleQuote = false;
+
+    for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        const prev = i > 0 ? line[i - 1] : '';
+
+        if (char === "'" && !inDoubleQuote && prev !== '\\') {
+            inSingleQuote = !inSingleQuote;
+        } else if (char === '"' && !inSingleQuote && prev !== '\\') {
+            inDoubleQuote = !inDoubleQuote;
+        } else if (!inSingleQuote && !inDoubleQuote) {
+            if (char === '(') { depth++; }
+            else if (char === ')') { depth--; }
+        }
+    }
+
+    // Check for line comment
+    if (!inSingleQuote && !inDoubleQuote) {
+        const commentIdx = line.indexOf('--');
+        if (commentIdx >= 0) {
+            // Recount ignoring everything after the comment
+            depth = 0;
+            inSingleQuote = false;
+            inDoubleQuote = false;
+            for (let i = 0; i < commentIdx; i++) {
+                const char = line[i];
+                const prev = i > 0 ? line[i - 1] : '';
+                if (char === "'" && !inDoubleQuote && prev !== '\\') {
+                    inSingleQuote = !inSingleQuote;
+                } else if (char === '"' && !inSingleQuote && prev !== '\\') {
+                    inDoubleQuote = !inDoubleQuote;
+                } else if (!inSingleQuote && !inDoubleQuote) {
+                    if (char === '(') { depth++; }
+                    else if (char === ')') { depth--; }
+                }
+            }
+        }
+    }
+
+    return depth;
 }
 
 /**

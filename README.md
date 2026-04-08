@@ -331,6 +331,7 @@ Configuration options:
 | `formatExpressionWidth` | 1-200 | 50 | Max expression width before line breaks |
 | `formatDenseOperators` | true, false | false | Pack operators without spaces (1+1) |
 | `formatLogicalOperatorNewline` | before, after | before | Newline position for AND/OR |
+| `formatLogicalOperatorStyle` | keywordAligned, contentAligned, indented | keywordAligned | How AND/OR/ON are positioned relative to their parent clause |
 | `formatNewlineBeforeSemicolon` | true, false | false | Semicolon on separate line |
 
 ## Export Options
@@ -448,6 +449,7 @@ Setting: `vscode-bigquery.associateSqlFiles`
 | `vscode-bigquery.formatIndentStyle` | string | `standard` | Indent style: standard, tabularLeft, tabularRight |
 | `vscode-bigquery.formatLeadingCommas` | boolean | `true` | Use leading comma style |
 | `vscode-bigquery.formatLogicalOperatorNewline` | string | `before` | AND/OR newline: before, after |
+| `vscode-bigquery.formatLogicalOperatorStyle` | string | `keywordAligned` | AND/OR/ON positioning: keywordAligned, contentAligned, indented |
 | `vscode-bigquery.formatNewlineBeforeSemicolon` | boolean | `false` | Semicolon on separate line |
 | `vscode-bigquery.pinned-projects` | array | `[]` | Pinned GCP project IDs |
 | `vscode-bigquery.hidden-projects` | array | `[]` | Hidden GCP project IDs |
