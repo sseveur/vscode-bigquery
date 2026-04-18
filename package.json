@@ -517,7 +517,7 @@
 			{
 				"command": "vscode-bigquery.open-as-text",
 				"title": "BigQuery: Open as Text",
-				"icon": "$(file-code)"
+				"icon": "$(code)"
 			}
 		],
 		"notebooks": [
@@ -556,12 +556,10 @@
 					"command": "vscode-bigquery.open-as-notebook",
 					"group": "navigation@100",
 					"when": "editorLangId == bqsql || editorLangId == sql"
-				}
-			],
-			"notebook/toolbar": [
+				},
 				{
 					"command": "vscode-bigquery.open-as-text",
-					"group": "navigation/execute@100",
+					"group": "navigation@100",
 					"when": "notebookType == bigquery-sql-notebook"
 				}
 			],

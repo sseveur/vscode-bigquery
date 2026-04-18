@@ -1324,7 +1324,20 @@ export const commandOpenAsText = async function (uri?: vscode.Uri) {
 		vscode.window.showWarningMessage('No notebook is currently active.');
 		return;
 	}
-	await vscode.commands.executeCommand('vscode.openWith', targetUri, 'default');
+
+	// Close the specific notebook tab (not the active editor) so reopening
+	// the same URI switches from notebook to text instead of revealing.
+	const uriStr = targetUri.toString();
+	const notebookTabs = vscode.window.tabGroups.all
+		.flatMap(g => g.tabs)
+		.filter(t => t.input instanceof vscode.TabInputNotebook && t.input.uri.toString() === uriStr);
+
+	for (const tab of notebookTabs) {
+		await vscode.window.tabGroups.close(tab);
+	}
+
+	const doc = await vscode.workspace.openTextDocument(targetUri);
+	await vscode.window.showTextDocument(doc, { preview: false });
 };
 
 // Toggle Lineage Export Theme
