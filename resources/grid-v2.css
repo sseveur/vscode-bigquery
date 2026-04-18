@@ -12,6 +12,72 @@ body { margin: 0; padding: 0; font-family: var(--vscode-font-family, sans-serif)
 
 .bq-root { display: flex; flex-direction: column; height: 100vh; }
 
+.bq-ctx-menu {
+    position: fixed;
+    z-index: 20;
+    min-width: 180px;
+    background: var(--vscode-menu-background, var(--vscode-editor-background));
+    color: var(--vscode-menu-foreground, var(--vscode-foreground));
+    border: 1px solid var(--vscode-menu-border, var(--bq-border));
+    border-radius: 4px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+    padding: 4px;
+    font-size: 0.88em;
+    user-select: none;
+}
+.bq-ctx-head {
+    padding: 4px 10px 6px;
+    font-size: 0.78em;
+    color: color-mix(in srgb, var(--vscode-foreground) 55%, transparent);
+    border-bottom: 1px solid var(--bq-border);
+    margin-bottom: 4px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.bq-ctx-sep {
+    height: 1px;
+    background: var(--bq-border);
+    margin: 4px 0;
+}
+.bq-ctx-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 5px 10px;
+    background: transparent;
+    color: inherit;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    font: inherit;
+}
+.bq-ctx-item:hover {
+    background: var(--vscode-menu-selectionBackground, var(--vscode-list-hoverBackground));
+    color: var(--vscode-menu-selectionForeground, var(--vscode-list-hoverForeground, inherit));
+}
+
+.bq-dml-summary {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--bq-border);
+    background: color-mix(in srgb, var(--vscode-charts-green, #4ec9b0) 12%, var(--vscode-editor-background) 88%);
+    font-size: 0.88em;
+}
+.bq-dml-type {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 3px;
+    background: color-mix(in srgb, var(--vscode-charts-green, #4ec9b0) 25%, transparent);
+    color: color-mix(in srgb, var(--vscode-foreground) 70%, var(--vscode-charts-green, #4ec9b0) 30%);
+    letter-spacing: 0.02em;
+    font-size: 0.82em;
+}
+.bq-dml-counts {
+    color: var(--vscode-foreground);
+}
+
 .bq-controls {
     display: flex;
     align-items: center;

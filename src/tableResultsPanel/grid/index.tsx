@@ -23,7 +23,6 @@ try {
         showFatal('mount element #q1 not found');
     } else {
         render(<GridApp />, mount);
-        (window as any).__bqVscode.postMessage({ command: 'load_complete' });
     }
 } catch (e: any) {
     showFatal(String(e?.stack || e?.message || e));

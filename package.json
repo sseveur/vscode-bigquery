@@ -2,7 +2,7 @@
 	"name": "bigquery-studio",
 	"displayName": "BigQuery Studio",
 	"description": "Fork of bstruct/vscode-bigquery. A powerful Google BigQuery extension with offline-ready charting, query execution, data browsing, SQL intellisense, cost estimation, and data lineage visualization.",
-	"version": "1.12.0",
+	"version": "2.0.0",
 	"publisher": "s-seveur",
 	"icon": "logo.png",
 	"repository": {
@@ -255,28 +255,57 @@
 					"title": "Pinned Tables",
 					"description": "Tables pinned in explorer for quick access. Format: project.dataset.table"
 				},
-				"vscode-bigquery.experimentalGrid": {
-					"type": "boolean",
-					"default": false,
+				"vscode-bigquery.defaultLocation": {
+					"type": "string",
+					"default": "",
 					"scope": "machine-overridable",
 					"order": 22,
-					"title": "Experimental: Use new grid",
-					"description": "Render query results with the new Preact-based grid (v2) instead of the WASM grid. Experimental — multi-statement scripts and table previews fall back to the classic view."
+					"title": "Default Query Location",
+					"description": "BigQuery processing location for query jobs (e.g. US, EU, australia-southeast1, asia-east1). When empty, auto-detects from the first FROM clause via datasets.get. Set explicitly to override detection or for unqualified/CTE-only queries."
+				},
+				"vscode-bigquery.copyTablePathBackticks": {
+					"type": "boolean",
+					"default": true,
+					"scope": "machine-overridable",
+					"order": 24,
+					"title": "Copy Table Path: Wrap in Backticks",
+					"description": "When copying a table path (right-click → Copy Table Path), wrap it in backticks so it's ready to paste directly into a BigQuery FROM clause."
 				},
 				"vscode-bigquery.gridColors": {
 					"type": "object",
 					"scope": "machine-overridable",
 					"order": 23,
-					"title": "Experimental Grid: Cell Color Scheme",
-					"description": "Override cell text colors per BigQuery type in the experimental grid. Leave empty to inherit from the active VS Code theme. Supports any CSS color (hex, rgb, hsl, named).",
+					"title": "Grid: Cell Color Scheme",
+					"description": "Override cell text colors per BigQuery type. Leave empty to inherit from the active VS Code theme. Supports any CSS color (hex, rgb, hsl, named).",
 					"properties": {
-						"number": { "type": "string", "description": "INT64, FLOAT, NUMERIC, BIGNUMERIC. Default: var(--vscode-charts-blue, #4fc1ff)" },
-						"boolean": { "type": "string", "description": "BOOL. Default: var(--vscode-charts-purple, #c586c0)" },
-						"timestamp": { "type": "string", "description": "TIMESTAMP, DATE, DATETIME, TIME. Default: var(--vscode-charts-orange, #ce9178)" },
-						"struct": { "type": "string", "description": "STRUCT, RECORD, JSON. Default: blended teal" },
-						"bytes": { "type": "string", "description": "BYTES, GEOGRAPHY. Default: blended yellow" },
-						"string": { "type": "string", "description": "STRING. Default: neutral (inherits foreground)" },
-						"null": { "type": "string", "description": "NULL cells. Default: var(--vscode-inputValidation-warningBorder, #c5a300)" }
+						"number": {
+							"type": "string",
+							"description": "INT64, FLOAT, NUMERIC, BIGNUMERIC. Default: var(--vscode-charts-blue, #4fc1ff)"
+						},
+						"boolean": {
+							"type": "string",
+							"description": "BOOL. Default: var(--vscode-charts-purple, #c586c0)"
+						},
+						"timestamp": {
+							"type": "string",
+							"description": "TIMESTAMP, DATE, DATETIME, TIME. Default: var(--vscode-charts-orange, #ce9178)"
+						},
+						"struct": {
+							"type": "string",
+							"description": "STRUCT, RECORD, JSON. Default: blended teal"
+						},
+						"bytes": {
+							"type": "string",
+							"description": "BYTES, GEOGRAPHY. Default: blended yellow"
+						},
+						"string": {
+							"type": "string",
+							"description": "STRING. Default: neutral (inherits foreground)"
+						},
+						"null": {
+							"type": "string",
+							"description": "NULL cells. Default: var(--vscode-inputValidation-warningBorder, #c5a300)"
+						}
 					},
 					"default": {}
 				}
@@ -762,7 +791,6 @@
 		"watch": "webpack --watch",
 		"package": "npm run compile-morphcharts && webpack --mode production --devtool hidden-source-map",
 		"compile-tests": "tsc -p . --outDir out",
-		"compile-grid_render": "cd grid_render && wasm-pack build --release --target web",
 		"watch-tests": "tsc -p . -w --outDir out",
 		"pretest": "npm run compile-tests && npm run compile && npm run lint",
 		"lint": "eslint src --ext ts",
@@ -798,7 +826,6 @@
 		"@vscode/codicons": "^0.0.32",
 		"@vscode/webview-ui-toolkit": "^1.2.2",
 		"csv-writer": "^1.6.0",
-		"grid_render": "file://.//grid_render/pkg",
 		"jsdom": "^27.4.0",
 		"jspdf": "^2.5.2",
 		"morphcharts": "^1.3.2",

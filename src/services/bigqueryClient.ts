@@ -1,4 +1,5 @@
 import { BigQuery, Job, JobResponse, Query, Table } from '@google-cloud/bigquery';
+import * as vscode from 'vscode';
 import { BigqueryJobError } from './bigqueryJobError';
 import { BigqueryTableSchema } from './bigqueryTableSchema';
 import { JobReference } from './queryResultsMapping';
@@ -7,6 +8,7 @@ import { SchemaField, TableMetadata } from './tableMetadata';
 export class BigQueryClient {
 
 	private bqclient: BigQuery;
+	private locationCache: Map<string, string> = new Map();
 
 	/**
 	 *
@@ -28,6 +30,46 @@ export class BigQueryClient {
 			});
 	}
 
+	private getDefaultLocation(): string | undefined {
+		const setting = vscode.workspace.getConfiguration('vscode-bigquery').get<string>('defaultLocation', '');
+		const trimmed = (setting || '').trim();
+		return trimmed ? trimmed : undefined;
+	}
+
+	private extractFirstDatasetRef(queryText: string): { projectId: string; datasetId: string } | null {
+		const cleaned = queryText
+			.replace(/--[^\n]*/g, '')
+			.replace(/\/\*[\s\S]*?\*\//g, '');
+		const re = /\bFROM\s+`?([A-Za-z0-9_-]+)\s*\.\s*([A-Za-z0-9_]+)\s*\.\s*[A-Za-z0-9_]+/gi;
+		const m = re.exec(cleaned);
+		if (m) { return { projectId: m[1], datasetId: m[2] }; }
+		const re2 = /\bFROM\s+`?([A-Za-z0-9_]+)\s*\.\s*[A-Za-z0-9_]+`?/gi;
+		const m2 = re2.exec(cleaned);
+		if (m2) {
+			return { projectId: (this.bqclient as any).projectId || '', datasetId: m2[1] };
+		}
+		return null;
+	}
+
+	private async detectLocation(queryText: string): Promise<string | undefined> {
+		const override = this.getDefaultLocation();
+		if (override) { return override; }
+		const ref = this.extractFirstDatasetRef(queryText);
+		if (!ref || !ref.projectId || !ref.datasetId) { return undefined; }
+		const cacheKey = `${ref.projectId}.${ref.datasetId}`;
+		const cached = this.locationCache.get(cacheKey);
+		if (cached) { return cached; }
+		try {
+			const dataset = this.bqclient.dataset(ref.datasetId, { projectId: ref.projectId });
+			const [meta] = await dataset.getMetadata();
+			const loc: string | undefined = meta?.location;
+			if (loc) { this.locationCache.set(cacheKey, loc); }
+			return loc;
+		} catch {
+			return undefined;
+		}
+	}
+
 	public async runQuery(queryText: string): Promise<Job> {
 
 		const query: Query = {
@@ -36,6 +78,9 @@ export class BigQueryClient {
 			useLegacySql: false,
 			useQueryCache: true
 		};
+
+		const location = await this.detectLocation(queryText);
+		if (location) { query.location = location; }
 
 		const jobResponse: JobResponse = await this.bqclient.createQueryJob(query);
 
@@ -57,6 +102,9 @@ export class BigQueryClient {
 			useQueryCache: true,
 			params: params
 		};
+
+		const location = await this.detectLocation(queryText);
+		if (location) { query.location = location; }
 
 		const jobResponse: JobResponse = await this.bqclient.createQueryJob(query);
 
@@ -122,6 +170,9 @@ export class BigQueryClient {
 			useLegacySql: false,
 			useQueryCache: true
 		};
+
+		const location = await this.detectLocation(queryText);
+		if (location) { query.location = location; }
 
 		let error: BigqueryJobError | null = null;
 

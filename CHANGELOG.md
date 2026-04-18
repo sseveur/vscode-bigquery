@@ -5,6 +5,63 @@ All notable changes to the BigQuery Studio extension will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-04-18
+
+> **Major release.** The legacy WASM (Rust→WebAssembly) results renderer has been removed and fully replaced by a new Preact-based grid. All query results, table previews, and multi-statement scripts render through the new grid. The old `vscode-bigquery.experimentalGrid` toggle is gone — the new grid is the only path.
+
+### Breaking Changes
+
+- **Removed WASM grid renderer** - The `grid_render` Rust crate (~6,772 LoC, 442 KB WASM + JS glue per webview load) has been deleted. All rendering now goes through `resources/grid-v2.js` (≈64 KB, ≈12 KB gzipped — ~7× smaller bundle, ~35× smaller gzipped).
+- **Removed setting `vscode-bigquery.experimentalGrid`** - The opt-in flag no longer exists. New grid is always used.
+- **Removed npm script `compile-grid_render`** - No more `wasm-pack build` step for the results renderer. The `bqsql_parser` WASM module (used for language features) is unaffected.
+- **Removed `grid_render` npm dependency** - `file://.//grid_render/pkg` link is gone.
+
+### Added
+
+- **Modern Results Grid (default)** - Preact-based grid with first-class VS Code theming. Features:
+  - **Tabs** - Results / Schema tabs. Schema pane lists every column with type and mode.
+  - **Multi-column sort** - Click a header for single sort. Shift-click additional headers to stack secondary keys. Rank badge shown next to the sort arrow when more than one column is active.
+  - **Find-in-table** - `Find…` box in the toolbar filters the current page. Matches highlighted inline with hit count.
+  - **Density toggle** - Three-button compact / cozy / comfy switcher adjusts row height live via CSS variables.
+  - **Cell drawer** - Click any STRUCT, ARRAY, RECORD, or JSON cell to open a resizable right-side drawer with pretty-printed, copyable content.
+  - **Click-to-copy scalar cells** - Click a scalar cell to copy its raw value. Toast confirms the copy.
+  - **Column drag-resize** - Grab the right edge of a column header and drag. Per-column widths are remembered for the session.
+  - **Row selection** - Click a row-number cell to select a row. Shift-click selects a range; Cmd/Ctrl-click toggles individual rows.
+  - **Copy selected rows** - `TSV` / `MD` / `JSON` buttons appear in the toolbar when rows are selected. Ready-to-paste tab-separated values, GitHub-flavored Markdown table, or pretty-printed JSON array.
+  - **Row right-click menu** - Right-click any row for a context menu. Respects current selection: if multiple rows are selected and the right-clicked row is one of them, menu operates on **all selected rows**; otherwise it auto-selects the clicked row. Copy row(s) as TSV / Markdown / JSON. Right-clicking a specific cell also offers **Copy cell value** and **Copy column name**. Menu closes on click-outside, scroll, resize, or any keypress.
+  - **Row number gutter** - Sticky-left numbered gutter that highlights on hover and turns accent-colored when the row is selected.
+  - **Type-aware syntax colors** - Cell text tinted per BigQuery type (number / boolean / timestamp / struct / bytes / string / null) using VS Code theme CSS vars with tasteful defaults.
+  - **Pagination** - First / prev / next / last buttons plus page-number input and rows-per-page selector (25 / 50 / 100 / 250 / 1000). Pagination uses the BigQuery `getQueryResults` REST API with `startIndex` + `maxResults`.
+  - **Script multi-result view** - Multi-statement scripts render as a vertical stack of tables, one per child job. Each titled `Statement N · <statementType>`. Powered by `jobs.list?parentJobId=…`.
+  - **DML summary banner** - `INSERT` / `UPDATE` / `DELETE` / `MERGE` jobs show a summary banner above the grid with the statement type and affected row counts (inserted · updated · deleted). Covers single-job queries and script child jobs.
+  - **Table preview** - Right-click → Preview renders through the same grid, backed by `tables.get` (schema + row count) + `tabledata.list` (rows).
+- **Setting: `vscode-bigquery.gridColors`** - Object that overrides per-type cell text colors. Keys: `number`, `boolean`, `timestamp`, `struct`, `bytes`, `string`, `null`. Values accept any CSS color (hex, `rgb()`, `hsl()`, `var(--vscode-…)`, `color-mix(…)`, named). Values sanitized at HTML inject time against an allowlist regex + 80-char cap.
+- **Setting: `vscode-bigquery.defaultLocation`** - BigQuery processing location (e.g. `US`, `EU`, `australia-southeast1`, `asia-east1`). When empty, location is auto-detected from the first FROM clause via `datasets.get` (cached per dataset). Set explicitly to override detection or for unqualified / CTE-only queries.
+- **Setting: `vscode-bigquery.copyTablePathBackticks`** (default `true`) - `Copy Table Path` now wraps the result in backticks by default so it pastes directly into a BigQuery FROM clause. Disable to get the raw `project.dataset.table` string.
+- **Syntax highlighting for logical keywords** - `AND`, `OR`, `NOT`, `IN`, `BETWEEN`, `LIKE`, `EXISTS`, `IS`, `ALL`, `ANY`, `SOME` now render as keywords (not dimmed operators) via the semantic token provider — theme colors apply consistently. `NULL`, `TRUE`, `FALSE` moved to `constant.language` for distinct coloring.
+- **Automatic query location detection** - `BigQueryClient.runQuery` / `runParameterizedQuery` / `validateQuery` now inspect the first FROM clause for a fully-qualified `project.dataset.table`, call `datasets.get`, and pass the resulting `location` to `createQueryJob`. Eliminates "Dataset not found in location us-central1" errors for datasets outside the project's default region. Cache hits subsequent queries on the same dataset.
+- **Content Security Policy on results webview** - `grid-v2` HTML now carries a strict CSP meta tag: `default-src 'none'; style-src ${cspSource} 'nonce-…'; script-src ${cspSource}; connect-src https://bigquery.googleapis.com; img-src ${cspSource} data:; font-src ${cspSource}`. Color overrides are emitted inside a `<style nonce="…">` block.
+
+### Removed
+
+- `grid_render/` — Rust crate (lib.rs, custom elements for `bq-query`, `bq-table`, `bq-script`, message handler, BQ REST clients).
+- `resources/grid.js`, `resources/grid.css`, `resources/grid_render.js`, `resources/grid_render_bg.wasm` — legacy bundle + WASM artifact.
+- `resources/grid-v2-palette-preview.html` — orphan dev artifact from the palette design phase.
+- `dist/grid_render.js`, `dist/grid_render_bg.wasm` — webpack-copied artifacts.
+- `webpack.config.js` WASM copy plugins + `syncWebAssembly` experiment.
+- `.vscode/settings.json` `rust-analyzer.linkedProjects`, `.vscodeignore` `grid_render/**`, `.gitignore` `grid_render/Cargo.lock`.
+- Setting `vscode-bigquery.experimentalGrid`.
+- npm script `compile-grid_render`.
+- npm dependency `grid_render`.
+
+### Migration
+
+No user action required. All existing features — exports (CSV / JSONL / Pub/Sub / Copy), sidebar panels, notebook output, persistence across VS Code restarts, keyboard shortcuts — are unchanged. If you had `vscode-bigquery.experimentalGrid: true` in settings, remove it (it will be silently ignored).
+
+If you hit "Dataset not found in location …" errors, either:
+1. Fully-qualify `FROM \`project.dataset.table\`` (auto-detect picks up the dataset's real location), or
+2. Set `vscode-bigquery.defaultLocation` to your BQ region (e.g. `australia-southeast1`).
+
 ## [1.12.0] - 2026-04-18
 
 ### Added

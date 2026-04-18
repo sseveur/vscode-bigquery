@@ -13,6 +13,8 @@ export interface GridError {
 export interface GridMessage {
     requestType: string;
     projectId: string | null;
+    datasetId?: string | null;
+    tableId?: string | null;
     token: string | null;
     job: any | null;
     error: GridError | null;
@@ -31,6 +33,17 @@ export interface JobReference {
     location?: string;
 }
 
+export interface TableReference {
+    projectId: string;
+    datasetId: string;
+    tableId: string;
+}
+
+export interface ExportRef {
+    jobReference?: JobReference;
+    tableReference?: TableReference;
+}
+
 export interface QueryResultsResponse {
     schema?: { fields: BqField[] };
     rows?: Array<{ f: Array<{ v: any }> }>;
@@ -38,4 +51,35 @@ export interface QueryResultsResponse {
     pageToken?: string;
     jobComplete?: boolean;
     totalBytesProcessed?: string;
+}
+
+export interface TableMetadata {
+    schema?: { fields: BqField[] };
+    numRows?: string;
+    tableReference?: TableReference;
+    type?: string;
+}
+
+export interface DmlStats {
+    insertedRowCount?: string;
+    updatedRowCount?: string;
+    deletedRowCount?: string;
+}
+
+export interface JobStatistics {
+    query?: {
+        statementType?: string;
+        dmlStats?: DmlStats;
+    };
+}
+
+export interface JobListEntry {
+    jobReference: JobReference;
+    statistics?: JobStatistics;
+    status?: { state?: string; errorResult?: { message?: string } };
+    configuration?: { query?: { query?: string } };
+}
+
+export interface JobListResponse {
+    jobs?: JobListEntry[];
 }

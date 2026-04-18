@@ -3,21 +3,13 @@ import { getExtensionUri } from '../extension';
 import { COMMAND_DOWNLOAD_CSV, COMMAND_DOWNLOAD_JSONL, COMMAND_SEND_PUBSUB, COMMAND_COPY_CLIPBOARD } from '../extensionCommands';
 import { ResultsGridRenderRequestV2 } from './resultsGridRenderRequestV2';
 
-//https://github.com/microsoft/vscode-webview-ui-toolkit/blob/main/docs/getting-started.md
-
 export class ResultsGridRender {
 
     private webViewPanel: vscode.WebviewPanel;
 
     constructor(webViewPanel: vscode.WebviewPanel) {
         this.webViewPanel = webViewPanel;
-        // const listener = this.webViewPanel.webview.onDidReceiveMessage(this.listenerResultsOnDidReceiveMessage, this);
-        // webViewPanel.onDidDispose(c => { listener.dispose(); });
     }
-
-    // public renderLoadingIcon() {
-    //     this.webViewPanel.webview.html = this.getWaitingHtml(50, false, 0, 0);
-    // }
 
     public static executeCommand(c: any) {
         if ((c as any).command) {
@@ -37,12 +29,6 @@ export class ResultsGridRender {
         }
     }
 
-    private isExperimentalGridEnabled(): boolean {
-        return vscode.workspace
-            .getConfiguration('vscode-bigquery')
-            .get<boolean>('experimentalGrid', false);
-    }
-
     private buildGridColorOverrides(): string {
         const cfg = vscode.workspace.getConfiguration('vscode-bigquery').get<Record<string, string>>('gridColors', {});
         if (!cfg || typeof cfg !== 'object') { return ''; }
@@ -58,54 +44,49 @@ export class ResultsGridRender {
         const lines: string[] = [];
         for (const [k, v] of Object.entries(cfg)) {
             const cssVar = keyToVar[k];
-            if (!cssVar || typeof v !== 'string' || !v.trim()) { continue; }
-            const sanitized = v.replace(/[<>]/g, '');
-            lines.push(`${cssVar}: ${sanitized};`);
+            if (!cssVar || typeof v !== 'string') { continue; }
+            const raw = v.trim();
+            if (!raw) { continue; }
+            if (raw.length > 80) { continue; }
+            if (!/^[A-Za-z0-9 ,.()%#\-]+$/.test(raw)) { continue; }
+            lines.push(`${cssVar}: ${raw};`);
         }
         return lines.length ? `:root { ${lines.join(' ')} }` : '';
     }
 
     private buildHtml(webview: vscode.Webview, extensionUri: vscode.Uri): string {
-        const useV2 = this.isExperimentalGridEnabled();
-        if (useV2) {
-            const gridJs = this.getUri(webview, extensionUri, ['resources', 'grid-v2.js']);
-            const gridCss = this.getUri(webview, extensionUri, ['resources', 'grid-v2.css']);
-            const colorOverrides = this.buildGridColorOverrides();
-            return `<!DOCTYPE html>
-            <html lang="en">
-                <head>
-                    <meta charset="UTF-8">
-                    <link rel="stylesheet" href="${gridCss}">
-                    ${colorOverrides ? `<style>${colorOverrides}</style>` : ''}
-                </head>
-                <body>
-                    <div id="q1"></div>
-                    <script src="${gridJs}"></script>
-                </body>
-            </html>`;
-        }
-
-        const gridJs = this.getUri(webview, extensionUri, ['resources', 'grid.js']);
-        const gridCss = this.getUri(webview, extensionUri, ['resources', 'grid.css']);
-        const gridRenderWasm = this.getUri(webview, extensionUri, ['resources', 'grid_render_bg.wasm']);
+        const gridJs = this.getUri(webview, extensionUri, ['resources', 'grid-v2.js']);
+        const gridCss = this.getUri(webview, extensionUri, ['resources', 'grid-v2.css']);
+        const colorOverrides = this.buildGridColorOverrides();
+        const nonce = this.makeNonce();
+        const csp = [
+            "default-src 'none'",
+            `style-src ${webview.cspSource} 'nonce-${nonce}'`,
+            `script-src ${webview.cspSource}`,
+            `connect-src ${webview.cspSource} https://bigquery.googleapis.com`,
+            `img-src ${webview.cspSource} data:`,
+            `font-src ${webview.cspSource}`,
+        ].join('; ');
         return `<!DOCTYPE html>
         <html lang="en">
             <head>
                 <meta charset="UTF-8">
+                <meta http-equiv="Content-Security-Policy" content="${csp}">
                 <link rel="stylesheet" href="${gridCss}">
-                <script>
-                    const vscode = acquireVsCodeApi();
-                    window.GRID_RENDER_WASM_URL = '${gridRenderWasm}';
-                </script>
+                ${colorOverrides ? `<style nonce="${nonce}">${colorOverrides}</style>` : ''}
             </head>
-            <body style="padding:0;">
+            <body>
                 <div id="q1"></div>
-                <script type="module" src="${gridJs}"></script>
-                <script>
-                    vscode.postMessage({command:'load_complete'});
-                </script>
+                <script src="${gridJs}"></script>
             </body>
         </html>`;
+    }
+
+    private makeNonce(): string {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        let s = '';
+        for (let i = 0; i < 32; i++) { s += chars[Math.floor(Math.random() * chars.length)]; }
+        return s;
     }
 
     public render1(): Promise<boolean> {

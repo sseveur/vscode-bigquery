@@ -1,14 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
-import type { BqField, JobReference } from './types';
+import type { BqField, DmlStats, ExportRef, QueryResultsResponse } from './types';
 import { flattenSchema, extractRowValue, renderCellValue, type FlatColumn } from './cellFormatters';
-import { fetchPage, DEFAULT_PAGE_SIZE } from './pagination';
+import { DEFAULT_PAGE_SIZE } from './pagination';
+
+export type PageFetcher = (startIndex: number, pageSize: number) => Promise<QueryResultsResponse>;
 
 interface Props {
-    jobRef: JobReference;
-    token: string;
+    fetchRows: PageFetcher;
+    exportRef: ExportRef;
     schema: BqField[];
     totalRows: number;
     initialRows: Array<{ f: Array<{ v: any }> }>;
+    title?: string;
+    dmlStats?: DmlStats;
+    statementType?: string;
 }
 
 type SortItem = { colKey: string; dir: 1 | -1 };
@@ -87,7 +92,7 @@ function prettyPrint(v: any): string {
     return String(v);
 }
 
-export function BqTable({ jobRef, token, schema, totalRows, initialRows }: Props) {
+export function BqTable({ fetchRows, exportRef, schema, totalRows, initialRows, title, dmlStats, statementType }: Props) {
     const columns = useMemo<FlatColumn[]>(() => flattenSchema(schema), [schema]);
     const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
     const [pageIndex, setPageIndex] = useState<number>(0);
@@ -102,6 +107,7 @@ export function BqTable({ jobRef, token, schema, totalRows, initialRows }: Props
     const [colWidths, setColWidths] = useState<Record<string, number>>({});
     const [selected, setSelected] = useState<Set<number>>(new Set());
     const [lastClickedIdx, setLastClickedIdx] = useState<number | null>(null);
+    const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; rowIdx: number; col?: FlatColumn } | null>(null);
 
     const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
 
@@ -112,7 +118,7 @@ export function BqTable({ jobRef, token, schema, totalRows, initialRows }: Props
         }
         setLoading(true);
         setErr(null);
-        fetchPage(jobRef, token, pageIndex * pageSize, pageSize)
+        fetchRows(pageIndex * pageSize, pageSize)
             .then(res => {
                 if (cancelled) { return; }
                 setRows(res.rows || []);
@@ -125,7 +131,7 @@ export function BqTable({ jobRef, token, schema, totalRows, initialRows }: Props
                 setLoading(false);
             });
         return () => { cancelled = true; };
-    }, [jobRef.projectId, jobRef.jobId, jobRef.location, token, pageIndex, pageSize]);
+    }, [fetchRows, pageIndex, pageSize]);
 
     const extracted = useMemo(
         () => rows.map(r => {
@@ -211,24 +217,62 @@ export function BqTable({ jobRef, token, schema, totalRows, initialRows }: Props
         setLastClickedIdx(rowIdx);
     }
 
-    function copySelected(format: 'tsv' | 'md') {
+    function formatRows(indices: number[], format: 'tsv' | 'md' | 'json'): string {
+        const header = columns.map(c => c.label);
+        if (format === 'json') {
+            const objs = indices.map(i => {
+                const obj: Record<string, any> = {};
+                for (const c of columns) { obj[c.label] = extracted[i][c.key]; }
+                return obj;
+            });
+            return JSON.stringify(objs.length === 1 ? objs[0] : objs, null, 2);
+        }
+        const body = indices.map(i => columns.map(c => valueToCopyText(extracted[i][c.key], c)));
+        if (format === 'tsv') {
+            return [header.join('\t'), ...body.map(r => r.join('\t'))].join('\n');
+        }
+        const sep = '| ' + header.map(() => '---').join(' | ') + ' |';
+        return [
+            '| ' + header.join(' | ') + ' |',
+            sep,
+            ...body.map(r => '| ' + r.map(c => c.replace(/\|/g, '\\|').replace(/\n/g, ' ')).join(' | ') + ' |'),
+        ].join('\n');
+    }
+
+    function copySelected(format: 'tsv' | 'md' | 'json') {
         const indices = sortedIndices.filter(i => selected.has(i));
         if (indices.length === 0) { showToast('No rows selected'); return; }
-        const header = columns.map(c => c.label);
-        const body = indices.map(i => columns.map(c => valueToCopyText(extracted[i][c.key], c)));
-        let out: string;
-        if (format === 'tsv') {
-            out = [header.join('\t'), ...body.map(r => r.join('\t'))].join('\n');
-        } else {
-            const sep = '| ' + header.map(() => '---').join(' | ') + ' |';
-            out = [
-                '| ' + header.join(' | ') + ' |',
-                sep,
-                ...body.map(r => '| ' + r.map(c => c.replace(/\|/g, '\\|').replace(/\n/g, ' ')).join(' | ') + ' |'),
-            ].join('\n');
-        }
-        copyText(out);
+        copyText(formatRows(indices, format));
     }
+
+    function copyRow(rowIdx: number, format: 'tsv' | 'md' | 'json') {
+        copyText(formatRows([rowIdx], format));
+    }
+
+    function onRowContextMenu(rowIdx: number, col: FlatColumn | undefined, e: MouseEvent) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!selected.has(rowIdx)) {
+            setSelected(new Set([rowIdx]));
+            setLastClickedIdx(rowIdx);
+        }
+        setCtxMenu({ x: e.clientX, y: e.clientY, rowIdx, col });
+    }
+
+    useEffect(() => {
+        if (!ctxMenu) { return; }
+        function close() { setCtxMenu(null); }
+        window.addEventListener('click', close);
+        window.addEventListener('scroll', close, true);
+        window.addEventListener('resize', close);
+        window.addEventListener('keydown', close);
+        return () => {
+            window.removeEventListener('click', close);
+            window.removeEventListener('scroll', close, true);
+            window.removeEventListener('resize', close);
+            window.removeEventListener('keydown', close);
+        };
+    }, [ctxMenu]);
 
     const startRow = totalRows === 0 ? 0 : pageIndex * pageSize + 1;
     const endRow = Math.min((pageIndex + 1) * pageSize, totalRows);
@@ -243,8 +287,21 @@ export function BqTable({ jobRef, token, schema, totalRows, initialRows }: Props
         ['--bq-cell-font' as any]: densityVars[density].font,
     };
 
+    const dmlParts: string[] = [];
+    if (dmlStats?.insertedRowCount && dmlStats.insertedRowCount !== '0') { dmlParts.push(`${Number(dmlStats.insertedRowCount).toLocaleString()} inserted`); }
+    if (dmlStats?.updatedRowCount && dmlStats.updatedRowCount !== '0') { dmlParts.push(`${Number(dmlStats.updatedRowCount).toLocaleString()} updated`); }
+    if (dmlStats?.deletedRowCount && dmlStats.deletedRowCount !== '0') { dmlParts.push(`${Number(dmlStats.deletedRowCount).toLocaleString()} deleted`); }
+    const showDml = dmlParts.length > 0 || (statementType && ['INSERT', 'UPDATE', 'DELETE', 'MERGE'].includes(statementType));
+
     return (
         <div class="bq-root" style={cssVars}>
+            {title && <div class="bq-title">{title}</div>}
+            {showDml && (
+                <div class="bq-dml-summary">
+                    <span class="bq-dml-type">{statementType || 'DML'}</span>
+                    <span class="bq-dml-counts">{dmlParts.length ? dmlParts.join(' · ') : '0 rows affected'}</span>
+                </div>
+            )}
             <div class="bq-controls">
                 <div class="bq-tabs">
                     <button class={`bq-tab ${tab === 'results' ? 'active' : ''}`} onClick={() => setTab('results')}>Results</button>
@@ -304,12 +361,13 @@ export function BqTable({ jobRef, token, schema, totalRows, initialRows }: Props
                             <span class="bq-sel-count">{selected.size} sel</span>
                             <button class="bq-pg-btn" onClick={() => copySelected('tsv')} title="Copy selected rows as TSV">TSV</button>
                             <button class="bq-pg-btn" onClick={() => copySelected('md')} title="Copy selected rows as Markdown">MD</button>
+                            <button class="bq-pg-btn" onClick={() => copySelected('json')} title="Copy selected rows as JSON">JSON</button>
                             <button class="bq-pg-btn" onClick={() => setSelected(new Set())} title="Clear selection">✕</button>
                         </>}
-                        <button class="bq-pg-btn" onClick={() => postExport('download_csv', jobRef)} title="Download all as CSV">CSV</button>
-                        <button class="bq-pg-btn" onClick={() => postExport('download_jsonl', jobRef)} title="Download all as JSONL">JSONL</button>
-                        <button class="bq-pg-btn" onClick={() => postExport('send_pubsub', jobRef)} title="Send to Pub/Sub">Pub/Sub</button>
-                        <button class="bq-pg-btn" onClick={() => postExport('copy_to_clipboard', jobRef)} title="Copy all as Markdown">Copy</button>
+                        <button class="bq-pg-btn" onClick={() => postExport('download_csv', exportRef)} title="Download all as CSV">CSV</button>
+                        <button class="bq-pg-btn" onClick={() => postExport('download_jsonl', exportRef)} title="Download all as JSONL">JSONL</button>
+                        <button class="bq-pg-btn" onClick={() => postExport('send_pubsub', exportRef)} title="Send to Pub/Sub">Pub/Sub</button>
+                        <button class="bq-pg-btn" onClick={() => postExport('copy_to_clipboard', exportRef)} title="Copy all as Markdown">Copy</button>
                     </div>
                 </>}
             </div>
@@ -345,8 +403,8 @@ export function BqTable({ jobRef, token, schema, totalRows, initialRows }: Props
                             </thead>
                             <tbody>
                                 {sortedIndices.map((i, displayIdx) => (
-                                    <tr class={selected.has(i) ? 'bq-selected' : ''} onClick={(e: MouseEvent) => onRowClick(i, e)}>
-                                        <td class="bq-rownum">{startRow + displayIdx}</td>
+                                    <tr class={selected.has(i) ? 'bq-selected' : ''} onClick={(e: MouseEvent) => onRowClick(i, e)} onContextMenu={(e: MouseEvent) => onRowContextMenu(i, undefined, e)}>
+                                        <td class="bq-rownum" onContextMenu={(e: MouseEvent) => onRowContextMenu(i, undefined, e)}>{startRow + displayIdx}</td>
                                         {columns.map(col => {
                                             const v = extracted[i][col.key];
                                             const { html, isNull } = renderCellValue(v, col);
@@ -363,6 +421,7 @@ export function BqTable({ jobRef, token, schema, totalRows, initialRows }: Props
                                                 <td
                                                     class={classes}
                                                     title={isNull ? 'NULL' : valueToCopyText(v, col)}
+                                                    onContextMenu={(e: MouseEvent) => onRowContextMenu(i, col, e)}
                                                     onClick={(e: MouseEvent) => {
                                                         e.stopPropagation();
                                                         if (canExpand) { setDrawer({ col, value: v }); return; }
@@ -380,6 +439,37 @@ export function BqTable({ jobRef, token, schema, totalRows, initialRows }: Props
                     {drawer && <CellDrawer col={drawer.col} value={drawer.value} onClose={() => setDrawer(null)} />}
                 </div>
             )}
+            {ctxMenu && (() => {
+                const selCount = selected.size;
+                const multi = selCount > 1 && selected.has(ctxMenu.rowIdx);
+                const label = multi ? `${selCount} rows` : `Row ${startRow + sortedIndices.indexOf(ctxMenu.rowIdx)}`;
+                const doCopy = (fmt: 'tsv' | 'md' | 'json') => {
+                    if (multi) { copySelected(fmt); } else { copyRow(ctxMenu.rowIdx, fmt); }
+                    setCtxMenu(null);
+                };
+                return (
+                    <div
+                        class="bq-ctx-menu"
+                        style={{ left: ctxMenu.x + 'px', top: ctxMenu.y + 'px' }}
+                        onClick={(e: MouseEvent) => e.stopPropagation()}
+                        onContextMenu={(e: MouseEvent) => e.preventDefault()}
+                    >
+                        <div class="bq-ctx-head">{label}</div>
+                        <button class="bq-ctx-item" onClick={() => doCopy('tsv')}>Copy {multi ? 'rows' : 'row'} (TSV)</button>
+                        <button class="bq-ctx-item" onClick={() => doCopy('md')}>Copy {multi ? 'rows' : 'row'} (Markdown)</button>
+                        <button class="bq-ctx-item" onClick={() => doCopy('json')}>Copy {multi ? 'rows' : 'row'} (JSON)</button>
+                        {ctxMenu.col && <>
+                            <div class="bq-ctx-sep" />
+                            <button class="bq-ctx-item" onClick={() => { copyText(valueToCopyText(extracted[ctxMenu.rowIdx][ctxMenu.col!.key], ctxMenu.col!)); setCtxMenu(null); }}>Copy cell value</button>
+                            <button class="bq-ctx-item" onClick={() => { copyText(ctxMenu.col!.label); setCtxMenu(null); }}>Copy column name</button>
+                        </>}
+                        {multi && <>
+                            <div class="bq-ctx-sep" />
+                            <button class="bq-ctx-item" onClick={() => { setSelected(new Set()); setCtxMenu(null); }}>Clear selection</button>
+                        </>}
+                    </div>
+                );
+            })()}
         </div>
     );
 }
@@ -458,9 +548,21 @@ function vs() {
     if (!vscodeApi) { vscodeApi = (window as any).__bqVscode || acquireVsCodeApi(); (window as any).__bqVscode = vscodeApi; }
     return vscodeApi!;
 }
-function postExport(command: string, jobRef: JobReference) {
-    vs().postMessage({
-        command,
-        job_reference: { projectId: jobRef.projectId, jobId: jobRef.jobId, location: jobRef.location },
-    });
+function postExport(command: string, ref: ExportRef) {
+    const payload: any = { command };
+    if (ref.jobReference) {
+        payload.job_reference = {
+            projectId: ref.jobReference.projectId,
+            jobId: ref.jobReference.jobId,
+            location: ref.jobReference.location,
+        };
+    }
+    if (ref.tableReference) {
+        payload.table_reference = {
+            projectId: ref.tableReference.projectId,
+            datasetId: ref.tableReference.datasetId,
+            tableId: ref.tableReference.tableId,
+        };
+    }
+    vs().postMessage(payload);
 }

@@ -1,14 +1,39 @@
-import { useEffect, useState } from 'preact/hooks';
-import { BqTable } from './BqTable';
-import { fetchPage, DEFAULT_PAGE_SIZE } from './pagination';
-import type { BqField, GridMessage, JobReference } from './types';
+import { useCallback, useEffect, useState } from 'preact/hooks';
+import { BqTable, type PageFetcher } from './BqTable';
+import {
+    DEFAULT_PAGE_SIZE,
+    fetchChildJobs,
+    fetchPage,
+    fetchTableMetadata,
+    fetchTablePage,
+} from './pagination';
+import type {
+    BqField,
+    DmlStats,
+    ExportRef,
+    GridMessage,
+    JobReference,
+    TableReference,
+} from './types';
+
+interface TableView {
+    key: string;
+    exportRef: ExportRef;
+    schema: BqField[];
+    totalRows: number;
+    initialRows: any[];
+    token: string;
+    source: { kind: 'job'; jobRef: JobReference } | { kind: 'table'; tableRef: TableReference };
+    title?: string;
+    dmlStats?: DmlStats;
+    statementType?: string;
+}
 
 type View =
     | { kind: 'idle' }
-    | { kind: 'loading' }
-    | { kind: 'table'; jobRef: JobReference; token: string; schema: BqField[]; totalRows: number; initialRows: any[] }
-    | { kind: 'error'; message: string; reason: string | null }
-    | { kind: 'unsupported'; reason: string };
+    | { kind: 'loading'; message?: string }
+    | { kind: 'tables'; tables: TableView[] }
+    | { kind: 'error'; message: string; reason: string | null };
 
 export function GridApp() {
     const [view, setView] = useState<View>({ kind: 'idle' });
@@ -29,21 +54,29 @@ export function GridApp() {
                     });
                     break;
                 case 'execute_query':
+                    setView({ kind: 'loading', message: 'Loading results…' });
                     handleExecuteQuery(msg).then(setView).catch(e => setView({ kind: 'error', message: String(e?.message || e), reason: null }));
                     break;
                 case 'preview_table':
-                    setView({ kind: 'unsupported', reason: 'Table preview is not yet supported in the experimental grid. Disable vscode-bigquery.experimentalGrid to use the classic view.' });
+                    setView({ kind: 'loading', message: 'Loading table…' });
+                    handlePreviewTable(msg).then(setView).catch(e => setView({ kind: 'error', message: String(e?.message || e), reason: null }));
                     break;
                 default:
                     break;
             }
         }
         window.addEventListener('message', onMessage);
+        try {
+            const api = (window as any).__bqVscode;
+            if (api && typeof api.postMessage === 'function') {
+                api.postMessage({ command: 'load_complete' });
+            }
+        } catch { /* ignore */ }
         return () => window.removeEventListener('message', onMessage);
     }, []);
 
     if (view.kind === 'idle') { return <div class="bq-empty">No results yet.</div>; }
-    if (view.kind === 'loading') { return <div class="bq-notice">Loading&hellip;</div>; }
+    if (view.kind === 'loading') { return <div class="bq-notice">{view.message || 'Loading…'}</div>; }
     if (view.kind === 'error') {
         return (
             <div class="bq-error-panel">
@@ -53,18 +86,52 @@ export function GridApp() {
             </div>
         );
     }
-    if (view.kind === 'unsupported') {
-        return <div class="bq-notice">{view.reason}</div>;
+
+    if (view.tables.length === 1) {
+        const t = view.tables[0];
+        return <BqTableHost key={t.key} view={t} />;
     }
     return (
+        <div class="bq-script">
+            {view.tables.map(t => (
+                <div class="bq-script-item" key={t.key}>
+                    <BqTableHost view={t} />
+                </div>
+            ))}
+        </div>
+    );
+}
+
+function BqTableHost({ view }: { view: TableView }) {
+    const { source, token } = view;
+    const fetchRows: PageFetcher = useCallback((start, size) => {
+        if (source.kind === 'job') {
+            return fetchPage(source.jobRef, token, start, size);
+        }
+        return fetchTablePage(source.tableRef, token, start, size);
+    }, [source, token]);
+
+    return (
         <BqTable
-            jobRef={view.jobRef}
-            token={view.token}
+            fetchRows={fetchRows}
+            exportRef={view.exportRef}
             schema={view.schema}
             totalRows={view.totalRows}
             initialRows={view.initialRows}
+            title={view.title}
+            dmlStats={view.dmlStats}
+            statementType={view.statementType}
         />
     );
+}
+
+function jobRefFromJob(job: any, fallbackProjectId: string): JobReference {
+    const ref = job.jobReference || job.metadata?.jobReference || {};
+    return {
+        projectId: String(ref.projectId || fallbackProjectId),
+        jobId: String(ref.jobId || job.id),
+        location: ref.location,
+    };
 }
 
 async function handleExecuteQuery(msg: GridMessage): Promise<View> {
@@ -74,31 +141,90 @@ async function handleExecuteQuery(msg: GridMessage): Promise<View> {
     if (!job || !token || !projectId) {
         return { kind: 'error', message: 'Missing job, token, or projectId in message payload.', reason: null };
     }
-    const ref = job.jobReference || job.metadata?.jobReference || {};
-    const jobRef: JobReference = {
-        projectId: String(ref.projectId || projectId),
-        jobId: String(ref.jobId || job.id),
-        location: ref.location,
-    };
+    const jobRef = jobRefFromJob(job, projectId);
     if (!jobRef.jobId) {
         return { kind: 'error', message: 'Missing jobId.', reason: null };
     }
 
     const hasScript =
         (job.statistics?.scriptStatistics || job.metadata?.statistics?.scriptStatistics) != null;
+
     if (hasScript) {
-        return { kind: 'unsupported', reason: 'Multi-statement scripts are not yet supported in the experimental grid. Disable vscode-bigquery.experimentalGrid to use the classic view.' };
+        const children = await fetchChildJobs(jobRef, String(token));
+        if (children.length === 0) {
+            return { kind: 'error', message: 'Script has no child jobs with results.', reason: null };
+        }
+        const tables: TableView[] = [];
+        for (let i = 0; i < children.length; i++) {
+            const child = children[i];
+            try {
+                const res = await fetchPage(child.jobRef, String(token), 0, DEFAULT_PAGE_SIZE);
+                tables.push({
+                    key: `child-${child.jobRef.jobId}`,
+                    exportRef: { jobReference: child.jobRef },
+                    schema: (res.schema?.fields || []) as BqField[],
+                    totalRows: parseInt(String(res.totalRows || '0'), 10),
+                    initialRows: res.rows || [],
+                    token: String(token),
+                    source: { kind: 'job', jobRef: child.jobRef },
+                    title: `Statement ${i + 1}${child.statementType ? ` · ${child.statementType}` : ''}`,
+                    dmlStats: child.dmlStats,
+                    statementType: child.statementType,
+                });
+            } catch (e) {
+                // skip failed child
+            }
+        }
+        if (tables.length === 0) {
+            return { kind: 'error', message: 'Script child jobs returned no results.', reason: null };
+        }
+        return { kind: 'tables', tables };
     }
 
     const res = await fetchPage(jobRef, String(token), 0, DEFAULT_PAGE_SIZE);
-    const schema = (res.schema?.fields || []) as BqField[];
-    const totalRows = parseInt(String(res.totalRows || '0'), 10);
+    const jobStats = job.statistics?.query || job.metadata?.statistics?.query || {};
     return {
-        kind: 'table',
-        jobRef,
-        token: String(token),
-        schema,
-        totalRows,
-        initialRows: res.rows || [],
+        kind: 'tables',
+        tables: [{
+            key: `job-${jobRef.jobId}`,
+            exportRef: { jobReference: jobRef },
+            schema: (res.schema?.fields || []) as BqField[],
+            totalRows: parseInt(String(res.totalRows || '0'), 10),
+            initialRows: res.rows || [],
+            dmlStats: jobStats.dmlStats,
+            statementType: jobStats.statementType,
+            token: String(token),
+            source: { kind: 'job', jobRef },
+        }],
+    };
+}
+
+async function handlePreviewTable(msg: GridMessage): Promise<View> {
+    const token = msg.token;
+    const projectId = msg.projectId;
+    const datasetId = msg.datasetId;
+    const tableId = msg.tableId;
+    if (!token || !projectId || !datasetId || !tableId) {
+        return { kind: 'error', message: 'Missing projectId, datasetId, tableId, or token.', reason: null };
+    }
+    const tableRef: TableReference = { projectId, datasetId, tableId };
+    const meta = await fetchTableMetadata(tableRef, String(token));
+    const schema = (meta.schema?.fields || []) as BqField[];
+    const totalRows = parseInt(String(meta.numRows || '0'), 10);
+    const rowsRes = totalRows > 0
+        ? await fetchTablePage(tableRef, String(token), 0, DEFAULT_PAGE_SIZE)
+        : { rows: [] };
+    return {
+        kind: 'tables',
+        tables: [{
+            key: `table-${projectId}.${datasetId}.${tableId}`,
+            exportRef: { tableReference: tableRef },
+            schema,
+            totalRows,
+            initialRows: rowsRes.rows || [],
+            token: String(token),
+            source: { kind: 'table', tableRef },
+            title: `${projectId}.${datasetId}.${tableId}`,
+        }],
     };
 }

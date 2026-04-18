@@ -11,23 +11,34 @@ A powerful Visual Studio Code extension for Google BigQuery. Browse datasets and
 
 This fork includes the following improvements over [bstruct/vscode-bigquery](https://github.com/bstruct/vscode-bigquery):
 
-### New Features
+### Highlights in v2.0.0
+
+- **Modern Results Grid (default)** — Preact-based renderer replaces the legacy WASM grid. ~7× smaller bundle (≈64 KB vs ≈442 KB), 35× smaller gzipped. Multi-column sort, find-in-page, Schema tab, resizable cell drawer for STRUCT/ARRAY/JSON, column drag-resize, multi-row selection with TSV/Markdown copy, density toggle, per-type syntax colors, click-to-copy scalars, script multi-result view, table preview parity. Runs behind a strict Content Security Policy. See [Results Grid](#results-grid).
+- **Automatic query location detection** — `datasets.get` on the first FROM picks the right BigQuery region automatically. No more "Dataset not found in location us-central1" errors for datasets outside your project's default region. Override via new `vscode-bigquery.defaultLocation` setting. See [Query Location](#query-location).
+- **Customizable cell colors** — New `vscode-bigquery.gridColors` setting lets you retune per-BQ-type cell text colors (number, boolean, timestamp, struct, bytes, string, null) without writing CSS. See [Color Customization](#color-customization).
+
+### New Features (cumulative since fork)
+- **Notebook mode for SQL files** - Open `.sql`/`.bqsql` as a BigQuery notebook. Per-cell run / cancel / exports (CSV, JSONL, Pub/Sub, Copy-as-Markdown). Tabbed Results/Schema, pagination with page-number input, configurable page size (25/50/100/250/1000), cell output persisted across VS Code restarts.
 - **Smart Column Autocomplete** - Type `alias.` or `cte_name.` to get column suggestions from tables and CTEs
-- **Data Lineage Visualization** - dbt-style lineage graphs with CTE support, multi-query support, click-to-navigate, hover tooltips, Query Result nodes, and right-click lineage for selection
-- **Query History** - Track all executed queries with re-run and copy capabilities
+- **Data Lineage Visualization** - dbt-style lineage graphs with CTE support, multi-query support, click-to-navigate, hover tooltips, Query Result nodes, right-click lineage for selection, PNG / PDF export (individual and bulk, cross-platform)
+- **Query History** - Track all executed queries with re-run, copy, and delete; bytes / duration / status shown inline
 - **Table Schema Hover** - Hover over table names to see schema details (supports JOINs, CTEs, and backtick-quoted identifiers)
+- **Table Search** - Search tables across all projects and datasets via a cached local index (`BigQuery: Build Table Index` → `BigQuery: Search Tables`)
+- **Pinned Tables** - Pin frequently-used tables to a dedicated folder; visual feedback for already-pinned tables
+- **Hidden Projects** - Hide projects from the explorer with one-click restore
+- **Copy Table Path** - Right-click any table to copy its fully-qualified path
 - **Cost Estimator** - Real-time query cost estimates with configurable $/TB pricing
-- **SQL Formatter** - Advanced formatting with leading commas, keyword casing, indent styles, and more options
+- **SQL Formatter** - Advanced formatting with leading commas, keyword casing, indent styles, logical-operator style, dense operators, expression width
 - **Copy to Clipboard** - Copy query results directly to clipboard with configurable size limits
 - **Schema Refresh Command** - Clear cached table schemas when they become outdated
-- **Experimental Results Grid** - Opt-in Preact-based grid (~43KB) replacing the legacy WASM grid (~442KB). Adds multi-column sort, find-in-page, schema tab, cell-drawer for STRUCT/ARRAY/JSON, column drag-resize, row selection with TSV/Markdown copy, density toggle, and customizable per-type cell colors
+- **Auto-preview created tables** - Optional setting to open a preview panel on successful `CREATE TABLE`
 
 ### Improvements
 - **Offline-Ready Charting** - MorphCharts bundled locally instead of CDN for air-gapped environments
 - **Enhanced SQL Intellisense** - 400+ keywords/functions with syntax highlighting (including ALL, ANY, SOME)
 - **Block Comment Support** - Full `/* */` syntax highlighting and code folding
 - **Windows Support** - Fixed gcloud authentication issues on Windows
-- **Security Hardening** - XSS prevention, Content Security Policy, and input validation
+- **Security Hardening** - XSS prevention, Content Security Policy on results webview with nonced styles, input validation, tight CSS sanitization for user-configurable colors
 - **Better Panel State** - Webview panels retain context when hidden
 - **Auto-Reveal Control** - Setting to disable automatic results panel focus switching
 
@@ -37,17 +48,21 @@ This fork includes the following improvements over [bstruct/vscode-bigquery](htt
 ## Features
 
 - **Authentication** - User login, GDrive access, and service account support via gcloud CLI
-- **Project Explorer** - Browse projects, datasets, tables, views, functions, and ML models
-- **Query Execution** - Run queries with `Ctrl+Enter`, real-time error highlighting, and byte estimation
+- **Project Explorer** - Browse projects, datasets, tables, views, functions, and ML models; pin/hide projects; pin tables; copy fully-qualified paths; table search across all datasets (cached index)
+- **Query Execution** - Run queries with `Ctrl+Enter`, real-time error highlighting, byte estimation, and automatic region detection
+- **Results Grid** - Modern Preact-based grid with multi-column sort, find-in-page, schema tab, cell drawer, drag-resize, row selection with TSV/Markdown copy, density toggle, and customizable per-type cell colors
+- **Notebook Mode** - Open `.sql`/`.bqsql` as a notebook: per-cell run / cancel / exports, cell output persistence, stats line
 - **SQL Intellisense** - Autocomplete for SQL keywords, BigQuery functions, and table/CTE columns
 - **Syntax Highlighting** - Full support for `.bqsql` files with grammar injection for `.sql` files
-- **SQL Formatting** - Format queries with configurable style options
+- **SQL Formatting** - Format queries with configurable style options (keyword case, indent style, leading commas, logical-operator style, dense operators, expression width)
 - **Query History** - Track all executed queries with re-run and copy capabilities
-- **Cost Estimation** - Real-time cost estimates based on bytes processed
-- **Table Schema Hover** - Hover over table names to see schema details
-- **Data Lineage** - Visualize data flow with CTE support
-- **Export Options** - Download results as CSV or JSONL, copy to clipboard
+- **Cost Estimation** - Real-time cost estimates based on bytes processed (configurable $/TB)
+- **Table Schema Hover** - Hover over table names to see schema details (JOINs, CTEs, backtick-quoted)
+- **Data Lineage** - Visualize data flow with CTE support; PNG / PDF export (individual and bulk); dark/light export theme
+- **Export Options** - Download query and preview results as CSV or JSONL, copy to clipboard as Markdown, copy selected rows as TSV/MD
 - **Pub/Sub Integration** - Publish query results directly to Google Cloud Pub/Sub
+- **Automatic Query Location** - Region auto-detected from the first FROM via `datasets.get`; override with `vscode-bigquery.defaultLocation`
+- **Persistent Panels** - Results and preview panels restore across VS Code restarts
 
 ## Installation
 
@@ -96,10 +111,23 @@ All commands are available via the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+
 | BigQuery: Run Query | Execute the entire query (`Ctrl+Enter`) |
 | BigQuery: Run Selected Query | Execute selected text only (`Ctrl+E`) |
 | BigQuery: Format SQL | Format the current SQL document (`Shift+Alt+F`) |
+| BigQuery: Open as Notebook | Open the current `.sql`/`.bqsql` file as a BigQuery notebook |
+| BigQuery: Open as Text | Switch a notebook back to the plain SQL editor |
 | **Explorer** | |
 | BigQuery: Refresh Explorer | Refresh the project/dataset tree |
 | BigQuery: Show Hidden Projects | Unhide previously hidden projects |
 | BigQuery: Refresh Schema Cache | Clear cached table schemas |
+| BigQuery: Build Table Index | Crawl all projects/datasets/tables into a local search index |
+| BigQuery: Search Tables | Fuzzy-search tables across all indexed datasets |
+| BigQuery: Clear Search | Clear the active table search filter |
+| BigQuery: Pin Table / Unpin Table | Pin a table to the dedicated Pinned Tables folder |
+| BigQuery: Copy Table Path | Copy `project.dataset.table` to clipboard |
+| BigQuery: View Table | Open a preview of the table's rows |
+| BigQuery: Preview Schema | Open the table/view schema |
+| BigQuery: Open DDL | Show the DDL statement for the table/view/routine |
+| BigQuery: Create Table Default Query | Open a new editor with a `SELECT *` starter |
+| BigQuery: Set Default Project | Make a project the default target for new queries |
+| BigQuery: Pin / Hide Project | Pin or hide a project in the explorer |
 | **Query History** | |
 | BigQuery: Re-run Query | Execute a query from history |
 | BigQuery: Copy Query | Copy query text to clipboard |
@@ -111,6 +139,11 @@ All commands are available via the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+
 | BigQuery: Show Data Lineage | Visualize data flow for the current query |
 | BigQuery: Show Data Lineage for Selection | Visualize lineage for selected SQL |
 | BigQuery: Toggle Lineage Export Theme | Switch between dark/light export theme |
+| **Results & Exports** | |
+| BigQuery: Download CSV | Export the active result set as CSV |
+| BigQuery: Download JSONL | Export the active result set as JSONL |
+| BigQuery: Copy to Clipboard | Copy the active result set as Markdown |
+| BigQuery: Send to Pub/Sub | Publish the active result set to a Pub/Sub topic |
 | **Other** | |
 | BigQuery: Troubleshoot | Open troubleshooting guide |
 | BigQuery: Open Settings - Projects | Open project settings |
@@ -385,30 +418,33 @@ Enter the topic name in the format: `projects/<project_id>/topics/<topic_name>`
 
 <img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/send_to_pubsub_topic_name.png" alt="Pub/Sub topic name" width="200"/>
 
-## Experimental Grid
+## Results Grid
 
-An opt-in Preact-based query results grid that replaces the legacy WASM renderer. The bundle is ~10× smaller (≈43 KB vs ≈442 KB) and adds modern interactions while staying faithful to the VS Code look.
+Query results, table previews, and multi-statement scripts render in a Preact-based grid that replaced the legacy WASM renderer in **v2.0.0**. Bundle is ~7× smaller (≈64 KB vs ≈442 KB; ~12 KB gzipped), fully theme-aware, and runs behind a strict Content Security Policy with nonced inline styles.
 
-### Enabling
-
-Set `vscode-bigquery.experimentalGrid` to `true`. The classic WASM grid remains the default. Multi-statement scripts and table previews currently fall back to the classic grid automatically.
-
-### Features
+### Feature Matrix
 
 | Feature | How it works |
 |---|---|
-| **Tabs** | Switch between **Results** and **Schema** panes. Schema lists every column with type and mode. |
-| **Multi-column sort** | Click a column header for single sort. Shift-click additional headers to add secondary sort keys. A rank badge is shown next to the arrow when sorting by more than one column. |
-| **Find** | Type in the `Find…` box in the toolbar to filter the current page. Matches are highlighted inline and the hit count is shown. |
-| **Density toggle** | Three-button group in the toolbar (`≡` compact / `☰` cozy / `⋯` comfy) adjusts row height. |
-| **Row selection** | Click a row number to select that row. Shift-click selects a range; Cmd/Ctrl-click toggles individual rows. Selected rows can be copied as TSV or Markdown via the `TSV` and `MD` buttons that appear in the toolbar. |
-| **Cell drawer** | Click any STRUCT, ARRAY, RECORD or JSON cell to open a resizable right-side drawer with pretty-printed, copyable content. |
-| **Click-to-copy** | Click any scalar cell to copy its raw value. A toast confirms the copy. |
-| **Column resize** | Grab the right edge of a column header and drag to resize. |
-| **Row number gutter** | Sticky-left numbered gutter that highlights on hover and turns accent-colored when the row is selected. |
-| **Syntax colors** | Cell text is tinted per BigQuery type (see below). |
-| **Export** | CSV, JSONL, Pub/Sub, and Copy-as-Markdown buttons remain in the toolbar and use the existing extension commands (no regressions in the export flows). |
-| **Pagination** | First / prev / next / last buttons plus a Page-number input and a rows-per-page selector (25 / 50 / 100 / 250 / 1000). Pagination uses the BigQuery `getQueryResults` REST API with offset + maxResults. |
+| **Tabs** | Switch between **Results** and **Schema** panes. Schema pane lists every column with type and mode (including flattened `parent.child` paths for STRUCT fields). |
+| **Multi-column sort** | Click a column header for single-column sort. Shift-click additional headers to stack secondary sort keys. A rank badge shown next to the arrow when more than one column is active. Click the same header twice to flip direction; three times to clear. |
+| **Find-in-table** | Type in the `Find…` box in the toolbar to filter the current page. Matches highlighted inline via `<mark>`; hit count shown next to the input. |
+| **Density toggle** | Three-button group (`≡` compact / `☰` cozy / `⋯` comfy). Adjusts row padding and cell font size live via CSS custom properties. |
+| **Row selection** | Click a row-number cell to select that row. Shift-click a second row-number for range selection. Cmd/Ctrl-click toggles individual rows. Selection count shown in toolbar. |
+| **Copy selected** | When rows are selected, `TSV` / `MD` / `JSON` buttons appear in the toolbar. TSV = tab-separated with column headers; MD = GitHub-flavored Markdown table; JSON = pretty-printed array of objects. |
+| **Row right-click menu** | Right-click any row for a context menu. If the row is part of a multi-selection, the menu operates on **all selected rows** (label shows `N rows`). Otherwise right-click acts on the single clicked row (and auto-selects it). Options: **Copy row(s) (TSV / Markdown / JSON)**. Right-click on a specific cell also offers **Copy cell value** and **Copy column name**. Multi-selection mode adds **Clear selection**. |
+| **Cell drawer** | Click any STRUCT, ARRAY, RECORD, or JSON cell to open a resizable right-side drawer with pretty-printed JSON (2-space indent) and a Copy button. |
+| **Click-to-copy scalars** | Click any scalar cell (number, string, timestamp, bool, bytes, geography) to copy its raw value to clipboard. A toast confirms. |
+| **Column drag-resize** | Grab the thin handle at the right edge of any column header and drag. Per-column widths remembered for the current panel session. |
+| **Row number gutter** | Sticky-left numbered gutter. Hover highlight; accent-colored when the row is selected. |
+| **Type-aware syntax colors** | Cell text tinted per BigQuery type via CSS custom properties (see [Color Customization](#color-customization)). Defaults inherit from VS Code theme vars. |
+| **Exports** | CSV, JSONL, Pub/Sub, and Copy-as-Markdown buttons in the toolbar. All four route through the existing extension commands — no regressions in the export flows. Pub/Sub requires a job reference (query results only; table previews use CSV / JSONL / Copy). |
+| **Pagination** | First / prev / next / last buttons, page-number input, and rows-per-page selector (25 / 50 / 100 / 250 / 1000). Uses BigQuery `getQueryResults` (query jobs) or `tabledata.list` (table previews) REST API with `startIndex` + `maxResults`. |
+| **Table preview** | Right-click → **Preview** loads schema via `tables.get` and rows via `tabledata.list` into the same grid. Exports use `tableReference` instead of `jobReference`. |
+| **Multi-statement scripts** | Queries with `;` separators render as a vertical stack of child-job tables, each labelled `Statement N · <statementType>`. Powered by `jobs.list?parentJobId=…`; each child job opens as an independent BqTable with its own pagination. |
+| **DML summary** | For `INSERT` / `UPDATE` / `DELETE` / `MERGE` jobs, a summary banner shows the statement type and affected row counts (inserted · updated · deleted) above the grid. Applies to single-job queries and script child jobs alike. |
+| **Error panel** | Job errors show a titled panel with message and reason; replaces the grid while the error is active. |
+| **State persistence** | Panels restore across VS Code restarts via `QueryResultsSerializer` and `TableResultsSerializer`. On restore, the panel re-calls the execute-query / preview-table command with the persisted reference; the grid re-renders normally. |
 
 ### Color Customization
 
@@ -436,7 +472,26 @@ Example `settings.json`:
 }
 ```
 
-Any CSS color value works (hex, `rgb()`, `hsl()`, named colors). Leave a key unset (or empty) to keep the default and let the VS Code theme decide.
+Any CSS color value works (hex, `rgb()`, `hsl()`, named colors, `var(--vscode-…)`, `color-mix(…)`). Leave a key unset (or empty) to keep the default and let the VS Code theme decide.
+
+Values are sanitized at HTML inject time against an allowlist regex (`[A-Za-z0-9 ,.()%#\-]`, 80-char cap) and emitted inside a nonced `<style>` block guarded by the webview's Content Security Policy. Values containing `;`, `{`, `}`, `<`, `>`, `:` other than those in allowed function syntax, or `url(...)` expressions are rejected.
+
+## Query Location
+
+BigQuery jobs run in a specific processing location. By default the extension auto-detects the location for every query:
+
+1. If `vscode-bigquery.defaultLocation` is set (e.g. `US`, `EU`, `australia-southeast1`, `asia-east1`), that value is used.
+2. Otherwise, the first fully-qualified `FROM \`project.dataset.table\`` is extracted from the query, `datasets.get` is called for that dataset, and the returned `location` is used.
+3. If detection fails (no qualified FROM, dataset not readable), BigQuery's default auto-detect runs — typically `us-central1`.
+
+Detected locations are cached per `project.dataset` for the lifetime of the BigQuery client, so follow-up queries on the same dataset do not pay the lookup cost.
+
+Set `vscode-bigquery.defaultLocation` explicitly if:
+- Your queries use unqualified `FROM dataset.table` references.
+- You run CTE-only queries (no concrete FROM).
+- You always work in a single region and want to skip the lookup entirely.
+
+> Multi-statement scripts run as a single BigQuery job and cannot span regions. If a script references two datasets in different locations, either split into separate queries or pin a location via the setting.
 
 ## Settings
 
@@ -506,13 +561,15 @@ Setting: `vscode-bigquery.associateSqlFiles`
 | `vscode-bigquery.formatLogicalOperatorStyle` | string | `keywordAligned` | AND/OR/ON positioning: keywordAligned, contentAligned, indented |
 | `vscode-bigquery.formatNewlineBeforeSemicolon` | boolean | `false` | Semicolon on separate line |
 | `vscode-bigquery.pinned-projects` | array | `[]` | Pinned GCP project IDs |
+| `vscode-bigquery.pinned-tables` | array | `[]` | Pinned table full names (`project.dataset.table`) |
 | `vscode-bigquery.hidden-projects` | array | `[]` | Hidden GCP project IDs |
 | `vscode-bigquery.projects` | array | `[]` | Additional GCP project IDs to list |
 | `vscode-bigquery.tables` | array | `[]` | Table IDs to list directly |
 | `vscode-bigquery.lineageExportTheme` | string | `dark` | Lineage export theme: dark, light |
 | `vscode-bigquery.autoPreviewCreatedTables` | boolean | `false` | Auto-preview first 100 rows after CREATE TABLE |
-| `vscode-bigquery.experimentalGrid` | boolean | `false` | Opt in to the new Preact-based results grid (see [Experimental Grid](#experimental-grid)) |
-| `vscode-bigquery.gridColors` | object | `{}` | Override per-type cell text colors for the experimental grid. See [Color Customization](#color-customization) |
+| `vscode-bigquery.defaultLocation` | string | `""` | BQ processing location (US, EU, australia-southeast1, asia-east1, …). Empty = auto-detect from first FROM via `datasets.get`. Set to override for unqualified or CTE-only queries. |
+| `vscode-bigquery.copyTablePathBackticks` | boolean | `true` | Wrap copied table paths in backticks (\`project.dataset.table\`) for direct paste into FROM clauses. Set to `false` for raw `project.dataset.table`. |
+| `vscode-bigquery.gridColors` | object | `{}` | Override per-type cell text colors in the results grid. See [Color Customization](#color-customization) |
 
 Access settings via:
 
