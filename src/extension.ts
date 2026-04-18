@@ -320,6 +320,14 @@ export function activate(context: ExtensionContext) {
 		)
 	);
 
+	// Open as Text (reverse toggle from notebook)
+	context.subscriptions.push(
+		vscode.commands.registerCommand(
+			commands.COMMAND_OPEN_AS_TEXT,
+			commands.commandOpenAsText
+		)
+	);
+
 	// Revoke Session
 	context.subscriptions.push(
 		vscode.commands.registerCommand(

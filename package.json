@@ -513,6 +513,11 @@
 				"command": "vscode-bigquery.open-as-notebook",
 				"title": "BigQuery: Open as Notebook",
 				"icon": "$(notebook)"
+			},
+			{
+				"command": "vscode-bigquery.open-as-text",
+				"title": "BigQuery: Open as Text",
+				"icon": "$(file-code)"
 			}
 		],
 		"notebooks": [
@@ -549,8 +554,15 @@
 				},
 				{
 					"command": "vscode-bigquery.open-as-notebook",
-					"group": "1_bigquery@1",
+					"group": "navigation@100",
 					"when": "editorLangId == bqsql || editorLangId == sql"
+				}
+			],
+			"notebook/toolbar": [
+				{
+					"command": "vscode-bigquery.open-as-text",
+					"group": "navigation/execute@100",
+					"when": "notebookType == bigquery-sql-notebook"
 				}
 			],
 			"editor/context": [
