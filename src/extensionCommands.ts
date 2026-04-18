@@ -1498,7 +1498,12 @@ export const commandCopyTablePath = async function (...args: any[]) {
 		return;
 	}
 
-	const tablePath = `${item.projectId}.${item.datasetId}.${item.tableId}`;
+	const withBackticks = vscode.workspace
+		.getConfiguration('vscode-bigquery')
+		.get<boolean>('copyTablePathBackticks', true);
+
+	const raw = `${item.projectId}.${item.datasetId}.${item.tableId}`;
+	const tablePath = withBackticks ? `\`${raw}\`` : raw;
 	await vscode.env.clipboard.writeText(tablePath);
 	vscode.window.showInformationMessage(`Copied: ${tablePath}`);
 };

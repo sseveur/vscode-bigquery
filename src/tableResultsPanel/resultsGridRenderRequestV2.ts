@@ -15,6 +15,8 @@ export interface ResultsGridRenderRequestV2Error {
 export interface ResultsGridRenderRequestV2 {
   requestType: String;
   projectId: String | null;
+  datasetId?: String | null;
+  tableId?: String | null;
   token: String | null;
   job: Job | null;
   error: ResultsGridRenderRequestV2Error | null;

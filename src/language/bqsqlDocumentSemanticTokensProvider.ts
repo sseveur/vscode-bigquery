@@ -35,7 +35,7 @@ export class BqsqlDocumentSemanticTokensProvider implements DocumentSemanticToke
             }
         }
 
-        this.buildTokens(tokensBuilder, parsed.items, blockCommentRanges);
+        this.buildTokens(tokensBuilder, parsed.items, blockCommentRanges, document);
 
         return tokensBuilder.build();
 
@@ -139,7 +139,12 @@ export class BqsqlDocumentSemanticTokensProvider implements DocumentSemanticToke
         );
     }
 
-    buildTokens(tokensBuilder: SemanticTokensBuilder, items: BqsqlDocumentItem[], blockCommentRanges: CommentRange[]) {
+    private static readonly LOGICAL_KEYWORDS = new Set([
+        'AND', 'OR', 'NOT', 'IN', 'BETWEEN', 'LIKE', 'EXISTS', 'IS',
+        'NULL', 'TRUE', 'FALSE', 'ALL', 'ANY', 'SOME',
+    ]);
+
+    buildTokens(tokensBuilder: SemanticTokensBuilder, items: BqsqlDocumentItem[], blockCommentRanges: CommentRange[], document?: TextDocument) {
         for (let index = 0; index < items.length; index++) {
             const element = items[index];
             if (element.range && element.range.length > 0) {
@@ -151,19 +156,22 @@ export class BqsqlDocumentSemanticTokensProvider implements DocumentSemanticToke
                 const range = new Range(new Position(element.range[0], element.range[1]), new Position(element.range[0], element.range[2]));
                 if (element.item_type === 'Keyword' || element.item_type === 'KeywordAs') {
                     tokensBuilder.push(range, 'keyword', []);
-                } else {
-                    if (element.item_type === 'Number') {
-                        tokensBuilder.push(range, 'number', []);
-                    } else {
-                        if (element.item_type === 'Operator') {
-                            tokensBuilder.push(range, 'operator', []);
+                } else if (element.item_type === 'Number') {
+                    tokensBuilder.push(range, 'number', []);
+                } else if (element.item_type === 'Operator') {
+                    let tokenType: string = 'operator';
+                    if (document) {
+                        const text = document.getText(range).toUpperCase();
+                        if (BqsqlDocumentSemanticTokensProvider.LOGICAL_KEYWORDS.has(text)) {
+                            tokenType = 'keyword';
                         }
                     }
+                    tokensBuilder.push(range, tokenType, []);
                 }
             }
 
             if (element.items.length > 0) {
-                this.buildTokens(tokensBuilder, element.items, blockCommentRanges);
+                this.buildTokens(tokensBuilder, element.items, blockCommentRanges, document);
             }
         }
     }
