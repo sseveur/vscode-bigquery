@@ -103,10 +103,15 @@ export class BqSqlNotebookController implements vscode.Disposable {
                 throw new Error('Query cancelled.');
             }
 
-            const [rows] = await job.getQueryResults({ maxResults: INITIAL_PAGE_ROWS });
+            const queryResults = await job.getQueryResults({ maxResults: INITIAL_PAGE_ROWS });
+            const rows = queryResults[0];
+            const response: any = queryResults[2];
             const [metadata] = await job.getMetadata();
-            const schema = metadata?.statistics?.query?.schema || metadata?.configuration?.query?.destinationTable;
-            const schemaFields = (schema?.fields as any[]) || inferFields(rows);
+
+            const schemaFields: any[] =
+                response?.schema?.fields
+                || (metadata?.statistics?.query?.schema as any)?.fields
+                || inferFields(rows);
 
             const bytesProcessed = parseInt(metadata?.statistics?.totalBytesProcessed ?? '0', 10);
             const durationMs = Date.now() - startTime;
