@@ -8,6 +8,7 @@ const VIEW_TYPE = 'bigquery-lineage';
 
 let currentPanel: vscode.WebviewPanel | undefined;
 let messageHandlerDisposable: vscode.Disposable | undefined;
+let configChangeDisposable: vscode.Disposable | undefined;
 let sourceDocument: vscode.TextDocument | undefined;
 
 // Store SVG strings for export functionality
@@ -49,10 +50,20 @@ export function showLineagePanel(graph: LineageGraph, context: vscode.ExtensionC
     messageHandlerDisposable = currentPanel.webview.onDidReceiveMessage(message => {
         if (message.type === 'navigate') {
             navigateToPosition(message.line, message.column, message.fullName);
-        } else if (message.type === 'exportImage') {
-            handleExportImage(message.format, message.queryIndex);
-        } else if (message.type === 'exportAllImages') {
-            handleExportAllImages(message.format);
+        } else if (message.type === 'exportPngData') {
+            handleExportPngData(message);
+        } else if (message.type === 'exportAllPngData') {
+            handleExportAllPngData(message);
+        } else if (message.type === 'exportError') {
+            vscode.window.showErrorMessage(`Failed to export: ${message.error}`);
+        }
+    });
+
+    // Push export theme changes to webview in real-time
+    configChangeDisposable = vscode.workspace.onDidChangeConfiguration(e => {
+        if (e.affectsConfiguration('vscode-bigquery.lineageExportTheme') && currentPanel) {
+            const theme = vscode.workspace.getConfiguration('vscode-bigquery').get<string>('lineageExportTheme', 'dark');
+            currentPanel.webview.postMessage({ type: 'themeChanged', theme });
         }
     });
 
@@ -64,6 +75,10 @@ export function showLineagePanel(graph: LineageGraph, context: vscode.ExtensionC
         if (messageHandlerDisposable) {
             messageHandlerDisposable.dispose();
             messageHandlerDisposable = undefined;
+        }
+        if (configChangeDisposable) {
+            configChangeDisposable.dispose();
+            configChangeDisposable = undefined;
         }
     });
 }
@@ -106,10 +121,20 @@ export function showMultiLineagePanel(result: MultiLineageResult, context: vscod
             navigateToPosition(message.line, message.column, message.fullName);
         } else if (message.type === 'scrollToQuery') {
             navigateToLine(message.line);
-        } else if (message.type === 'exportImage') {
-            handleExportImage(message.format, message.queryIndex);
-        } else if (message.type === 'exportAllImages') {
-            handleExportAllImages(message.format);
+        } else if (message.type === 'exportPngData') {
+            handleExportPngData(message);
+        } else if (message.type === 'exportAllPngData') {
+            handleExportAllPngData(message);
+        } else if (message.type === 'exportError') {
+            vscode.window.showErrorMessage(`Failed to export: ${message.error}`);
+        }
+    });
+
+    // Push export theme changes to webview in real-time
+    configChangeDisposable = vscode.workspace.onDidChangeConfiguration(e => {
+        if (e.affectsConfiguration('vscode-bigquery.lineageExportTheme') && currentPanel) {
+            const theme = vscode.workspace.getConfiguration('vscode-bigquery').get<string>('lineageExportTheme', 'dark');
+            currentPanel.webview.postMessage({ type: 'themeChanged', theme });
         }
     });
 
@@ -121,6 +146,10 @@ export function showMultiLineagePanel(result: MultiLineageResult, context: vscod
         if (messageHandlerDisposable) {
             messageHandlerDisposable.dispose();
             messageHandlerDisposable = undefined;
+        }
+        if (configChangeDisposable) {
+            configChangeDisposable.dispose();
+            configChangeDisposable = undefined;
         }
     });
 }
@@ -141,60 +170,51 @@ function updateMultiPanelContent(panel: vscode.WebviewPanel, result: MultiLineag
 }
 
 /**
- * Handle export image request from webview
+ * Handle export PNG data received from webview (single image)
  */
-async function handleExportImage(
-    format: 'png' | 'pdf',
-    queryIndex?: number
-): Promise<void> {
-    if (!currentSvgData || currentSvgData.length === 0) {
-        vscode.window.showWarningMessage('No lineage data to export');
-        return;
-    }
-
-    const dataIndex = queryIndex !== undefined ? queryIndex : 0;
-    const svgToExport = currentSvgData[dataIndex]?.svg;
-
-    if (!svgToExport) {
-        vscode.window.showErrorMessage('Failed to retrieve lineage data');
-        return;
-    }
-
-    const queryInfo = currentSvgData[dataIndex]?.queryInfo;
+async function handleExportPngData(message: {
+    format: 'png' | 'pdf';
+    pngBase64: string;
+    width: number;
+    height: number;
+    queryIndex?: number;
+}): Promise<void> {
+    const queryIndex = message.queryIndex;
+    const queryInfo = currentSvgData && queryIndex !== undefined ? currentSvgData[queryIndex]?.queryInfo : undefined;
     const lineRange = queryInfo ? `${queryInfo.startLine}-${queryInfo.endLine}` : undefined;
-    const filename = generateExportFilename(format, queryIndex, lineRange);
+    const filename = generateExportFilename(message.format, queryIndex, lineRange);
 
-    if (format === 'png') {
-        await LineageExportService.exportToPng(svgToExport, filename);
+    if (message.format === 'png') {
+        await LineageExportService.exportToPng(message.pngBase64, filename);
     } else {
-        await LineageExportService.exportToPdf(svgToExport, filename);
+        await LineageExportService.exportToPdf(message.pngBase64, message.width, message.height, filename);
     }
 }
 
 /**
- * Handle export all images request from webview
+ * Handle export all PNG data received from webview (multiple images)
  */
-async function handleExportAllImages(format: 'png' | 'pdf'): Promise<void> {
-    if (!currentSvgData || currentSvgData.length === 0) {
-        vscode.window.showWarningMessage('No lineage data to export');
-        return;
-    }
-
-    if (format === 'png') {
-        // Export as separate PNG files
-        const svgData = currentSvgData.map((data, idx) => ({
-            svg: data.svg,
-            queryIndex: idx,
-            lineRange: data.queryInfo ? `${data.queryInfo.startLine}-${data.queryInfo.endLine}` : ''
+async function handleExportAllPngData(message: {
+    format: 'png' | 'pdf';
+    items: Array<{ pngBase64: string; width: number; height: number; queryIndex: number }>;
+}): Promise<void> {
+    if (message.format === 'png') {
+        const pngDataItems = message.items.map(item => ({
+            pngBase64: item.pngBase64,
+            queryIndex: item.queryIndex,
+            lineRange: currentSvgData?.[item.queryIndex]?.queryInfo
+                ? `${currentSvgData[item.queryIndex].queryInfo!.startLine}-${currentSvgData[item.queryIndex].queryInfo!.endLine}`
+                : ''
         }));
-        await LineageExportService.exportMultipleToPng(svgData, 'lineage_all_queries.png');
+        await LineageExportService.exportMultipleToPng(pngDataItems, 'lineage_all_queries.png');
     } else {
-        // Export as multi-page PDF
-        const svgData = currentSvgData.map((data, idx) => ({
-            svg: data.svg,
-            title: `Query ${idx + 1}`
+        const pdfDataItems = message.items.map(item => ({
+            pngBase64: item.pngBase64,
+            width: item.width,
+            height: item.height,
+            title: `Query ${item.queryIndex + 1}`
         }));
-        await LineageExportService.exportMultipleToMultiPagePdf(svgData, 'lineage_all_queries.pdf');
+        await LineageExportService.exportMultipleToMultiPagePdf(pdfDataItems, 'lineage_all_queries.pdf');
     }
 }
 
@@ -590,6 +610,16 @@ function getHtmlContent(graph: LineageGraph): string {
             // Acquire VS Code API
             const vscode = acquireVsCodeApi();
 
+            // Export theme from extension settings
+            var exportTheme = '${vscode.workspace.getConfiguration('vscode-bigquery').get<string>('lineageExportTheme', 'dark')}';
+
+            // Listen for theme changes from extension host
+            window.addEventListener('message', function(event) {
+                if (event.data && event.data.type === 'themeChanged') {
+                    exportTheme = event.data.theme;
+                }
+            });
+
             let scale = 1;
             const minScale = 0.25;
             const maxScale = 2;
@@ -658,26 +688,105 @@ function getHtmlContent(graph: LineageGraph): string {
                 });
             });
 
-            // Export button handlers
-            const exportPngBtn = document.getElementById('export-png');
-            const exportPdfBtn = document.getElementById('export-pdf');
+            // Color maps for export themes
+            var darkColorMap = {
+                '--vscode-editor-background': '#1e1e1e',
+                '--vscode-foreground': '#cccccc',
+                '--vscode-descriptionForeground': '#888888',
+                '--vscode-panel-border': '#3e3e3e',
+                '--vscode-sideBar-background': '#252526',
+                '--vscode-list-hoverBackground': '#2a2d2e'
+            };
+            var lightColorMap = {
+                '--vscode-editor-background': '#ffffff',
+                '--vscode-foreground': '#000000',
+                '--vscode-descriptionForeground': '#666666',
+                '--vscode-panel-border': '#d0d0d0',
+                '--vscode-sideBar-background': '#f3f3f3',
+                '--vscode-list-hoverBackground': '#e8e8e8'
+            };
 
-            if (exportPngBtn) {
-                exportPngBtn.addEventListener('click', function() {
-                    vscode.postMessage({
-                        type: 'exportImage',
-                        format: 'png'
+            function resolveThemeColor(varName, fallback) {
+                var colorMap = exportTheme === 'light' ? lightColorMap : darkColorMap;
+                var key = '--' + varName;
+                if (colorMap[key]) return colorMap[key];
+                // Try computed style as last resort
+                var value = getComputedStyle(document.documentElement).getPropertyValue(key).trim();
+                return value || (fallback ? fallback.trim() : '');
+            }
+
+            // SVG to PNG conversion using Canvas API
+            function svgToPngBase64(svgElement, scale) {
+                scale = scale || 2;
+                return new Promise(function(resolve, reject) {
+                    var serializer = new XMLSerializer();
+                    var svgStr = serializer.serializeToString(svgElement);
+
+                    // Replace CSS variables with theme-appropriate colors
+                    svgStr = svgStr.replace(/var\(--([^,)]+)(?:,\s*([^)]+))?\)/g, function(match, varName, fallback) {
+                        var resolved = resolveThemeColor(varName.trim(), fallback);
+                        return resolved || match;
                     });
+
+                    // Set background color based on export theme
+                    var bgColor = exportTheme === 'light' ? '#ffffff' : '#1e1e1e';
+
+                    var blob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
+                    var url = URL.createObjectURL(blob);
+                    var img = new Image();
+
+                    img.onload = function() {
+                        var canvas = document.createElement('canvas');
+                        canvas.width = img.naturalWidth * scale;
+                        canvas.height = img.naturalHeight * scale;
+                        var ctx = canvas.getContext('2d');
+                        ctx.fillStyle = bgColor;
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+                        ctx.scale(scale, scale);
+                        ctx.drawImage(img, 0, 0);
+                        URL.revokeObjectURL(url);
+                        resolve({
+                            dataUrl: canvas.toDataURL('image/png'),
+                            width: img.naturalWidth,
+                            height: img.naturalHeight
+                        });
+                    };
+
+                    img.onerror = function() {
+                        URL.revokeObjectURL(url);
+                        reject(new Error('Failed to render SVG to image'));
+                    };
+
+                    img.src = url;
                 });
             }
 
-            if (exportPdfBtn) {
-                exportPdfBtn.addEventListener('click', function() {
+            // Export button handlers
+            var exportPngBtn = document.getElementById('export-png');
+            var exportPdfBtn = document.getElementById('export-pdf');
+
+            function handleExport(format) {
+                var svg = document.querySelector('.graph-wrapper svg');
+                if (!svg) return;
+                svgToPngBase64(svg).then(function(result) {
                     vscode.postMessage({
-                        type: 'exportImage',
-                        format: 'pdf'
+                        type: 'exportPngData',
+                        format: format,
+                        pngBase64: result.dataUrl,
+                        width: result.width,
+                        height: result.height
                     });
+                }).catch(function(err) {
+                    vscode.postMessage({ type: 'exportError', error: err.message });
                 });
+            }
+
+            if (exportPngBtn) {
+                exportPngBtn.addEventListener('click', function() { handleExport('png'); });
+            }
+
+            if (exportPdfBtn) {
+                exportPdfBtn.addEventListener('click', function() { handleExport('pdf'); });
             }
         })();
     </script>
@@ -1026,6 +1135,16 @@ function getMultiQueryHtmlContent(result: MultiLineageResult): string {
         (function() {
             const vscode = acquireVsCodeApi();
 
+            // Export theme from extension settings
+            var exportTheme = '${vscode.workspace.getConfiguration('vscode-bigquery').get<string>('lineageExportTheme', 'dark')}';
+
+            // Listen for theme changes from extension host
+            window.addEventListener('message', function(event) {
+                if (event.data && event.data.type === 'themeChanged') {
+                    exportTheme = event.data.theme;
+                }
+            });
+
             // Per-section zoom state
             const zoomStates = {};
 
@@ -1138,31 +1257,130 @@ function getMultiQueryHtmlContent(result: MultiLineageResult): string {
                 });
             });
 
-            // Export all buttons
-            document.getElementById('export-all-png')?.addEventListener('click', function() {
-                vscode.postMessage({
-                    type: 'exportAllImages',
-                    format: 'png'
+            // Color maps for export themes
+            var darkColorMap = {
+                '--vscode-editor-background': '#1e1e1e',
+                '--vscode-foreground': '#cccccc',
+                '--vscode-descriptionForeground': '#888888',
+                '--vscode-panel-border': '#3e3e3e',
+                '--vscode-sideBar-background': '#252526',
+                '--vscode-list-hoverBackground': '#2a2d2e'
+            };
+            var lightColorMap = {
+                '--vscode-editor-background': '#ffffff',
+                '--vscode-foreground': '#000000',
+                '--vscode-descriptionForeground': '#666666',
+                '--vscode-panel-border': '#d0d0d0',
+                '--vscode-sideBar-background': '#f3f3f3',
+                '--vscode-list-hoverBackground': '#e8e8e8'
+            };
+
+            function resolveThemeColor(varName, fallback) {
+                var colorMap = exportTheme === 'light' ? lightColorMap : darkColorMap;
+                var key = '--' + varName;
+                if (colorMap[key]) return colorMap[key];
+                var value = getComputedStyle(document.documentElement).getPropertyValue(key).trim();
+                return value || (fallback ? fallback.trim() : '');
+            }
+
+            // SVG to PNG conversion using Canvas API
+            function svgToPngBase64(svgElement, scale) {
+                scale = scale || 2;
+                return new Promise(function(resolve, reject) {
+                    var serializer = new XMLSerializer();
+                    var svgStr = serializer.serializeToString(svgElement);
+
+                    svgStr = svgStr.replace(/var\(--([^,)]+)(?:,\s*([^)]+))?\)/g, function(match, varName, fallback) {
+                        var resolved = resolveThemeColor(varName.trim(), fallback);
+                        return resolved || match;
+                    });
+
+                    var bgColor = exportTheme === 'light' ? '#ffffff' : '#1e1e1e';
+
+                    var blob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
+                    var url = URL.createObjectURL(blob);
+                    var img = new Image();
+
+                    img.onload = function() {
+                        var canvas = document.createElement('canvas');
+                        canvas.width = img.naturalWidth * scale;
+                        canvas.height = img.naturalHeight * scale;
+                        var ctx = canvas.getContext('2d');
+                        ctx.fillStyle = bgColor;
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+                        ctx.scale(scale, scale);
+                        ctx.drawImage(img, 0, 0);
+                        URL.revokeObjectURL(url);
+                        resolve({
+                            dataUrl: canvas.toDataURL('image/png'),
+                            width: img.naturalWidth,
+                            height: img.naturalHeight
+                        });
+                    };
+
+                    img.onerror = function() {
+                        URL.revokeObjectURL(url);
+                        reject(new Error('Failed to render SVG to image'));
+                    };
+
+                    img.src = url;
                 });
+            }
+
+            // Export all buttons
+            function handleExportAll(format) {
+                var sections = document.querySelectorAll('.query-section');
+                var promises = [];
+                sections.forEach(function(section) {
+                    var svg = section.querySelector('.graph-wrapper svg');
+                    var queryIndex = parseInt(section.getAttribute('data-query-index'));
+                    if (svg && !isNaN(queryIndex)) {
+                        promises.push(svgToPngBase64(svg).then(function(result) {
+                            return { pngBase64: result.dataUrl, width: result.width, height: result.height, queryIndex: queryIndex };
+                        }));
+                    }
+                });
+                Promise.all(promises).then(function(items) {
+                    if (items.length > 0) {
+                        vscode.postMessage({
+                            type: 'exportAllPngData',
+                            format: format,
+                            items: items
+                        });
+                    }
+                }).catch(function(err) {
+                    vscode.postMessage({ type: 'exportError', error: err.message });
+                });
+            }
+
+            document.getElementById('export-all-png')?.addEventListener('click', function() {
+                handleExportAll('png');
             });
 
             document.getElementById('export-all-pdf')?.addEventListener('click', function() {
-                vscode.postMessage({
-                    type: 'exportAllImages',
-                    format: 'pdf'
-                });
+                handleExportAll('pdf');
             });
 
             // Per-query export buttons
             document.querySelectorAll('.export-btn-small').forEach(function(btn) {
                 btn.addEventListener('click', function(e) {
-                    e.stopPropagation();  // Don't trigger header click
-                    const queryIndex = parseInt(this.getAttribute('data-query-index'));
-                    const format = this.getAttribute('data-format');
-                    vscode.postMessage({
-                        type: 'exportImage',
-                        format: format,
-                        queryIndex: queryIndex
+                    e.stopPropagation();
+                    var queryIndex = parseInt(this.getAttribute('data-query-index'));
+                    var format = this.getAttribute('data-format');
+                    var section = this.closest('.query-section');
+                    var svg = section ? section.querySelector('.graph-wrapper svg') : null;
+                    if (!svg) return;
+                    svgToPngBase64(svg).then(function(result) {
+                        vscode.postMessage({
+                            type: 'exportPngData',
+                            format: format,
+                            pngBase64: result.dataUrl,
+                            width: result.width,
+                            height: result.height,
+                            queryIndex: queryIndex
+                        });
+                    }).catch(function(err) {
+                        vscode.postMessage({ type: 'exportError', error: err.message });
                     });
                 });
             });

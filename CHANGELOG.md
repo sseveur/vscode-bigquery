@@ -5,6 +5,12 @@ All notable changes to the BigQuery Studio extension will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.1] - 2026-04-18
+
+### Fixed
+
+- **Lineage export on Windows** - Fixed "Failed to export PNGs: t is not a constructor" error when exporting lineage as PNG or PDF on Windows (and other platforms using the published extension). SVG→PNG conversion now runs in the webview using the browser's Canvas API instead of the native `@resvg/resvg-js` module, eliminating the platform-specific binary dependency. The dark/light export theme toggle now updates in real-time without needing to re-run lineage analysis.
+
 ## [1.11.0] - 2026-04-08
 
 ### Added

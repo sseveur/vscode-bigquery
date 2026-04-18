@@ -3,14 +3,15 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 /**
- * Service for exporting lineage charts as PNG or PDF files
+ * Service for exporting lineage charts as PNG or PDF files.
+ * Accepts pre-rendered PNG data (base64 data URLs) from the webview.
  */
 export class LineageExportService {
     /**
-     * Export single SVG to PNG
+     * Export single PNG from base64 data URL
      */
     static async exportToPng(
-        svgString: string,
+        pngBase64: string,
         defaultFilename: string
     ): Promise<void> {
         try {
@@ -24,7 +25,7 @@ export class LineageExportService {
                 title: `Exporting lineage to PNG...`,
                 cancellable: false
             }, async () => {
-                const pngBuffer = await this.convertSvgToPng(svgString);
+                const pngBuffer = this.base64ToBuffer(pngBase64);
                 fs.writeFileSync(uri.fsPath, pngBuffer);
             });
 
@@ -35,10 +36,12 @@ export class LineageExportService {
     }
 
     /**
-     * Export single SVG to PDF
+     * Export single PDF from base64 PNG data URL
      */
     static async exportToPdf(
-        svgString: string,
+        pngBase64: string,
+        width: number,
+        height: number,
         defaultFilename: string
     ): Promise<void> {
         try {
@@ -52,7 +55,7 @@ export class LineageExportService {
                 title: `Exporting lineage to PDF...`,
                 cancellable: false
             }, async () => {
-                const pdfBuffer = await this.convertSvgToPdf(svgString);
+                const pdfBuffer = await this.createPdfFromPng(pngBase64, width, height);
                 fs.writeFileSync(uri.fsPath, pdfBuffer);
             });
 
@@ -63,10 +66,10 @@ export class LineageExportService {
     }
 
     /**
-     * Export multiple SVGs to separate PNG files
+     * Export multiple PNGs from base64 data URLs
      */
     static async exportMultipleToPng(
-        svgStrings: Array<{ svg: string; queryIndex: number; lineRange: string }>,
+        pngDataItems: Array<{ pngBase64: string; queryIndex: number; lineRange: string }>,
         baseFilename: string
     ): Promise<void> {
         try {
@@ -80,22 +83,22 @@ export class LineageExportService {
 
             await vscode.window.withProgress({
                 location: vscode.ProgressLocation.Notification,
-                title: `Exporting ${svgStrings.length} lineage charts...`,
+                title: `Exporting ${pngDataItems.length} lineage charts...`,
                 cancellable: false
             }, async (progress) => {
-                const increment = 100 / svgStrings.length;
+                const increment = 100 / pngDataItems.length;
 
-                for (const { svg, queryIndex, lineRange } of svgStrings) {
+                for (const { pngBase64, queryIndex, lineRange } of pngDataItems) {
                     const filename = this.generateFilename('png', queryIndex, lineRange);
                     const fullPath = path.join(dirPath, filename);
 
-                    const pngBuffer = await this.convertSvgToPng(svg);
+                    const pngBuffer = this.base64ToBuffer(pngBase64);
                     fs.writeFileSync(fullPath, pngBuffer);
                     exportedCount++;
 
                     progress.report({
                         increment,
-                        message: `${exportedCount}/${svgStrings.length}`
+                        message: `${exportedCount}/${pngDataItems.length}`
                     });
                 }
             });
@@ -107,10 +110,10 @@ export class LineageExportService {
     }
 
     /**
-     * Export multiple SVGs to multi-page PDF by converting each to PNG
+     * Export multiple PNGs to a multi-page PDF
      */
     static async exportMultipleToMultiPagePdf(
-        svgStrings: Array<{ svg: string; title: string }>,
+        pngDataItems: Array<{ pngBase64: string; width: number; height: number; title: string }>,
         defaultFilename: string
     ): Promise<void> {
         try {
@@ -124,41 +127,29 @@ export class LineageExportService {
                 title: `Creating multi-page PDF...`,
                 cancellable: false
             }, async (progress) => {
-                // Dynamic import to avoid loading module at extension activation
                 const { jsPDF } = await import('jspdf');
 
                 let pdf: InstanceType<typeof jsPDF> | null = null;
-                const increment = 100 / svgStrings.length;
+                const increment = 100 / pngDataItems.length;
 
-                for (let i = 0; i < svgStrings.length; i++) {
-                    const { svg } = svgStrings[i];
-
-                    // Convert SVG to PNG
-                    const pngBuffer = await this.convertSvgToPng(svg);
-                    const pngBase64 = pngBuffer.toString('base64');
-                    const imgData = `data:image/png;base64,${pngBase64}`;
-
-                    // Get dimensions
-                    const { width, height } = this.parseSvgDimensions(svg);
+                for (let i = 0; i < pngDataItems.length; i++) {
+                    const { pngBase64, width, height } = pngDataItems[i];
 
                     if (i === 0) {
-                        // Create PDF with first page
                         pdf = new jsPDF({
                             orientation: width > height ? 'landscape' : 'portrait',
                             unit: 'pt',
                             format: [width, height]
                         });
                     } else {
-                        // Add new page for subsequent graphs
                         pdf!.addPage([width, height], width > height ? 'landscape' : 'portrait');
                     }
 
-                    // Add PNG image to current page
-                    pdf!.addImage(imgData, 'PNG', 0, 0, width, height);
+                    pdf!.addImage(pngBase64, 'PNG', 0, 0, width, height);
 
                     progress.report({
                         increment,
-                        message: `${i + 1}/${svgStrings.length}`
+                        message: `${i + 1}/${pngDataItems.length}`
                     });
                 }
 
@@ -166,137 +157,35 @@ export class LineageExportService {
                 fs.writeFileSync(uri.fsPath, pdfBuffer);
             });
 
-            vscode.window.showInformationMessage(`Exported ${svgStrings.length} lineage${svgStrings.length !== 1 ? 's' : ''} to PDF`);
+            vscode.window.showInformationMessage(`Exported ${pngDataItems.length} lineage${pngDataItems.length !== 1 ? 's' : ''} to PDF`);
         } catch (error: any) {
             vscode.window.showErrorMessage(`Failed to export PDF: ${error.message}`);
         }
     }
 
     /**
-     * Convert SVG string to PNG buffer using resvg-js
+     * Convert base64 data URL to Buffer
      */
-    private static async convertSvgToPng(svgString: string): Promise<Buffer> {
-        // Dynamic import to avoid loading native module at extension activation
-        const { Resvg } = await import('@resvg/resvg-js');
-
-        // Get theme setting
-        const config = vscode.workspace.getConfiguration('vscode-bigquery');
-        const theme = config.get<string>('lineageExportTheme', 'dark');
-
-        // Preprocess SVG to replace CSS variables with actual colors
-        const processedSvg = this.preprocessSvgForExport(svgString, theme);
-
-        // Set background color based on theme
-        const backgroundColor = theme === 'light' ? '#ffffff' : '#1e1e1e';
-
-        // resvg-js uses Resvg class with renderSync
-        const resvg = new Resvg(processedSvg, {
-            fitTo: {
-                mode: 'width',
-                value: 1600  // 2x resolution for 800px wide graphs
-            },
-            font: {
-                loadSystemFonts: true  // Enable system fonts to render text
-            },
-            background: backgroundColor
-        });
-
-        const pngData = resvg.render();
-        const pngBuffer = pngData.asPng();
-
-        return Buffer.from(pngBuffer);
+    private static base64ToBuffer(dataUrl: string): Buffer {
+        const base64Data = dataUrl.replace(/^data:image\/png;base64,/, '');
+        return Buffer.from(base64Data, 'base64');
     }
 
     /**
-     * Preprocess SVG to replace CSS variables with actual colors
-     * This is needed because resvg-js doesn't support CSS variables
+     * Create a single-page PDF from a PNG data URL
      */
-    private static preprocessSvgForExport(svgString: string, theme: string): string {
-        // Map of VS Code theme variables to actual colors
-        // Order matters - more specific patterns (with fallbacks) must come first
-        const darkColorMap: { [key: string]: string } = {
-            'var(--vscode-editor-background, #1e1e1e)': '#1e1e1e',
-            'var(--vscode-foreground, #ccc)': '#cccccc',
-            'var(--vscode-descriptionForeground, #888)': '#888888',
-            'var(--vscode-descriptionForeground, #666)': '#888888',
-            'var(--vscode-descriptionForeground)': '#888888',
-            'var(--vscode-foreground)': '#cccccc',
-            'var(--vscode-editor-background)': '#1e1e1e',
-            'var(--vscode-panel-border)': '#3e3e3e',
-            'var(--vscode-sideBar-background)': '#252526',
-            'var(--vscode-list-hoverBackground)': '#2a2d2e'
-        };
-
-        const lightColorMap: { [key: string]: string } = {
-            'var(--vscode-editor-background, #1e1e1e)': '#ffffff',
-            'var(--vscode-foreground, #ccc)': '#000000',
-            'var(--vscode-descriptionForeground, #888)': '#666666',
-            'var(--vscode-descriptionForeground, #666)': '#666666',
-            'var(--vscode-descriptionForeground)': '#666666',
-            'var(--vscode-foreground)': '#000000',
-            'var(--vscode-editor-background)': '#ffffff',
-            'var(--vscode-panel-border)': '#d0d0d0',
-            'var(--vscode-sideBar-background)': '#f3f3f3',
-            'var(--vscode-list-hoverBackground)': '#e8e8e8'
-        };
-
-        const colorMap = theme === 'light' ? lightColorMap : darkColorMap;
-
-        let processed = svgString;
-
-        // Replace CSS variables (order matters - more specific first)
-        for (const [cssVar, color] of Object.entries(colorMap)) {
-            const escapedVar = cssVar.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            processed = processed.replace(new RegExp(escapedVar, 'g'), color);
-        }
-
-        return processed;
-    }
-
-    /**
-     * Convert SVG string to PDF buffer by embedding PNG
-     * This is more reliable than svg2pdf.js in Node.js environment
-     */
-    private static async convertSvgToPdf(svgString: string): Promise<Buffer> {
-        // Dynamic import to avoid loading module at extension activation
+    private static async createPdfFromPng(pngBase64: string, width: number, height: number): Promise<Buffer> {
         const { jsPDF } = await import('jspdf');
 
-        // Convert SVG to PNG first
-        const pngBuffer = await this.convertSvgToPng(svgString);
-
-        // Get SVG dimensions for PDF page size
-        const { width, height } = this.parseSvgDimensions(svgString);
-
-        // Create PDF with SVG dimensions
         const pdf = new jsPDF({
             orientation: width > height ? 'landscape' : 'portrait',
             unit: 'pt',
             format: [width, height]
         });
 
-        // Convert PNG buffer to base64 data URL
-        const pngBase64 = pngBuffer.toString('base64');
-        const imgData = `data:image/png;base64,${pngBase64}`;
+        pdf.addImage(pngBase64, 'PNG', 0, 0, width, height);
 
-        // Add PNG image to PDF
-        pdf.addImage(imgData, 'PNG', 0, 0, width, height);
-
-        // Return as buffer
-        const pdfBuffer = Buffer.from(pdf.output('arraybuffer'));
-        return pdfBuffer;
-    }
-
-    /**
-     * Parse SVG string to extract width and height
-     */
-    private static parseSvgDimensions(svgString: string): { width: number; height: number } {
-        const widthMatch = svgString.match(/width="(\d+(?:\.\d+)?)"/);
-        const heightMatch = svgString.match(/height="(\d+(?:\.\d+)?)"/);
-
-        const width = widthMatch ? parseFloat(widthMatch[1]) : 800;
-        const height = heightMatch ? parseFloat(heightMatch[1]) : 600;
-
-        return { width, height };
+        return Buffer.from(pdf.output('arraybuffer'));
     }
 
     /**
