@@ -24,6 +24,21 @@ import { isBigQueryLanguage } from './services/languageUtils';
 import { QueryHistoryTreeDataProvider } from './activitybar/queryHistoryTreeDataProvider';
 import { BqSqlNotebookSerializer, NOTEBOOK_TYPE } from './notebook/bqSqlNotebookSerializer';
 import { BqSqlNotebookController } from './notebook/bqSqlNotebookController';
+import { CellRegistry } from './notebook/bqSqlNotebookCellRegistry';
+import {
+	BqSqlNotebookStatusBarProvider,
+	COMMAND_CELL_DOWNLOAD_CSV,
+	COMMAND_CELL_DOWNLOAD_JSONL,
+	COMMAND_CELL_SEND_PUBSUB,
+	COMMAND_CELL_COPY_MARKDOWN
+} from './notebook/bqSqlNotebookStatusBar';
+import {
+	cellDownloadCsv,
+	cellDownloadJsonl,
+	cellSendPubsub,
+	cellCopyMarkdown
+} from './notebook/bqSqlNotebookCommands';
+import { registerNotebookPersistence } from './notebook/bqSqlNotebookPersistence';
 
 export const bigqueryWebviewViewProvider = new WebviewViewProvider();
 export const authenticationWebviewProvider = new BigqueryAuthenticationWebviewViewProvider();
@@ -389,6 +404,8 @@ export function activate(context: ExtensionContext) {
 	const queryHistoryTreeDataProvider = new QueryHistoryTreeDataProvider(queryHistoryService);
 
 	// Notebook mode: SQL files as notebooks with inline results
+	const cellRegistry = new CellRegistry(context.globalState);
+
 	context.subscriptions.push(
 		vscode.workspace.registerNotebookSerializer(
 			NOTEBOOK_TYPE,
@@ -396,7 +413,24 @@ export function activate(context: ExtensionContext) {
 			{ transientOutputs: true }
 		)
 	);
-	context.subscriptions.push(new BqSqlNotebookController(queryHistoryService));
+	const notebookController = new BqSqlNotebookController(cellRegistry, queryHistoryService);
+	context.subscriptions.push(notebookController);
+
+	context.subscriptions.push(
+		vscode.notebooks.registerNotebookCellStatusBarItemProvider(
+			NOTEBOOK_TYPE,
+			new BqSqlNotebookStatusBarProvider(cellRegistry)
+		)
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand(COMMAND_CELL_DOWNLOAD_CSV, cellDownloadCsv(cellRegistry)),
+		vscode.commands.registerCommand(COMMAND_CELL_DOWNLOAD_JSONL, cellDownloadJsonl(cellRegistry)),
+		vscode.commands.registerCommand(COMMAND_CELL_SEND_PUBSUB, cellSendPubsub(cellRegistry)),
+		vscode.commands.registerCommand(COMMAND_CELL_COPY_MARKDOWN, cellCopyMarkdown(cellRegistry))
+	);
+
+	registerNotebookPersistence(context, cellRegistry, notebookController);
 
 	context.subscriptions.push(
 		vscode.window.registerTreeDataProvider(
