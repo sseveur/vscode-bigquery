@@ -4,6 +4,7 @@
 
 const { copyFileSync, mkdirSync, existsSync } = require('fs');
 const path = require('path');
+const webpack = require('webpack');
 
 //@ts-check
 /** @typedef {import('webpack').Configuration} WebpackConfig **/
@@ -115,4 +116,51 @@ const extensionConfig = {
     level: "log", // enables logging required for problem matchers
   },
 };
-module.exports = [extensionConfig];
+
+/** @type WebpackConfig */
+const gridV2Config = {
+  target: 'web',
+  mode: 'none',
+  entry: './src/tableResultsPanel/grid/index.tsx',
+  output: {
+    path: path.resolve(__dirname, 'resources'),
+    filename: 'grid-v2.js',
+  },
+  resolve: {
+    extensions: ['.tsx', '.ts', '.js'],
+  },
+  module: {
+    rules: [
+      {
+        test: /\.tsx?$/,
+        exclude: /node_modules/,
+        use: [
+          {
+            loader: 'ts-loader',
+            options: {
+              onlyCompileBundledFiles: true,
+              compilerOptions: {
+                module: 'esnext',
+                moduleResolution: 'node',
+                target: 'ES2020',
+                jsx: 'react-jsx',
+                jsxImportSource: 'preact',
+                rootDir: './src',
+                lib: ['ES2020', 'DOM'],
+              },
+            },
+          },
+        ],
+      },
+    ],
+  },
+  devtool: 'nosources-source-map',
+  plugins: [
+    new webpack.DefinePlugin({
+      'process.env.NODE_ENV': JSON.stringify('production'),
+      'process.env': JSON.stringify({ NODE_ENV: 'production' }),
+    }),
+  ],
+};
+
+module.exports = [extensionConfig, gridV2Config];

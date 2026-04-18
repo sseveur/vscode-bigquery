@@ -37,87 +37,34 @@ export class ResultsGridRender {
         }
     }
 
-    public render1(): Promise<boolean> {
+    private isExperimentalGridEnabled(): boolean {
+        return vscode.workspace
+            .getConfiguration('vscode-bigquery')
+            .get<boolean>('experimentalGrid', false);
+    }
 
-        const extensionUri = getExtensionUri();
-
-        const gridJs = this.getUri(this.webViewPanel.webview, extensionUri, [
-            'resources',
-            'grid.js']
-        );
-
-        const gridCss = this.getUri(this.webViewPanel.webview, extensionUri, [
-            'resources',
-            'grid.css']
-        );
-
-        const gridRenderWasm = this.getUri(this.webViewPanel.webview, extensionUri, [
-            'resources',
-            'grid_render_bg.wasm']
-        );
-
-        return new Promise((resolve, reject) => {
-
-            const timer = setTimeout(() => {
-                reject(null);
-            }, 10 * 1000);
-
-            this.webViewPanel.webview.onDidReceiveMessage(c => {
-                if ((c as any).command === 'load_complete') {
-                    clearTimeout(timer);
-                    resolve(true);
-                } else {
-                    ResultsGridRender.executeCommand(c);
-                }
-            });
-
-            this.webViewPanel.webview.html = `<!DOCTYPE html>
+    private buildHtml(webview: vscode.Webview, extensionUri: vscode.Uri): string {
+        const useV2 = this.isExperimentalGridEnabled();
+        if (useV2) {
+            const gridJs = this.getUri(webview, extensionUri, ['resources', 'grid-v2.js']);
+            const gridCss = this.getUri(webview, extensionUri, ['resources', 'grid-v2.css']);
+            return `<!DOCTYPE html>
             <html lang="en">
                 <head>
                     <meta charset="UTF-8">
                     <link rel="stylesheet" href="${gridCss}">
-                    <script>
-                        const vscode = acquireVsCodeApi();
-                        window.GRID_RENDER_WASM_URL = '${gridRenderWasm}';
-                    </script>
                 </head>
-                <body style="padding:0;">
+                <body>
                     <div id="q1"></div>
-                    <script type="module" src="${gridJs}"></script>
-                    <script>
-                        vscode.postMessage({command:'load_complete'});
-                    </script>
+                    <script src="${gridJs}"></script>
                 </body>
             </html>`;
-        });
-    }
+        }
 
-    public render2() {
-
-        const extensionUri = getExtensionUri();
-
-        const gridJs = this.getUri(this.webViewPanel.webview, extensionUri, [
-            'resources',
-            'grid.js']
-        );
-
-        const gridCss = this.getUri(this.webViewPanel.webview, extensionUri, [
-            'resources',
-            'grid.css']
-        );
-
-        const gridRenderWasm = this.getUri(this.webViewPanel.webview, extensionUri, [
-            'resources',
-            'grid_render_bg.wasm']
-        );
-
-        this.webViewPanel.webview.onDidReceiveMessage(c => {
-            if ((c as any).command !== 'load_complete') {
-                ResultsGridRender.executeCommand(c);
-            }
-        });
-
-        this.webViewPanel.webview.html = `<!DOCTYPE html>
+        const gridJs = this.getUri(webview, extensionUri, ['resources', 'grid.js']);
+        const gridCss = this.getUri(webview, extensionUri, ['resources', 'grid.css']);
+        const gridRenderWasm = this.getUri(webview, extensionUri, ['resources', 'grid_render_bg.wasm']);
+        return `<!DOCTYPE html>
         <html lang="en">
             <head>
                 <meta charset="UTF-8">
@@ -135,7 +82,42 @@ export class ResultsGridRender {
                 </script>
             </body>
         </html>`;
+    }
 
+    public render1(): Promise<boolean> {
+
+        const extensionUri = getExtensionUri();
+
+        return new Promise((resolve, reject) => {
+
+            const timer = setTimeout(() => {
+                reject(null);
+            }, 10 * 1000);
+
+            this.webViewPanel.webview.onDidReceiveMessage(c => {
+                if ((c as any).command === 'load_complete') {
+                    clearTimeout(timer);
+                    resolve(true);
+                } else {
+                    ResultsGridRender.executeCommand(c);
+                }
+            });
+
+            this.webViewPanel.webview.html = this.buildHtml(this.webViewPanel.webview, extensionUri);
+        });
+    }
+
+    public render2() {
+
+        const extensionUri = getExtensionUri();
+
+        this.webViewPanel.webview.onDidReceiveMessage(c => {
+            if ((c as any).command !== 'load_complete') {
+                ResultsGridRender.executeCommand(c);
+            }
+        });
+
+        this.webViewPanel.webview.html = this.buildHtml(this.webViewPanel.webview, extensionUri);
     }
 
     public postMessage(message: ResultsGridRenderRequestV2): Thenable<boolean> {
