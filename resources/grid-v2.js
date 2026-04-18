@@ -350,7 +350,39 @@ function prettyPrint(v) {
             return String(v);
         }
     }
+    if (typeof v === 'string') {
+        const parsed = tryParseJson(v);
+        if (parsed !== undefined) {
+            try {
+                return JSON.stringify(parsed, null, 2);
+            }
+            catch {
+                return v;
+            }
+        }
+    }
     return String(v);
+}
+function tryParseJson(s) {
+    if (typeof s !== 'string') {
+        return undefined;
+    }
+    const trimmed = s.trim();
+    if (!trimmed) {
+        return undefined;
+    }
+    const first = trimmed[0];
+    if (first !== '{' && first !== '[') {
+        return undefined;
+    }
+    try {
+        const parsed = JSON.parse(trimmed);
+        if (parsed && typeof parsed === 'object') {
+            return parsed;
+        }
+    }
+    catch { /* ignore */ }
+    return undefined;
 }
 function BqTable({ fetchRows, exportRef, schema, totalRows, initialRows, title, dmlStats, statementType }) {
     const columns = (0,preact_hooks__WEBPACK_IMPORTED_MODULE_1__.useMemo)(() => (0,_cellFormatters__WEBPACK_IMPORTED_MODULE_2__.flattenSchema)(schema), [schema]);
@@ -601,7 +633,7 @@ function BqTable({ fetchRows, exportRef, schema, totalRows, initialRows, title, 
                                                 const display = isNull
                                                     ? 'NULL'
                                                     : (find ? highlightMatch(typeof v === 'object' ? JSON.stringify(v) : String(v), find) : html);
-                                                const canExpand = typeof v === 'object' && v !== null;
+                                                const canExpand = (typeof v === 'object' && v !== null) || (typeof v === 'string' && tryParseJson(v) !== undefined);
                                                 return ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("td", { class: classes, title: isNull ? 'NULL' : valueToCopyText(v, col), onContextMenu: (e) => onRowContextMenu(i, col, e), onClick: (e) => {
                                                         e.stopPropagation();
                                                         if (canExpand) {
@@ -811,21 +843,17 @@ function extractRowValue(row, fields, path) {
         if (!cellRaw) {
             return undefined;
         }
-        if ((field.type || '').toUpperCase() === 'RECORD' || (field.type || '').toUpperCase() === 'STRUCT') {
-            if ((field.mode || '').toUpperCase() === 'REPEATED') {
-                if (isLast) {
-                    return decodeBqValue(cellRaw.v, field);
-                }
-                return undefined;
-            }
-            if (isLast) {
-                return decodeBqValue(cellRaw.v, field);
-            }
+        const type = (field.type || '').toUpperCase();
+        const mode = (field.mode || '').toUpperCase();
+        if (isLast) {
+            return decodeBqValue(cellRaw.v, field);
+        }
+        if ((type === 'RECORD' || type === 'STRUCT') && mode !== 'REPEATED') {
             cursor = cellRaw.v;
             cursorFields = field.fields;
             continue;
         }
-        return cellRaw.v;
+        return undefined;
     }
     return undefined;
 }

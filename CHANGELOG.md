@@ -5,6 +5,30 @@ All notable changes to the BigQuery Studio extension will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.2] - 2026-04-19
+
+### Fixed
+
+- **Grid "No results yet" on first open** - Fixed race between Preact listener mount (async via `useEffect`) and the sync `load_complete` postMessage. Listener attaches first now; extension's follow-up `execute_query` / `preview_table` / `clear` messages reach the grid reliably. Preview was stuck on idle for fresh panels; query worked only because BQ job completion gave `useEffect` time to run.
+- **REPEATED RECORD wire format** - `extractRowValue` + `decodeBqValue` now peel BigQuery's `{f:[{v:…}]}` wrapper recursively, so `ARRAY<STRUCT<...>>` columns render as clean JSON arrays of objects instead of raw `[{"v":{"f":[{"v":"ap21_card"},…]}}]`. Fix applies to REPEATED STRING / INT / etc. too.
+- **CSP blocking source-map fetch** - Added `${cspSource}` to `connect-src` so webview doesn't log a CSP violation when the devtools auto-fetches `grid-v2.js.map`.
+- **Pinned projects disappear** - Pinned project IDs missing from live `getProjects` + the `vscode-bigquery.projects` setting are now explicitly added to the explorer. Pinned takes precedence over hidden — pinning un-hides.
+- **Settings writes failing "no workspace opened"** - All `vscode.workspace.getConfiguration().update(...)` calls for pinned/hidden project IDs, pinned table IDs, and lineage theme now pass `vscode.ConfigurationTarget.Global` explicitly. Previously VS Code defaulted the target to Workspace when no workspace was open, which threw and silently broke pinning.
+- **Large notebook cell globalState** - v2.0.x and earlier persisted full rendered HTML per notebook cell (up to ~200 cells × notebooks). New `v2.0.2` migration on activate strips `outputHtml` from persisted notebook metadata and (as a defensive sweep) clears any globalState key over 5 MB. Notebook cell output is no longer persisted — re-run the cell to regenerate. Exports / load-more on restored cells still work (metadata is still persisted).
+
+### Added
+
+- **STRING cell JSON detection** - String cells whose value starts with `{` or `[` and parses as valid JSON open the resizable side drawer with pretty-printed output on click. Click-to-copy still copies the raw string.
+- **Row right-click → Copy row (JSON)** - Context menu now offers JSON alongside TSV / Markdown. JSON is a pretty-printed array of objects keyed by column label.
+- **Multi-row copy in context menu** - Right-clicking a row that is part of a multi-selection (label shows `N rows`) copies all selected rows; right-clicking outside the selection copies just that single row. Clear-selection entry appears in multi mode.
+- **Toolbar JSON button** - `JSON` button appears alongside `TSV` / `MD` when rows are selected, covering the same copy paths from the toolbar.
+- **Command: `BigQuery: Clear Extension State Cache`** - Shows every enumerable globalState key with its size (MB), total, and offers to wipe all. Escape hatch if storage ever grows unexpectedly. Uses `Memento.keys()` with a known-keys fallback for older VS Code versions.
+
+### Changed
+
+- `CellRegistry.persist()` no longer takes an `outputHtml` argument; signature simplified. `restoreOutput` helper on the notebook controller was removed — cells must be re-executed to show results after a window reload.
+- `registerNotebookPersistence` no longer depends on `BqSqlNotebookController` (hydration is metadata-only).
+
 ## [2.0.1] - 2026-04-18
 
 ### Fixed

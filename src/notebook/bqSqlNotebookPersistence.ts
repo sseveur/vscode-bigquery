@@ -1,34 +1,25 @@
 import * as vscode from 'vscode';
 import { NOTEBOOK_TYPE } from './bqSqlNotebookSerializer';
 import { CellRegistry } from './bqSqlNotebookCellRegistry';
-import { BqSqlNotebookController } from './bqSqlNotebookController';
 
 /**
- * Listens for BigQuery notebooks being opened and restores any previously
- * persisted cell outputs. Outputs are saved in globalState at execution time
- * and keyed by the notebook URI + SHA1 hash of the cell's SQL text, so a cell
- * keeps its output as long as its text remains the same.
+ * Listens for BigQuery notebooks being opened and hydrates the in-memory
+ * cell registry from persisted metadata (jobRef + schema + stats), so
+ * exports / load-more flows work on previously executed cells. Output HTML
+ * is not stored (would cause multi-GB globalState); re-run the cell to see
+ * results again.
  */
 export function registerNotebookPersistence(
     context: vscode.ExtensionContext,
-    registry: CellRegistry,
-    controller: BqSqlNotebookController
+    registry: CellRegistry
 ): void {
     const restoreFor = async (notebook: vscode.NotebookDocument) => {
         if (notebook.notebookType !== NOTEBOOK_TYPE) {
             return;
         }
-        const matches = registry.hydrate(notebook);
-        for (const { cell, persisted } of matches) {
-            if (cell.outputs.length > 0) {
-                continue; // don't overwrite a fresh output
-            }
-            try {
-                await controller.restoreOutput(cell, persisted.outputHtml);
-            } catch {
-                // cell may have been disposed; ignore
-            }
-        }
+        // Hydrate in-memory registry (so exports / load-more work on restored cells)
+        // without replaying the output HTML. Output is re-rendered on cell execute.
+        registry.hydrate(notebook);
     };
 
     // Restore for already-open notebooks (e.g. on extension reload).

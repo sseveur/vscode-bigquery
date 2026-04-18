@@ -148,17 +148,26 @@ export class BigQueryTreeDataProvider implements vscode.TreeDataProvider<Bigquer
 
         const defaultProjectId = await defaultProjectIdPromise;
 
-        const pinnedProjects = vscode.workspace
+        const pinnedProjects = ((vscode.workspace
             .getConfiguration()
-            .get(SETTING_PINNED_PROJECTS) as string[] || []
-                .sort((a: string, b: string) => a.localeCompare(b));
+            .get(SETTING_PINNED_PROJECTS) as string[]) || [])
+            .map(p => (p || '').toLowerCase())
+            .filter(p => p);
+
+        for (const p of pinnedProjects) {
+            if (listProjects.indexOf(p) < 0) {
+                listProjects.push(p);
+            }
+        }
 
         const hiddenProjects = vscode.workspace
             .getConfiguration()
             .get(SETTING_HIDDEN_PROJECTS) as string[] || [];
 
-        // Filter out hidden projects
-        const visibleProjects = listProjects.filter(projectId => hiddenProjects.indexOf(projectId) < 0);
+        // Filter out hidden projects (pinned takes precedence — pinning un-hides)
+        const visibleProjects = listProjects.filter(projectId =>
+            pinnedProjects.indexOf(projectId) >= 0 || hiddenProjects.indexOf(projectId) < 0
+        );
 
         const listProjectSorted =
             visibleProjects

@@ -2,7 +2,7 @@
 	"name": "bigquery-studio",
 	"displayName": "BigQuery Studio",
 	"description": "Fork of bstruct/vscode-bigquery. A powerful Google BigQuery extension with offline-ready charting, query execution, data browsing, SQL intellisense, cost estimation, and data lineage visualization.",
-	"version": "2.0.1",
+	"version": "2.0.2",
 	"publisher": "s-seveur",
 	"icon": "logo.png",
 	"repository": {
@@ -562,6 +562,10 @@
 				"command": "vscode-bigquery.build-table-index",
 				"title": "BigQuery: Build Table Index",
 				"icon": "$(database)"
+			},
+			{
+				"command": "vscode-bigquery.clear-extension-cache",
+				"title": "BigQuery: Clear Extension State Cache"
 			},
 			{
 				"command": "vscode-bigquery.open-as-notebook",

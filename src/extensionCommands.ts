@@ -32,6 +32,7 @@ import { TableIndexService } from './services/tableIndexService';
 import { buildMultiQueryLineage } from './services/lineageGraph';
 import { showMultiLineagePanel } from './lineage/lineageWebviewProvider';
 
+export const COMMAND_CLEAR_EXTENSION_CACHE = "vscode-bigquery.clear-extension-cache";
 export const COMMAND_RUN_QUERY = "vscode-bigquery.run-query";
 export const COMMAND_RUN_SELECTED_QUERY = "vscode-bigquery.run-selected-query";
 export const COMMAND_USER_LOGIN = "vscode-bigquery.user-login";
@@ -886,51 +887,58 @@ export const commandCopyToClipboard = async function (this: any, ...args: any[])
 	}
 };
 
-export const commandPinOrUnpinProject = function (...args: any[]) {
+export const commandPinOrUnpinProject = async function (...args: any[]) {
 
 	const item = args[0] as BigqueryTreeItem;
 	const projectId = item.projectId || 'xxx';
 
-	let pinnedProjects = vscode.workspace
+	const current = (vscode.workspace
 		.getConfiguration()
-		.get(SETTING_PINNED_PROJECTS) as string[] || [];
+		.get(SETTING_PINNED_PROJECTS) as string[]) || [];
 
-	// let split = pinnedProjects.split(';');
-	if (pinnedProjects.indexOf(projectId) >= 0) {
-		pinnedProjects = pinnedProjects.filter(c => c && c !== projectId);
+	let pinnedProjects: string[];
+	let action: 'pinned' | 'unpinned';
+	if (current.indexOf(projectId) >= 0) {
+		pinnedProjects = current.filter(c => c && c !== projectId);
+		action = 'unpinned';
 	} else {
-		pinnedProjects.push(projectId);
+		pinnedProjects = [...current, projectId];
+		action = 'pinned';
 	}
 
-	vscode.workspace
-		.getConfiguration()
-		.update(SETTING_PINNED_PROJECTS, pinnedProjects);
-
-	vscode.commands.executeCommand(COMMAND_EXPLORER_REFRESH);
-
-	// getTelemetryReporter()?.sendTelemetryEvent('commandPinOrUnpinProject', {});
+	try {
+		await vscode.workspace
+			.getConfiguration()
+			.update(SETTING_PINNED_PROJECTS, pinnedProjects, vscode.ConfigurationTarget.Global);
+		vscode.window.showInformationMessage(`Project "${projectId}" ${action}.`);
+		vscode.commands.executeCommand(COMMAND_EXPLORER_REFRESH);
+	} catch (err) {
+		vscode.window.showErrorMessage(`Failed to ${action === 'pinned' ? 'pin' : 'unpin'} project: ${(err as any)?.message || err}`);
+	}
 };
 
-export const commandHideProject = function (...args: any[]) {
+export const commandHideProject = async function (...args: any[]) {
 
 	const item = args[0] as BigqueryTreeItem;
 	const projectId = item.projectId || 'xxx';
 
-	let hiddenProjects = vscode.workspace
+	const current = (vscode.workspace
 		.getConfiguration()
-		.get(SETTING_HIDDEN_PROJECTS) as string[] || [];
+		.get(SETTING_HIDDEN_PROJECTS) as string[]) || [];
 
-	if (hiddenProjects.indexOf(projectId) < 0) {
-		hiddenProjects.push(projectId);
+	const hiddenProjects = current.indexOf(projectId) < 0
+		? [...current, projectId]
+		: current;
+
+	try {
+		await vscode.workspace
+			.getConfiguration()
+			.update(SETTING_HIDDEN_PROJECTS, hiddenProjects, vscode.ConfigurationTarget.Global);
+		vscode.commands.executeCommand(COMMAND_EXPLORER_REFRESH);
+		vscode.window.showInformationMessage(`Project "${projectId}" hidden. Use "BigQuery: Show Hidden Projects" command to unhide.`);
+	} catch (err) {
+		vscode.window.showErrorMessage(`Failed to hide project: ${(err as any)?.message || err}`);
 	}
-
-	vscode.workspace
-		.getConfiguration()
-		.update(SETTING_HIDDEN_PROJECTS, hiddenProjects);
-
-	vscode.commands.executeCommand(COMMAND_EXPLORER_REFRESH);
-
-	vscode.window.showInformationMessage(`Project "${projectId}" hidden. Use "BigQuery: Show Hidden Projects" command to unhide.`);
 };
 
 export const commandShowHiddenProjects = async function () {
@@ -958,9 +966,9 @@ export const commandShowHiddenProjects = async function () {
 	if (selected) {
 		const updatedHiddenProjects = hiddenProjects.filter(c => c !== selected.label);
 
-		vscode.workspace
+		await vscode.workspace
 			.getConfiguration()
-			.update(SETTING_HIDDEN_PROJECTS, updatedHiddenProjects);
+			.update(SETTING_HIDDEN_PROJECTS, updatedHiddenProjects, vscode.ConfigurationTarget.Global);
 
 		vscode.commands.executeCommand(COMMAND_EXPLORER_REFRESH);
 
@@ -1390,7 +1398,7 @@ export const commandRevokeSession = async function (...args: any[]) {
 };
 
 // Pin Table
-export const commandPinTable = function (...args: any[]) {
+export const commandPinTable = async function (...args: any[]) {
 
 	const item = args[0] as BigqueryTreeItem;
 
@@ -1400,23 +1408,24 @@ export const commandPinTable = function (...args: any[]) {
 
 	const tableRef = `${item.projectId}.${item.datasetId}.${item.tableId}`;
 
-	let pinnedTables = vscode.workspace
+	const current = (vscode.workspace
 		.getConfiguration()
-		.get(SETTING_PINNED_TABLES) as string[] || [];
+		.get(SETTING_PINNED_TABLES) as string[]) || [];
 
-	if (pinnedTables.indexOf(tableRef) < 0) {
-		pinnedTables.push(tableRef);
+	const pinnedTables = current.indexOf(tableRef) < 0 ? [...current, tableRef] : current;
+
+	try {
+		await vscode.workspace
+			.getConfiguration()
+			.update(SETTING_PINNED_TABLES, pinnedTables, vscode.ConfigurationTarget.Global);
+		vscode.commands.executeCommand(COMMAND_EXPLORER_REFRESH);
+	} catch (err) {
+		vscode.window.showErrorMessage(`Failed to pin table: ${(err as any)?.message || err}`);
 	}
-
-	vscode.workspace
-		.getConfiguration()
-		.update(SETTING_PINNED_TABLES, pinnedTables);
-
-	vscode.commands.executeCommand(COMMAND_EXPLORER_REFRESH);
 };
 
 // Unpin Table
-export const commandUnpinTable = function (...args: any[]) {
+export const commandUnpinTable = async function (...args: any[]) {
 
 	const item = args[0] as BigqueryTreeItem;
 
@@ -1426,17 +1435,20 @@ export const commandUnpinTable = function (...args: any[]) {
 
 	const tableRef = `${item.projectId}.${item.datasetId}.${item.tableId}`;
 
-	let pinnedTables = vscode.workspace
+	const current = (vscode.workspace
 		.getConfiguration()
-		.get(SETTING_PINNED_TABLES) as string[] || [];
+		.get(SETTING_PINNED_TABLES) as string[]) || [];
 
-	pinnedTables = pinnedTables.filter(c => c !== tableRef);
+	const pinnedTables = current.filter(c => c !== tableRef);
 
-	vscode.workspace
-		.getConfiguration()
-		.update(SETTING_PINNED_TABLES, pinnedTables);
-
-	vscode.commands.executeCommand(COMMAND_EXPLORER_REFRESH);
+	try {
+		await vscode.workspace
+			.getConfiguration()
+			.update(SETTING_PINNED_TABLES, pinnedTables, vscode.ConfigurationTarget.Global);
+		vscode.commands.executeCommand(COMMAND_EXPLORER_REFRESH);
+	} catch (err) {
+		vscode.window.showErrorMessage(`Failed to unpin table: ${(err as any)?.message || err}`);
+	}
 };
 
 // Search Tables (uses local index from globalState)
@@ -1506,4 +1518,54 @@ export const commandCopyTablePath = async function (...args: any[]) {
 	const tablePath = withBackticks ? `\`${raw}\`` : raw;
 	await vscode.env.clipboard.writeText(tablePath);
 	vscode.window.showInformationMessage(`Copied: ${tablePath}`);
+};
+
+/**
+ * Scans globalState, reports each key's size, and offers to wipe.
+ * Falls back to a known-keys list when Memento.keys() is empty/unsupported.
+ */
+const KNOWN_GLOBAL_STATE_KEYS = [
+	'bqsql-notebook-cells',
+	'bigquery-table-index',
+	'queryResultsMapping',
+	'queryResultsChartMapping',
+	'bigquery-query-history',
+];
+
+export const commandClearExtensionCache = function (globalState: vscode.Memento) {
+	return async function () {
+		try {
+			let keys: readonly string[] = [];
+			try { keys = globalState.keys() || []; } catch { keys = []; }
+			if (!keys.length) { keys = KNOWN_GLOBAL_STATE_KEYS; }
+			const merged = Array.from(new Set([...keys, ...KNOWN_GLOBAL_STATE_KEYS]));
+
+			const sizes: Array<{ key: string; bytes: number }> = [];
+			for (const key of merged) {
+				try {
+					const value = globalState.get(key);
+					if (value === undefined) { continue; }
+					sizes.push({ key, bytes: JSON.stringify(value).length });
+				} catch { /* skip */ }
+			}
+			sizes.sort((a, b) => b.bytes - a.bytes);
+			const report = sizes.length
+				? sizes.map(s => `${s.key}: ${(s.bytes / 1024 / 1024).toFixed(2)} MB`).join('\n')
+				: '(no enumerable keys found)';
+			const total = sizes.reduce((acc, s) => acc + s.bytes, 0);
+			const choice = await vscode.window.showWarningMessage(
+				`BigQuery extension globalState: ${(total / 1024 / 1024).toFixed(1)} MB across ${sizes.length} enumerable keys.\n\n${report}\n\nWipe ALL ${sizes.length} keys?`,
+				{ modal: true },
+				'Wipe All', 'Cancel'
+			);
+			if (choice === 'Wipe All') {
+				for (const entry of sizes) {
+					await globalState.update(entry.key, undefined);
+				}
+				vscode.window.showInformationMessage(`Cleared ${sizes.length} key(s), ${(total / 1024 / 1024).toFixed(1)} MB freed. Reload window.`);
+			}
+		} catch (err) {
+			vscode.window.showErrorMessage(`Clear cache failed: ${(err as any)?.message || err}`);
+		}
+	};
 };

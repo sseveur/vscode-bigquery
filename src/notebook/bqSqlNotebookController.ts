@@ -38,21 +38,6 @@ export class BqSqlNotebookController implements vscode.Disposable {
         this.controller.dispose();
     }
 
-    /**
-     * Restore a previously persisted HTML output on a cell without re-running
-     * the query. Uses a synthetic execution so we can call replaceOutput.
-     */
-    public async restoreOutput(cell: vscode.NotebookCell, html: string): Promise<void> {
-        const execution = this.controller.createNotebookCellExecution(cell);
-        execution.start();
-        await execution.replaceOutput(
-            new vscode.NotebookCellOutput([
-                vscode.NotebookCellOutputItem.text(html, 'text/html')
-            ])
-        );
-        execution.end(true);
-    }
-
     private async execute(
         cells: vscode.NotebookCell[],
         _notebook: vscode.NotebookDocument,
@@ -150,8 +135,10 @@ export class BqSqlNotebookController implements vscode.Disposable {
                 ])
             );
 
-            // Persist the cell's output + registry entry for restoration on next open.
-            await this.registry.persist(state, html);
+            // Persist lightweight metadata (jobRef + schema + stats) for the export/load-more
+            // flows to keep working on restored cells. Output HTML is intentionally NOT stored
+            // to avoid multi-GB globalState bloat — cells render afresh on execute.
+            await this.registry.persist(state);
 
             if (this.historyService) {
                 await this.historyService.addEntry({

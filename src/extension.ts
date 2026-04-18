@@ -24,7 +24,7 @@ import { isBigQueryLanguage } from './services/languageUtils';
 import { QueryHistoryTreeDataProvider } from './activitybar/queryHistoryTreeDataProvider';
 import { BqSqlNotebookSerializer, NOTEBOOK_TYPE } from './notebook/bqSqlNotebookSerializer';
 import { BqSqlNotebookController } from './notebook/bqSqlNotebookController';
-import { CellRegistry } from './notebook/bqSqlNotebookCellRegistry';
+import { CellRegistry, runCellRegistryMigration } from './notebook/bqSqlNotebookCellRegistry';
 import {
 	BqSqlNotebookStatusBarProvider,
 	COMMAND_CELL_DOWNLOAD_CSV,
@@ -404,6 +404,13 @@ export function activate(context: ExtensionContext) {
 	const queryHistoryTreeDataProvider = new QueryHistoryTreeDataProvider(queryHistoryService);
 
 	// Notebook mode: SQL files as notebooks with inline results
+	void runCellRegistryMigration(context.globalState);
+	context.subscriptions.push(
+		vscode.commands.registerCommand(
+			commands.COMMAND_CLEAR_EXTENSION_CACHE,
+			commands.commandClearExtensionCache(context.globalState)
+		)
+	);
 	const cellRegistry = new CellRegistry(context.globalState);
 
 	context.subscriptions.push(
@@ -430,7 +437,7 @@ export function activate(context: ExtensionContext) {
 		vscode.commands.registerCommand(COMMAND_CELL_COPY_MARKDOWN, cellCopyMarkdown(cellRegistry))
 	);
 
-	registerNotebookPersistence(context, cellRegistry, notebookController);
+	registerNotebookPersistence(context, cellRegistry);
 
 	context.subscriptions.push(
 		vscode.window.registerTreeDataProvider(

@@ -89,7 +89,26 @@ function prettyPrint(v: any): string {
     if (typeof v === 'object') {
         try { return JSON.stringify(v, null, 2); } catch { return String(v); }
     }
+    if (typeof v === 'string') {
+        const parsed = tryParseJson(v);
+        if (parsed !== undefined) {
+            try { return JSON.stringify(parsed, null, 2); } catch { return v; }
+        }
+    }
     return String(v);
+}
+
+function tryParseJson(s: string): any {
+    if (typeof s !== 'string') { return undefined; }
+    const trimmed = s.trim();
+    if (!trimmed) { return undefined; }
+    const first = trimmed[0];
+    if (first !== '{' && first !== '[') { return undefined; }
+    try {
+        const parsed = JSON.parse(trimmed);
+        if (parsed && typeof parsed === 'object') { return parsed; }
+    } catch { /* ignore */ }
+    return undefined;
 }
 
 export function BqTable({ fetchRows, exportRef, schema, totalRows, initialRows, title, dmlStats, statementType }: Props) {
@@ -416,7 +435,7 @@ export function BqTable({ fetchRows, exportRef, schema, totalRows, initialRows, 
                                             const display = isNull
                                                 ? 'NULL'
                                                 : (find ? highlightMatch(typeof v === 'object' ? JSON.stringify(v) : String(v), find) : html);
-                                            const canExpand = typeof v === 'object' && v !== null;
+                                            const canExpand = (typeof v === 'object' && v !== null) || (typeof v === 'string' && tryParseJson(v) !== undefined);
                                             return (
                                                 <td
                                                     class={classes}

@@ -108,17 +108,17 @@ export function extractRowValue(row: { f: Array<{ v: any }> }, fields: BqField[]
         const cellRaw = cursor && cursor.f ? cursor.f[idx] : undefined;
         const isLast = i === path.length - 1;
         if (!cellRaw) { return undefined; }
-        if ((field.type || '').toUpperCase() === 'RECORD' || (field.type || '').toUpperCase() === 'STRUCT') {
-            if ((field.mode || '').toUpperCase() === 'REPEATED') {
-                if (isLast) { return decodeBqValue(cellRaw.v, field); }
-                return undefined;
-            }
-            if (isLast) { return decodeBqValue(cellRaw.v, field); }
+        const type = (field.type || '').toUpperCase();
+        const mode = (field.mode || '').toUpperCase();
+        if (isLast) {
+            return decodeBqValue(cellRaw.v, field);
+        }
+        if ((type === 'RECORD' || type === 'STRUCT') && mode !== 'REPEATED') {
             cursor = cellRaw.v;
             cursorFields = field.fields;
             continue;
         }
-        return cellRaw.v;
+        return undefined;
     }
     return undefined;
 }
