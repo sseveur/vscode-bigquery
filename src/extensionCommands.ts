@@ -82,6 +82,7 @@ export const COMMAND_CLEAR_SEARCH = "vscode-bigquery.clear-search";
 export const SETTING_PINNED_TABLES = "vscode-bigquery.pinned-tables";
 export const COMMAND_COPY_TABLE_PATH = "vscode-bigquery.copy-table-path";
 export const COMMAND_BUILD_TABLE_INDEX = "vscode-bigquery.build-table-index";
+export const COMMAND_OPEN_AS_NOTEBOOK = "vscode-bigquery.open-as-notebook";
 
 /**
  * Check if SQL is a CREATE TABLE statement
@@ -1303,6 +1304,16 @@ export const commandRefreshSchemaCache = function (...args: any[]) {
 	} else {
 		vscode.window.showInformationMessage('BigQuery: Schema cache was already empty');
 	}
+};
+
+// Open current SQL file as a BigQuery notebook (inline results)
+export const commandOpenAsNotebook = async function (uri?: vscode.Uri) {
+	const targetUri = uri || vscode.window.activeTextEditor?.document.uri;
+	if (!targetUri) {
+		vscode.window.showWarningMessage('Open a .sql or .bqsql file first.');
+		return;
+	}
+	await vscode.commands.executeCommand('vscode.openWith', targetUri, 'bigquery-sql-notebook');
 };
 
 // Toggle Lineage Export Theme

@@ -22,6 +22,8 @@ import { TroubleshootSerializer } from './activitybar/troubleshootSerializer';
 import { GcpAuthenticationTreeDataProvider } from './activitybar/gcpAuthenticationTreeDataProvider';
 import { isBigQueryLanguage } from './services/languageUtils';
 import { QueryHistoryTreeDataProvider } from './activitybar/queryHistoryTreeDataProvider';
+import { BqSqlNotebookSerializer, NOTEBOOK_TYPE } from './notebook/bqSqlNotebookSerializer';
+import { BqSqlNotebookController } from './notebook/bqSqlNotebookController';
 
 export const bigqueryWebviewViewProvider = new WebviewViewProvider();
 export const authenticationWebviewProvider = new BigqueryAuthenticationWebviewViewProvider();
@@ -310,6 +312,14 @@ export function activate(context: ExtensionContext) {
 		)
 	);
 
+	// Open as Notebook
+	context.subscriptions.push(
+		vscode.commands.registerCommand(
+			commands.COMMAND_OPEN_AS_NOTEBOOK,
+			commands.commandOpenAsNotebook
+		)
+	);
+
 	// Revoke Session
 	context.subscriptions.push(
 		vscode.commands.registerCommand(
@@ -369,6 +379,16 @@ export function activate(context: ExtensionContext) {
 	// Query History
 	const queryHistoryService = commands.initQueryHistoryService(context.globalState);
 	const queryHistoryTreeDataProvider = new QueryHistoryTreeDataProvider(queryHistoryService);
+
+	// Notebook mode: SQL files as notebooks with inline results
+	context.subscriptions.push(
+		vscode.workspace.registerNotebookSerializer(
+			NOTEBOOK_TYPE,
+			new BqSqlNotebookSerializer(),
+			{ transientOutputs: true }
+		)
+	);
+	context.subscriptions.push(new BqSqlNotebookController(queryHistoryService));
 
 	context.subscriptions.push(
 		vscode.window.registerTreeDataProvider(

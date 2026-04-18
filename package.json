@@ -508,6 +508,26 @@
 				"command": "vscode-bigquery.build-table-index",
 				"title": "BigQuery: Build Table Index",
 				"icon": "$(database)"
+			},
+			{
+				"command": "vscode-bigquery.open-as-notebook",
+				"title": "BigQuery: Open as Notebook",
+				"icon": "$(notebook)"
+			}
+		],
+		"notebooks": [
+			{
+				"type": "bigquery-sql-notebook",
+				"displayName": "BigQuery SQL Notebook",
+				"selector": [
+					{
+						"filenamePattern": "*.bqsql"
+					},
+					{
+						"filenamePattern": "*.sql"
+					}
+				],
+				"priority": "option"
 			}
 		],
 		"menus": {
@@ -525,6 +545,11 @@
 				{
 					"command": "vscode-bigquery.show-lineage",
 					"group": "navigation@-1",
+					"when": "editorLangId == bqsql || editorLangId == sql"
+				},
+				{
+					"command": "vscode-bigquery.open-as-notebook",
+					"group": "1_bigquery@1",
 					"when": "editorLangId == bqsql || editorLangId == sql"
 				}
 			],
