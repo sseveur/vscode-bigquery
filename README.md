@@ -2,8 +2,9 @@
 
 > **Fork Notice:** This extension is a fork of [bstruct/vscode-bigquery](https://github.com/bstruct/vscode-bigquery) with additional improvements and fixes.
 
-[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/s-seveur.bigquery-studio?label=VS%20Code%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=s-seveur.bigquery-studio)
-[![Installs](https://img.shields.io/visual-studio-marketplace/i/s-seveur.bigquery-studio)](https://marketplace.visualstudio.com/items?itemName=s-seveur.bigquery-studio)
+[![VS Code Marketplace](https://vsmarketplacebadges.dev/version-short/s-seveur.bigquery-studio.svg?label=VS%20Code%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=s-seveur.bigquery-studio)
+[![Installs](https://vsmarketplacebadges.dev/installs-short/s-seveur.bigquery-studio.svg)](https://marketplace.visualstudio.com/items?itemName=s-seveur.bigquery-studio)
+[![Rating](https://vsmarketplacebadges.dev/rating-short/s-seveur.bigquery-studio.svg)](https://marketplace.visualstudio.com/items?itemName=s-seveur.bigquery-studio&ssr=false#review-details)
 
 A powerful Visual Studio Code extension for Google BigQuery. Browse datasets and tables, run queries with real-time validation, view results, format SQL, track query history, estimate costs, and visualize data lineage.
 

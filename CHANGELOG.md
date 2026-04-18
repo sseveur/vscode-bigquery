@@ -5,6 +5,16 @@ All notable changes to the BigQuery Studio extension will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.1] - 2026-04-18
+
+### Fixed
+
+- **Marketplace badges** - Replaced retired `shields.io/visual-studio-marketplace/*` badges with `vsmarketplacebadges.dev` (version, installs, rating). Added rating badge.
+
+### Changed
+
+- **VSIX size reduction** - Excluded `logo.psd` (481 KB), `previous_packages/` (312 KB), `new_features/` (171 KB), `call.txt`, and `documentation/Untitled.png` from the published extension via `.vscodeignore`. No functional change.
+
 ## [2.0.0] - 2026-04-18
 
 > **Major release.** The legacy WASM (Rust→WebAssembly) results renderer has been removed and fully replaced by a new Preact-based grid. All query results, table previews, and multi-statement scripts render through the new grid. The old `vscode-bigquery.experimentalGrid` toggle is gone — the new grid is the only path.
