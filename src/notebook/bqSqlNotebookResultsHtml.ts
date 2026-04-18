@@ -64,9 +64,12 @@ ${baseStyles()}
         <div class="bq-pagination">
             <button class="bq-pg-btn" data-nav="first" title="First page">&laquo;</button>
             <button class="bq-pg-btn" data-nav="prev" title="Previous page">&lsaquo;</button>
-            <span class="bq-pg-info"></span>
+            <span class="bq-pg-label">Page</span>
+            <input type="number" min="1" class="bq-pg-input" title="Jump to page" />
+            <span class="bq-pg-of"></span>
             <button class="bq-pg-btn" data-nav="next" title="Next page">&rsaquo;</button>
             <button class="bq-pg-btn" data-nav="last" title="Last page">&raquo;</button>
+            <span class="bq-pg-info"></span>
             <select class="bq-pg-size" title="Rows per page">
                 <option value="25">25</option>
                 <option value="50" selected>50</option>
@@ -96,6 +99,8 @@ ${baseStyles()}
     var tbody = root.querySelector('tbody');
     var pgInfo = root.querySelector('.bq-pg-info');
     var pgSize = root.querySelector('.bq-pg-size');
+    var pgInput = root.querySelector('.bq-pg-input');
+    var pgOf = root.querySelector('.bq-pg-of');
 
     function renderHeader() {
         var row = '<tr>' + fields.map(function(f, i) {
@@ -152,7 +157,10 @@ ${baseStyles()}
         if (page < 0) { page = 0; }
         var start = total === 0 ? 0 : page * pageSize + 1;
         var end = Math.min((page + 1) * pageSize, total);
-        pgInfo.textContent = start + '-' + end + ' of ' + total.toLocaleString() + ' (page ' + (page + 1) + '/' + totalPages + ')';
+        pgInput.value = String(page + 1);
+        pgInput.max = String(totalPages);
+        pgOf.textContent = 'of ' + totalPages;
+        pgInfo.textContent = start + '-' + end + ' of ' + total.toLocaleString() + ' rows';
     }
 
     function renderAll() {
@@ -180,6 +188,20 @@ ${baseStyles()}
         renderBody();
         renderInfo();
     });
+
+    function jumpToPage() {
+        var val = parseInt(pgInput.value, 10);
+        if (isNaN(val) || val < 1) { val = 1; }
+        var totalPages = Math.max(1, Math.ceil(sortedData.length / pageSize));
+        if (val > totalPages) { val = totalPages; }
+        page = val - 1;
+        renderBody();
+        renderInfo();
+    }
+    pgInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') { e.preventDefault(); jumpToPage(); }
+    });
+    pgInput.addEventListener('change', jumpToPage);
 
     root.querySelectorAll('.bq-tab').forEach(function(tab) {
         tab.addEventListener('click', function() {
@@ -295,7 +317,10 @@ function baseStyles(): string {
 .bq-pagination { display: flex; align-items: center; gap: 4px; padding: 6px 2px; font-size: 0.85em; }
 .bq-pg-btn { background: transparent; color: inherit; border: 1px solid var(--vscode-panel-border, #3e3e3e); padding: 2px 8px; cursor: pointer; border-radius: 3px; }
 .bq-pg-btn:hover { background: var(--vscode-list-hoverBackground, #2a2d2e); }
-.bq-pg-info { padding: 0 8px; opacity: 0.8; }
+.bq-pg-label { opacity: 0.8; margin-left: 4px; }
+.bq-pg-input { background: var(--vscode-input-background, transparent); color: inherit; border: 1px solid var(--vscode-panel-border, #3e3e3e); padding: 2px 4px; border-radius: 3px; width: 60px; text-align: center; }
+.bq-pg-of { opacity: 0.8; }
+.bq-pg-info { padding: 0 8px; opacity: 0.7; font-size: 0.9em; }
 .bq-pg-size { background: transparent; color: inherit; border: 1px solid var(--vscode-panel-border, #3e3e3e); padding: 2px 4px; margin-left: auto; border-radius: 3px; }
 .bq-schema { border-collapse: collapse; width: 100%; font-size: 0.9em; }
 .bq-schema th, .bq-schema td { padding: 4px 8px; text-align: left; border-bottom: 1px solid var(--vscode-panel-border, #3e3e3e); }
