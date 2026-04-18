@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>grid-v2 palette preview</title>
+<style>
+:root {
+    --vscode-foreground: #cccccc;
+    --vscode-editor-background: #1e1e1e;
+    --vscode-charts-blue: #4fc1ff;
+    --vscode-charts-purple: #c586c0;
+    --vscode-charts-orange: #ce9178;
+    --vscode-charts-green: #4ec9b0;
+    --vscode-charts-yellow: #dcdcaa;
+    --vscode-inputValidation-warningBorder: #c5a300;
+    --vscode-panel-border: rgba(255,255,255,0.1);
+}
+body {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    background: var(--vscode-editor-background);
+    color: var(--vscode-foreground);
+    padding: 24px;
+    margin: 0;
+    font-size: 14px;
+}
+h1 { font-weight: 600; font-size: 1.1em; margin-bottom: 16px; font-family: sans-serif; }
+table { border-collapse: collapse; width: 100%; max-width: 900px; }
+th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--vscode-panel-border); vertical-align: middle; }
+th { font-weight: 600; font-size: 0.9em; font-family: sans-serif; color: color-mix(in srgb, var(--vscode-foreground) 65%, transparent); }
+.chip { display: inline-block; width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(255,255,255,0.2); vertical-align: middle; margin-right: 8px; }
+.pill {
+    display: inline-block;
+    padding: 1px 6px;
+    font-size: 0.75em;
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 3px;
+    color: color-mix(in srgb, var(--vscode-foreground) 55%, transparent);
+    font-family: sans-serif;
+    margin-left: 6px;
+    vertical-align: middle;
+}
+.num { color: var(--vscode-charts-blue); }
+.bool { color: var(--vscode-charts-purple); font-weight: 500; }
+.ts { color: var(--vscode-charts-orange); }
+.json { color: color-mix(in srgb, var(--vscode-foreground) 70%, var(--vscode-charts-green) 30%); }
+.bytes { color: color-mix(in srgb, var(--vscode-foreground) 65%, var(--vscode-charts-yellow) 35%); }
+.null { color: var(--vscode-inputValidation-warningBorder); font-style: italic; font-size: 0.82em; }
+.str { color: inherit; }
+.hex { color: color-mix(in srgb, var(--vscode-foreground) 50%, transparent); font-size: 0.85em; }
+
+.toggle { margin-bottom: 12px; }
+.toggle label { cursor: pointer; font-family: sans-serif; font-size: 0.9em; }
+body.light {
+    --vscode-foreground: #333;
+    --vscode-editor-background: #ffffff;
+    --vscode-charts-blue: #0451a5;
+    --vscode-charts-purple: #a31515;
+    --vscode-charts-orange: #af5f00;
+    --vscode-charts-green: #267f99;
+    --vscode-charts-yellow: #795e26;
+    --vscode-inputValidation-warningBorder: #bf8803;
+    --vscode-panel-border: rgba(0,0,0,0.1);
+}
+</style>
+</head>
+<body>
+<h1>grid-v2 cell-color palette</h1>
+
+<div class="toggle">
+    <label><input type="checkbox" onchange="document.body.classList.toggle('light', this.checked)"> light theme</label>
+</div>
+
+<table>
+<thead>
+<tr><th>type</th><th>sample</th><th>hex (dark)</th></tr>
+</thead>
+<tbody>
+<tr><td><span class="chip" style="background:var(--vscode-charts-blue)"></span>INT64 / FLOAT / NUMERIC <span class="pill">int64</span></td><td class="num">1 234 567 890</td><td class="hex">#4fc1ff</td></tr>
+<tr><td><span class="chip" style="background:var(--vscode-charts-blue)"></span>FLOAT64 <span class="pill">float64</span></td><td class="num">3.14159265</td><td class="hex">#4fc1ff</td></tr>
+<tr><td><span class="chip" style="background:var(--vscode-charts-purple)"></span>BOOL <span class="pill">bool</span></td><td class="bool">true</td><td class="hex">#c586c0</td></tr>
+<tr><td><span class="chip" style="background:var(--vscode-charts-orange)"></span>TIMESTAMP <span class="pill">timestamp</span></td><td class="ts">2024-11-30T23:54:38.000Z</td><td class="hex">#ce9178</td></tr>
+<tr><td><span class="chip" style="background:var(--vscode-charts-orange)"></span>DATE <span class="pill">date</span></td><td class="ts">2024-11-30</td><td class="hex">#ce9178</td></tr>
+<tr><td><span class="chip" style="background:var(--vscode-charts-green)"></span>STRUCT / RECORD <span class="pill">record</span></td><td class="json">{"id":42,"name":"acme"}</td><td class="hex">blend 70% fg + 30% #4ec9b0</td></tr>
+<tr><td><span class="chip" style="background:var(--vscode-charts-green)"></span>JSON <span class="pill">json</span></td><td class="json">[{"k":"v"}]</td><td class="hex">blend 70% fg + 30% #4ec9b0</td></tr>
+<tr><td><span class="chip" style="background:var(--vscode-charts-yellow)"></span>BYTES <span class="pill">bytes</span></td><td class="bytes">AQIDBAU=</td><td class="hex">blend 65% fg + 35% #dcdcaa</td></tr>
+<tr><td><span class="chip" style="background:var(--vscode-charts-yellow)"></span>GEOGRAPHY <span class="pill">geography</span></td><td class="bytes">POINT(2.35 48.86)</td><td class="hex">blend 65% fg + 35% #dcdcaa</td></tr>
+<tr><td><span class="chip" style="background:var(--vscode-foreground)"></span>STRING <span class="pill">string</span></td><td class="str">eng-cell-426402-b6.analysis_us</td><td class="hex">inherit (neutral)</td></tr>
+<tr><td><span class="chip" style="background:var(--vscode-inputValidation-warningBorder)"></span>NULL <span class="pill">null</span></td><td class="null">NULL</td><td class="hex">#c5a300 italic 0.82em</td></tr>
+</tbody>
+</table>
+
+<p style="color: color-mix(in srgb, var(--vscode-foreground) 60%, transparent); font-size: 0.88em; margin-top: 24px; font-family: sans-serif;">
+Colors come from VS Code theme vars (<code>--vscode-charts-*</code>) with fallback hex. They adapt automatically to your active theme. Toggle above for a light-theme approximation.
+</p>
+</body>
+</html>

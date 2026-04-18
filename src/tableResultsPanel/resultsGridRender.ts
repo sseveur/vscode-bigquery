@@ -43,16 +43,40 @@ export class ResultsGridRender {
             .get<boolean>('experimentalGrid', false);
     }
 
+    private buildGridColorOverrides(): string {
+        const cfg = vscode.workspace.getConfiguration('vscode-bigquery').get<Record<string, string>>('gridColors', {});
+        if (!cfg || typeof cfg !== 'object') { return ''; }
+        const keyToVar: Record<string, string> = {
+            number: '--bq-color-number',
+            boolean: '--bq-color-boolean',
+            timestamp: '--bq-color-timestamp',
+            struct: '--bq-color-struct',
+            bytes: '--bq-color-bytes',
+            string: '--bq-color-string',
+            null: '--bq-color-null',
+        };
+        const lines: string[] = [];
+        for (const [k, v] of Object.entries(cfg)) {
+            const cssVar = keyToVar[k];
+            if (!cssVar || typeof v !== 'string' || !v.trim()) { continue; }
+            const sanitized = v.replace(/[<>]/g, '');
+            lines.push(`${cssVar}: ${sanitized};`);
+        }
+        return lines.length ? `:root { ${lines.join(' ')} }` : '';
+    }
+
     private buildHtml(webview: vscode.Webview, extensionUri: vscode.Uri): string {
         const useV2 = this.isExperimentalGridEnabled();
         if (useV2) {
             const gridJs = this.getUri(webview, extensionUri, ['resources', 'grid-v2.js']);
             const gridCss = this.getUri(webview, extensionUri, ['resources', 'grid-v2.css']);
+            const colorOverrides = this.buildGridColorOverrides();
             return `<!DOCTYPE html>
             <html lang="en">
                 <head>
                     <meta charset="UTF-8">
                     <link rel="stylesheet" href="${gridCss}">
+                    ${colorOverrides ? `<style>${colorOverrides}</style>` : ''}
                 </head>
                 <body>
                     <div id="q1"></div>

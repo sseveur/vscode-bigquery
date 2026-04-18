@@ -188,7 +188,7 @@ body { margin: 0; padding: 0; font-family: var(--vscode-font-family, sans-serif)
 }
 
 .bq-grid td.bq-numeric { text-align: right; font-variant-numeric: tabular-nums; }
-.bq-grid td.bq-cell-max { max-width: 480px; overflow: hidden; text-overflow: ellipsis; }
+.bq-grid td.bq-cell-max { max-width: 800px; overflow: hidden; text-overflow: ellipsis; }
 
 .bq-grid tbody tr { position: relative; }
 .bq-grid tbody tr:hover td:not(.bq-rownum):first-of-type { box-shadow: inset 2px 0 0 var(--bq-accent); }
@@ -214,6 +214,147 @@ body { margin: 0; padding: 0; font-family: var(--vscode-font-family, sans-serif)
     z-index: 10;
 }
 .bq-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* Density */
+.bq-grid tbody td { padding: var(--bq-cell-pad-y, 5px) 14px; font-size: var(--bq-cell-font, 0.88em); }
+
+/* Tabs */
+.bq-tabs { display: flex; gap: 2px; padding-right: 8px; border-right: 1px solid var(--bq-border-soft); margin-right: 4px; }
+.bq-tab {
+    background: transparent; color: inherit; border: none;
+    padding: 4px 10px; cursor: pointer; border-radius: var(--bq-radius);
+    font: inherit; font-weight: 500;
+    transition: background 0.12s, color 0.12s;
+    border-bottom: 2px solid transparent;
+}
+.bq-tab:hover { background: var(--bq-hover); }
+.bq-tab.active { color: var(--bq-accent); border-bottom-color: var(--bq-accent); border-radius: 0; }
+.bq-count { display: inline-block; margin-left: 4px; padding: 0 5px; font-size: 0.78em; color: var(--bq-muted); background: var(--bq-hover); border-radius: 8px; font-weight: 400; }
+
+/* Find */
+.bq-find { position: relative; display: inline-flex; align-items: center; }
+.bq-find-input {
+    background: var(--vscode-input-background, transparent);
+    color: inherit;
+    border: 1px solid var(--bq-border);
+    padding: 3px 26px 3px 8px;
+    border-radius: var(--bq-radius);
+    font: inherit;
+    width: 120px;
+    transition: border-color 0.12s, width 0.18s;
+}
+.bq-find-input:focus { outline: none; border-color: var(--bq-accent); width: 180px; }
+.bq-find-count { position: absolute; right: 6px; font-size: 0.75em; color: var(--bq-muted); pointer-events: none; }
+
+/* Density toggle */
+.bq-density { display: inline-flex; border: 1px solid var(--bq-border); border-radius: var(--bq-radius); overflow: hidden; }
+.bq-density-btn {
+    background: transparent; color: inherit; border: none;
+    padding: 3px 8px; cursor: pointer; font: inherit;
+    border-right: 1px solid var(--bq-border-soft);
+    transition: background 0.12s, color 0.12s;
+    line-height: 1.2;
+}
+.bq-density-btn:last-child { border-right: none; }
+.bq-density-btn:hover { background: var(--bq-hover); }
+.bq-density-btn.active { background: var(--bq-accent); color: var(--vscode-button-foreground, white); }
+
+/* Selected */
+.bq-grid tbody tr.bq-selected td { background: color-mix(in srgb, var(--bq-accent) 18%, var(--vscode-editor-background)) !important; }
+.bq-grid tbody tr.bq-selected td.bq-rownum { color: var(--bq-accent); font-weight: 600; }
+.bq-sel-count { padding: 0 6px; font-size: 0.82em; color: var(--bq-accent); font-weight: 600; }
+
+/* Header name + resize */
+.bq-grid thead th { position: relative; padding-right: 10px; }
+.bq-col-name { margin-right: 4px; }
+.bq-resize {
+    position: absolute;
+    top: 0; bottom: 0; right: -3px;
+    width: 6px;
+    cursor: col-resize;
+    z-index: 2;
+}
+.bq-resize:hover { background: var(--bq-accent); }
+.bq-sort-rank { font-size: 0.7em; opacity: 0.8; margin-left: 1px; }
+
+/* Find highlight */
+mark.bq-mark { background: color-mix(in srgb, var(--bq-accent) 35%, transparent); color: inherit; padding: 0 1px; border-radius: 2px; }
+
+/* Layout with drawer */
+.bq-layout { flex: 1; display: flex; min-height: 0; overflow: hidden; }
+.bq-layout .bq-scroll { flex: 1; min-width: 0; }
+
+.bq-drawer {
+    width: 380px;
+    min-width: 240px;
+    max-width: 60vw;
+    border-left: 1px solid var(--bq-border);
+    display: flex;
+    flex-direction: column;
+    background: var(--vscode-editor-background);
+    resize: horizontal;
+    overflow: hidden;
+}
+.bq-drawer-head { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-bottom: 1px solid var(--bq-border); }
+.bq-drawer-title { display: flex; gap: 8px; align-items: center; font-weight: 600; font-size: 0.9em; min-width: 0; }
+.bq-drawer-title > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bq-drawer-actions { display: flex; gap: 4px; }
+.bq-drawer-body {
+    flex: 1;
+    overflow: auto;
+    margin: 0;
+    padding: 12px;
+    font-family: var(--vscode-editor-font-family, ui-monospace, SFMono-Regular, Menlo, monospace);
+    font-size: 0.85em;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--vscode-editor-foreground, inherit);
+}
+
+/* Type syntax colors — subtle, theme-aware.
+   Each var can be overridden by the extension via vscode-bigquery.gridColors.
+   Defaults cascade: user override → VS Code chart var → hardcoded fallback. */
+:root {
+    --bq-color-number: var(--vscode-charts-blue, #4fc1ff);
+    --bq-color-boolean: var(--vscode-charts-purple, #c586c0);
+    --bq-color-timestamp: var(--vscode-charts-orange, #ce9178);
+    --bq-color-struct: color-mix(in srgb, var(--vscode-foreground) 70%, var(--vscode-charts-green, #4ec9b0) 30%);
+    --bq-color-bytes: color-mix(in srgb, var(--vscode-foreground) 65%, var(--vscode-charts-yellow, #dcdcaa) 35%);
+    --bq-color-string: inherit;
+    --bq-color-null: var(--vscode-inputValidation-warningBorder, #c5a300);
+}
+
+.bq-grid td.bq-numeric,
+.bq-grid td.bq-t-int64,
+.bq-grid td.bq-t-integer,
+.bq-grid td.bq-t-float,
+.bq-grid td.bq-t-float64,
+.bq-grid td.bq-t-numeric,
+.bq-grid td.bq-t-bignumeric { color: var(--bq-color-number); }
+
+.bq-grid td.bq-t-bool,
+.bq-grid td.bq-t-boolean { color: var(--bq-color-boolean); font-weight: 500; }
+
+.bq-grid td.bq-t-timestamp,
+.bq-grid td.bq-t-date,
+.bq-grid td.bq-t-datetime,
+.bq-grid td.bq-t-time { color: var(--bq-color-timestamp); }
+
+.bq-grid td.bq-t-json,
+.bq-grid td.bq-t-record,
+.bq-grid td.bq-t-struct { color: var(--bq-color-struct); }
+
+.bq-grid td.bq-t-bytes,
+.bq-grid td.bq-t-geography { color: var(--bq-color-bytes); }
+
+.bq-grid td.bq-t-string { color: var(--bq-color-string); }
+
+.bq-grid td.bq-null { color: var(--bq-color-null) !important; }
+
+/* Schema grid tweaks */
+.bq-schema-grid td, .bq-schema-grid th { font-family: var(--vscode-font-family, sans-serif); }
+.bq-muted { color: var(--bq-muted); }
 
 .bq-null {
     color: var(--vscode-inputValidation-warningBorder, #c5a300);

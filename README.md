@@ -20,6 +20,7 @@ This fork includes the following improvements over [bstruct/vscode-bigquery](htt
 - **SQL Formatter** - Advanced formatting with leading commas, keyword casing, indent styles, and more options
 - **Copy to Clipboard** - Copy query results directly to clipboard with configurable size limits
 - **Schema Refresh Command** - Clear cached table schemas when they become outdated
+- **Experimental Results Grid** - Opt-in Preact-based grid (~43KB) replacing the legacy WASM grid (~442KB). Adds multi-column sort, find-in-page, schema tab, cell-drawer for STRUCT/ARRAY/JSON, column drag-resize, row selection with TSV/Markdown copy, density toggle, and customizable per-type cell colors
 
 ### Improvements
 - **Offline-Ready Charting** - MorphCharts bundled locally instead of CDN for air-gapped environments
@@ -384,6 +385,59 @@ Enter the topic name in the format: `projects/<project_id>/topics/<topic_name>`
 
 <img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/send_to_pubsub_topic_name.png" alt="Pub/Sub topic name" width="200"/>
 
+## Experimental Grid
+
+An opt-in Preact-based query results grid that replaces the legacy WASM renderer. The bundle is ~10× smaller (≈43 KB vs ≈442 KB) and adds modern interactions while staying faithful to the VS Code look.
+
+### Enabling
+
+Set `vscode-bigquery.experimentalGrid` to `true`. The classic WASM grid remains the default. Multi-statement scripts and table previews currently fall back to the classic grid automatically.
+
+### Features
+
+| Feature | How it works |
+|---|---|
+| **Tabs** | Switch between **Results** and **Schema** panes. Schema lists every column with type and mode. |
+| **Multi-column sort** | Click a column header for single sort. Shift-click additional headers to add secondary sort keys. A rank badge is shown next to the arrow when sorting by more than one column. |
+| **Find** | Type in the `Find…` box in the toolbar to filter the current page. Matches are highlighted inline and the hit count is shown. |
+| **Density toggle** | Three-button group in the toolbar (`≡` compact / `☰` cozy / `⋯` comfy) adjusts row height. |
+| **Row selection** | Click a row number to select that row. Shift-click selects a range; Cmd/Ctrl-click toggles individual rows. Selected rows can be copied as TSV or Markdown via the `TSV` and `MD` buttons that appear in the toolbar. |
+| **Cell drawer** | Click any STRUCT, ARRAY, RECORD or JSON cell to open a resizable right-side drawer with pretty-printed, copyable content. |
+| **Click-to-copy** | Click any scalar cell to copy its raw value. A toast confirms the copy. |
+| **Column resize** | Grab the right edge of a column header and drag to resize. |
+| **Row number gutter** | Sticky-left numbered gutter that highlights on hover and turns accent-colored when the row is selected. |
+| **Syntax colors** | Cell text is tinted per BigQuery type (see below). |
+| **Export** | CSV, JSONL, Pub/Sub, and Copy-as-Markdown buttons remain in the toolbar and use the existing extension commands (no regressions in the export flows). |
+| **Pagination** | First / prev / next / last buttons plus a Page-number input and a rows-per-page selector (25 / 50 / 100 / 250 / 1000). Pagination uses the BigQuery `getQueryResults` REST API with offset + maxResults. |
+
+### Color Customization
+
+Each cell color is driven by a CSS custom property with a sensible theme-aware default. You can override any of them via the `vscode-bigquery.gridColors` setting. Supported keys:
+
+| Key | Applies to | Default |
+|---|---|---|
+| `number` | `INT64`, `INTEGER`, `FLOAT`, `FLOAT64`, `NUMERIC`, `BIGNUMERIC` | `var(--vscode-charts-blue, #4fc1ff)` |
+| `boolean` | `BOOL`, `BOOLEAN` | `var(--vscode-charts-purple, #c586c0)` |
+| `timestamp` | `TIMESTAMP`, `DATE`, `DATETIME`, `TIME` | `var(--vscode-charts-orange, #ce9178)` |
+| `struct` | `STRUCT`, `RECORD`, `JSON` | Blend of foreground and `var(--vscode-charts-green, #4ec9b0)` |
+| `bytes` | `BYTES`, `GEOGRAPHY` | Blend of foreground and `var(--vscode-charts-yellow, #dcdcaa)` |
+| `string` | `STRING` | `inherit` (neutral — keeps string-heavy tables readable) |
+| `null` | Any `NULL` cell | `var(--vscode-inputValidation-warningBorder, #c5a300)` |
+
+Example `settings.json`:
+
+```json
+"vscode-bigquery.gridColors": {
+    "number": "#7ee787",
+    "boolean": "#ff7b72",
+    "timestamp": "#d2a8ff",
+    "struct": "#79c0ff",
+    "null": "#ffa657"
+}
+```
+
+Any CSS color value works (hex, `rgb()`, `hsl()`, named colors). Leave a key unset (or empty) to keep the default and let the VS Code theme decide.
+
 ## Settings
 
 ### Pin a Project
@@ -457,6 +511,8 @@ Setting: `vscode-bigquery.associateSqlFiles`
 | `vscode-bigquery.tables` | array | `[]` | Table IDs to list directly |
 | `vscode-bigquery.lineageExportTheme` | string | `dark` | Lineage export theme: dark, light |
 | `vscode-bigquery.autoPreviewCreatedTables` | boolean | `false` | Auto-preview first 100 rows after CREATE TABLE |
+| `vscode-bigquery.experimentalGrid` | boolean | `false` | Opt in to the new Preact-based results grid (see [Experimental Grid](#experimental-grid)) |
+| `vscode-bigquery.gridColors` | object | `{}` | Override per-type cell text colors for the experimental grid. See [Color Customization](#color-customization) |
 
 Access settings via:
 
