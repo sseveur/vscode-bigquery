@@ -36,7 +36,7 @@ export class BqsqlHoverProvider implements HoverProvider {
         const schema = bigqueryTableSchemaService.getSchemaFromCache(documentContent, tableIdentifier);
         if (schema.length === 0) {
             // Try to preload schema for next hover
-            bigqueryTableSchemaService.preLoadSchemaToCache(documentContent, tableIdentifier);
+            bigqueryTableSchemaService.preLoadSchemaToCache(documentContent, tableIdentifier).catch(ex => console.error(ex));
 
             // Show a loading message with the table name
             const tableName = this.extractTableName(documentContent, tableIdentifier);

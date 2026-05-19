@@ -213,9 +213,8 @@ export class BigQueryClient {
 			FROM \`${projectId}.${datasetId}\`.INFORMATION_SCHEMA.COLUMN_FIELD_PATHS
 			WHERE table_name = @tableName`,
 			{ tableName: tableId }
-		).then(job => {
-			return job.getQueryResults();
-		});
+		).then(job => job.getQueryResults())
+			.catch(() => [[]] as any);
 
 		return Promise.all([metadataPromise, fullSchema])
 			.then(this.onfulfilled);
@@ -240,12 +239,36 @@ FROM \`${projectId}.${datasetName}\`.INFORMATION_SCHEMA.COLUMNS colums
 WHERE table_name = @tableName AND is_hidden = 'NO'
 `;
 
-		const q = await this.runParameterizedQuery(query, { tableName: tableName });
+		try {
+			const q = await this.runParameterizedQuery(query, { tableName: tableName });
+			const results = await q.getQueryResults();
+			return results[0].map(c => c as BigqueryTableSchema);
+		} catch {
+			return this.getTableSchemaFromMetadata(projectId, datasetName, tableName);
+		}
 
-		const results = await q.getQueryResults();
+	}
 
-		return results[0].map(c => c as BigqueryTableSchema);
-
+	private async getTableSchemaFromMetadata(projectId: string, datasetName: string, tableName: string): Promise<BigqueryTableSchema[]> {
+		try {
+			const [metadata] = await this.bqclient
+				.dataset(datasetName, { projectId: projectId })
+				.table(tableName)
+				.getMetadata();
+			const fields = (metadata?.schema?.fields ?? []) as Array<{ name: string, type: string, description?: string }>;
+			return fields.map((f, i) => ({
+				project_id: projectId,
+				dataset_name: datasetName,
+				table_name: tableName,
+				column_name: f.name,
+				ordinal_position: String(i + 1),
+				data_type: f.type,
+				is_partitioning_column: 'NO',
+				description: f.description ?? ''
+			}));
+		} catch {
+			return [];
+		}
 	}
 
 	public getJob(jobReference: JobReference): Job {
