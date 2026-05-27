@@ -571,6 +571,7 @@ Setting: `vscode-bigquery.associateSqlFiles`
 | `vscode-bigquery.defaultLocation` | string | `""` | BQ processing location (US, EU, australia-southeast1, asia-east1, …). Empty = auto-detect from first FROM via `datasets.get`. Set to override for unqualified or CTE-only queries. |
 | `vscode-bigquery.copyTablePathBackticks` | boolean | `true` | Wrap copied table paths in backticks (\`project.dataset.table\`) for direct paste into FROM clauses. Set to `false` for raw `project.dataset.table`. |
 | `vscode-bigquery.gridColors` | object | `{}` | Override per-type cell text colors in the results grid. See [Color Customization](#color-customization) |
+| `vscode-bigquery.gcloudPath` | string | `""` | Full path to the gcloud executable. Empty = auto-detect from PATH and common install locations. Set if VS Code can't find gcloud when launched from the Dock/Finder. |
 
 Access settings via:
 
