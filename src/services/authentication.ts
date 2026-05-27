@@ -177,24 +177,33 @@ export class Authentication {
 
         if (forceShow) { terminal.show(); }
 
+        // Resolve the gcloud binary. VS Code launched from Dock/Finder on macOS
+        // inherits a minimal PATH (no /opt/homebrew/bin, /usr/local/bin, …), so a
+        // bare 'gcloud' lookup fails with ENOENT even when gcloud works in a shell.
+        const gcloudPath = this.resolveGcloudExecutable();
+
         // On Windows, use shell: true to allow PATH resolution of gcloud.cmd
         // On Mac/Linux, keep shell: false for better security
         const commandOptions: cp.ExecFileOptions = {
-            shell: process.platform === 'win32'
+            shell: process.platform === 'win32',
+            // Augment PATH so the resolved gcloud can still find python/components.
+            env: { ...process.env, PATH: this.buildAugmentedPath() }
         };
 
         return new Promise((resolve, reject) => {
 
             // Use execFile instead of exec to prevent shell injection
             // Arguments are passed as array, not interpolated into command string
-            cp.execFile('gcloud', args, commandOptions, (error, stdout, stderr) => {
+            cp.execFile(gcloudPath, args, commandOptions, (error, stdout, stderr) => {
                 if (error) {
                     terminal.sendText(stderr);
 
                     // Provide helpful message if gcloud is not found
                     let diagnosticMessage = stderr;
                     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-                        diagnosticMessage = 'gcloud CLI not found. Please ensure Google Cloud SDK is installed and added to PATH. Restart VS Code after installation.';
+                        diagnosticMessage = 'gcloud CLI not found. Searched PATH and common install locations '
+                            + '(/opt/homebrew/bin, /usr/local/bin, ~/google-cloud-sdk/bin). '
+                            + 'Install the Google Cloud SDK, or set "vscode-bigquery.gcloudPath" to the full path of the gcloud binary, then restart VS Code.';
                     }
 
                     reject({ error, stdout, stderr: diagnosticMessage || stderr });
@@ -208,6 +217,78 @@ export class Authentication {
 
         });
 
+    }
+
+    /**
+     * Locates the gcloud executable. VS Code GUI launches on macOS/Linux do not
+     * inherit the shell PATH, so a bare 'gcloud' often fails. Resolution order:
+     *   1. The `vscode-bigquery.gcloudPath` setting, if it points to a real file.
+     *   2. Common SDK install locations for the current platform.
+     *   3. Fall back to 'gcloud' (PATH lookup) — preserves prior behaviour.
+     */
+    private static resolveGcloudExecutable(): string {
+        const configured = vscode.workspace
+            .getConfiguration('vscode-bigquery')
+            .get<string>('gcloudPath');
+        if (configured && configured.trim().length > 0) {
+            const p = configured.trim();
+            if (fs.existsSync(p)) {
+                return p;
+            }
+        }
+
+        if (process.platform === 'win32') {
+            // shell: true is set on Windows, so PATH resolution of gcloud.cmd works.
+            return 'gcloud';
+        }
+
+        const home = os.homedir();
+        const candidates = [
+            '/opt/homebrew/bin/gcloud',
+            '/opt/homebrew/share/google-cloud-sdk/bin/gcloud',
+            '/usr/local/bin/gcloud',
+            '/usr/local/share/google-cloud-sdk/bin/gcloud',
+            path.join(home, 'google-cloud-sdk', 'bin', 'gcloud'),
+            path.join(home, '.local', 'bin', 'gcloud'),
+            '/snap/bin/gcloud'
+        ];
+        for (const candidate of candidates) {
+            if (fs.existsSync(candidate)) {
+                return candidate;
+            }
+        }
+
+        return 'gcloud';
+    }
+
+    /**
+     * Builds a PATH that includes common SDK bin directories on top of the
+     * inherited PATH, so the resolved gcloud can locate python and components.
+     */
+    private static buildAugmentedPath(): string {
+        const existing = process.env.PATH || '';
+        if (process.platform === 'win32') {
+            return existing;
+        }
+
+        const home = os.homedir();
+        const extra = [
+            '/opt/homebrew/bin',
+            '/opt/homebrew/share/google-cloud-sdk/bin',
+            '/usr/local/bin',
+            '/usr/local/share/google-cloud-sdk/bin',
+            path.join(home, 'google-cloud-sdk', 'bin'),
+            path.join(home, '.local', 'bin'),
+            '/snap/bin'
+        ];
+
+        const segments = existing.split(':').filter(s => s.length > 0);
+        for (const dir of extra) {
+            if (!segments.includes(dir)) {
+                segments.push(dir);
+            }
+        }
+        return segments.join(':');
     }
 
 }

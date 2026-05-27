@@ -153,7 +153,7 @@ export class BqSqlNotebookController implements vscode.Disposable {
 
             execution.end(true, Date.now());
         } catch (err: any) {
-            const errorMessage = err?.message || String(err);
+            const errorMessage = extractBigQueryErrorMessage(err);
             await execution.replaceOutput(
                 new vscode.NotebookCellOutput([
                     vscode.NotebookCellOutputItem.error({
@@ -186,4 +186,51 @@ function inferFields(rows: any[]): Array<{ name: string }> {
         return [];
     }
     return Object.keys(rows[0]).map(name => ({ name }));
+}
+
+/**
+ * Extracts a human-readable message from a BigQuery error.
+ * The @google-cloud/bigquery library throws errors whose top-level `message`
+ * is often empty; the real detail lives in the `errors[]` array
+ * (`{ message, reason, location }`). Falling back to String(err) yields the
+ * useless "[object Object]", so dig into the known shapes first.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function extractBigQueryErrorMessage(err: any): string {
+    if (!err) {
+        return 'Unknown error';
+    }
+    if (typeof err === 'string') {
+        return err;
+    }
+
+    const apiErrors = err.errors ?? err.response?.data?.error?.errors;
+    if (Array.isArray(apiErrors) && apiErrors.length > 0) {
+        const messages = apiErrors
+            .map((e: any) => e?.message)
+            .filter((m: any) => typeof m === 'string' && m.length > 0);
+        if (messages.length > 0) {
+            return messages.join('; ');
+        }
+    }
+
+    const nested = err.response?.data?.error?.message;
+    if (typeof nested === 'string' && nested.length > 0) {
+        return nested;
+    }
+
+    if (typeof err.message === 'string' && err.message.length > 0) {
+        return err.message;
+    }
+
+    try {
+        const json = JSON.stringify(err);
+        if (json && json !== '{}') {
+            return json;
+        }
+    } catch {
+        // fall through
+    }
+
+    return String(err);
 }

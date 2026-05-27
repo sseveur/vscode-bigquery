@@ -2,7 +2,7 @@
 	"name": "bigquery-studio",
 	"displayName": "BigQuery Studio",
 	"description": "Fork of bstruct/vscode-bigquery. A powerful Google BigQuery extension with offline-ready charting, query execution, data browsing, SQL intellisense, cost estimation, and data lineage visualization.",
-	"version": "2.0.2",
+	"version": "2.1.0",
 	"publisher": "s-seveur",
 	"icon": "logo.png",
 	"repository": {
@@ -57,13 +57,21 @@
 					"title": "Clipboard Copy Size Limit (KB)",
 					"description": "Maximum size of data (in KB) to copy to clipboard. When exceeded, you will be prompted to truncate or cancel."
 				},
+				"vscode-bigquery.gcloudPath": {
+					"type": "string",
+					"default": "",
+					"scope": "machine-overridable",
+					"order": 4,
+					"title": "gcloud Executable Path",
+					"description": "Full path to the gcloud executable. Leave empty to auto-detect from PATH and common install locations (/opt/homebrew/bin, /usr/local/bin, ~/google-cloud-sdk/bin). Set this if VS Code cannot find gcloud when launched from the Dock/Finder."
+				},
 				"vscode-bigquery.costPerTB": {
 					"type": "number",
 					"default": 6.25,
 					"minimum": 0,
 					"maximum": 100,
 					"scope": "machine-overridable",
-					"order": 4,
+					"order": 5,
 					"title": "Cost per TB ($)",
 					"description": "BigQuery cost per terabyte for query cost estimation. Default is $6.25 (on-demand pricing). Set to 0 to hide cost estimates."
 				},

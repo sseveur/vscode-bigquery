@@ -5,6 +5,18 @@ All notable changes to the BigQuery Studio extension will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-05-27
+
+### Added
+
+- **Persistent notebook cell layout** - When you merge or split cells in SQL notebook mode, the layout now survives save/reload. On save, if your cell boundaries differ from the parser's auto-split, Jupytext-style `-- %%` marker lines are written between cells; on load, those markers drive the split. Files whose layout already matches auto-split stay marker-free (clean diff). `-- %%` is a valid SQL comment, so the file remains runnable in any tool.
+- **Setting: `vscode-bigquery.gcloudPath`** - Optional full path to the gcloud executable. Leave empty to auto-detect.
+
+### Fixed
+
+- **gcloud not found when VS Code launched from Dock/Finder** - macOS/Linux GUI launches inherit a minimal PATH (no `/opt/homebrew/bin`, `/usr/local/bin`, …), so authentication failed with "gcloud CLI not found" even when gcloud worked in a terminal. `runGcloudCommand` now resolves the binary from the `gcloudPath` setting and common SDK install locations, and augments the child process PATH. The ENOENT message now names the searched locations and the setting.
+- **Notebook cell errors showing "BigQueryError: [object Object]"** - The cell execution catch block used `err.message || String(err)`, but BigQuery API errors carry an empty top-level `message` (the detail lives in `err.errors[].message`), so the object stringified to `[object Object]`. New `extractBigQueryErrorMessage` helper digs through `errors[]`, nested `response.data.error`, `message`, then JSON as fallbacks.
+
 ## [2.0.2] - 2026-04-19
 
 ### Fixed
