@@ -5,6 +5,12 @@ All notable changes to the BigQuery Studio extension will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.1] - 2026-05-29
+
+### Fixed
+
+- **Preview CTE missed preceding DECLARE/SET** - The rewrite started at the `WITH` keyword, so any `DECLARE` or `SET` statement above the WITH was dropped from the preview. When a CTE referenced a declared variable, the preview query failed with "Unrecognized name". `extractCtePreviews` now collects every top-level `declare_stmt` / `set_stmt` that appears before the target WITH in the same script and prepends them (with semicolons) to the rewritten query.
+
 ## [2.2.0] - 2026-05-28
 
 ### Added
