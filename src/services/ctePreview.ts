@@ -40,13 +40,20 @@ export function extractCtePreviews(sql: string, rowLimit: number): CtePreview[] 
     const limit = Number.isFinite(rowLimit) && rowLimit > 0 ? Math.floor(rowLimit) : 100;
     const previews: CtePreview[] = [];
 
-    for (const stmt of cst.statements) {
+    const statements = cst.statements as unknown[];
+    for (let stmtIdx = 0; stmtIdx < statements.length; stmtIdx++) {
+        const stmt = statements[stmtIdx];
         const withClause = findOutermostWithClause(stmt);
         if (!withClause) { continue; }
 
         const startOffset: number | undefined = withClause.withKw?.range?.[0];
         const items: unknown[] | undefined = withClause.tables?.items;
         if (typeof startOffset !== "number" || !Array.isArray(items)) { continue; }
+
+        // Collect any preceding DECLARE / SET statements so variables referenced
+        // inside the CTEs resolve when the preview runs in isolation. sql-parser-cst
+        // strips the trailing ';' from statement ranges, so we re-append it.
+        const prefix = collectScriptPrefix(sql, statements, stmtIdx);
 
         for (const cte of items) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -59,12 +66,31 @@ export function extractCtePreviews(sql: string, rowLimit: number): CtePreview[] 
             if (!name || typeof nameOffset !== "number" || typeof endOffset !== "number") { continue; }
 
             const head = sql.slice(startOffset, endOffset);
-            const previewSql = `${head}\nSELECT * FROM \`${name}\` LIMIT ${limit}`;
+            const previewSql = `${prefix}${head}\nSELECT * FROM \`${name}\` LIMIT ${limit}`;
             previews.push({ name, nameOffset, previewSql });
         }
     }
 
     return previews;
+}
+
+const PREFIX_STATEMENT_TYPES = new Set([
+    "declare_stmt",
+    "set_stmt"
+]);
+
+function collectScriptPrefix(sql: string, statements: unknown[], targetIdx: number): string {
+    const parts: string[] = [];
+    for (let i = 0; i < targetIdx; i++) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const s = statements[i] as any;
+        if (!s || !PREFIX_STATEMENT_TYPES.has(s.type)) { continue; }
+        const range = s.range;
+        if (!Array.isArray(range) || range.length < 2) { continue; }
+        const text = sql.slice(range[0], range[1]).trim().replace(/;\s*$/, "");
+        if (text) { parts.push(text + ";"); }
+    }
+    return parts.length > 0 ? parts.join("\n") + "\n" : "";
 }
 
 /**
