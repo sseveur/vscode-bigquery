@@ -5,6 +5,14 @@ All notable changes to the BigQuery Studio extension will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2026-05-28
+
+### Added
+
+- **Preview CTE** - A clickable "▷ Preview CTE" CodeLens now appears above each CTE in a top-level `WITH` clause (like the dbt Power User extension). Clicking runs that CTE in isolation and shows the rows in the results grid. The rewrite keeps every CTE from the start of the `WITH` through the target one, so all of the CTE's dependencies are included automatically (SQL forbids forward CTE references, so everything it needs is already above it). `RECURSIVE`, comments, and formatting are preserved verbatim. Powered by `sql-parser-cst` CTE ranges (`src/services/ctePreview.ts`).
+- **Setting: `vscode-bigquery.enableCtePreviewCodeLens`** (default `true`) - Toggle the Preview CTE CodeLens.
+- **Setting: `vscode-bigquery.ctePreviewRowLimit`** (default `100`) - Row limit appended to the preview query.
+
 ## [2.1.0] - 2026-05-27
 
 ### Added

@@ -35,6 +35,7 @@ import { showMultiLineagePanel } from './lineage/lineageWebviewProvider';
 export const COMMAND_CLEAR_EXTENSION_CACHE = "vscode-bigquery.clear-extension-cache";
 export const COMMAND_RUN_QUERY = "vscode-bigquery.run-query";
 export const COMMAND_RUN_SELECTED_QUERY = "vscode-bigquery.run-selected-query";
+export const COMMAND_PREVIEW_CTE = "vscode-bigquery.preview-cte";
 export const COMMAND_USER_LOGIN = "vscode-bigquery.user-login";
 export const COMMAND_USER_LOGIN_WITH_DRIVE = "vscode-bigquery.user-login-drive";
 export const COMMAND_USER_LOGIN_NO_LAUNCH_BROWSER = "vscode-bigquery.user-login-no-launch-browser";
@@ -112,6 +113,35 @@ export const commandRunQuery = async function (this: any, ...args: any[]) {
 export const commandRunSelectedQuery = async function (this: any, ...args: any[]) {
 
 	return commandQuery(this, RunQueryType.selectedQuery);
+
+};
+
+/**
+ * Runs a single CTE in isolation and shows its rows in the results grid.
+ * Invoked by the CTE-preview CodeLens, which passes the already-rewritten
+ * query (WITH upstream CTEs … SELECT * FROM <cte> LIMIT n) and the CTE name.
+ */
+export const commandPreviewCte = async function (this: any, ...args: any[]) {
+
+	const previewSql: string = args[0];
+	const cteName: string = args[1] ?? 'cte';
+	if (!previewSql) { return; }
+
+	const globalState: vscode.Memento = this.globalState;
+	const queryResultsWebviewMapping: Map<string, ResultsRender> = this.queryResultsWebviewMapping;
+
+	const textEditor = vscode.window.activeTextEditor;
+
+	let uuid: string | undefined;
+	if (textEditor) {
+		uuid = QueryResultsMappingService.getQueryResultsMappingUuid(globalState, textEditor, QueryResultsVisualizationType.table);
+		if (!uuid) { uuid = uuidv4().substring(0, 8); }
+		QueryResultsMappingService.upsertQueryResultsMapping(globalState, uuid, textEditor, QueryResultsVisualizationType.table);
+	} else {
+		uuid = uuidv4().substring(0, 8);
+	}
+
+	await runQuery(globalState, queryResultsWebviewMapping, uuid, `CTE: ${cteName}`, previewSql);
 
 };
 

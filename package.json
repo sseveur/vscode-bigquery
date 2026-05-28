@@ -2,7 +2,7 @@
 	"name": "bigquery-studio",
 	"displayName": "BigQuery Studio",
 	"description": "Fork of bstruct/vscode-bigquery. A powerful Google BigQuery extension with offline-ready charting, query execution, data browsing, SQL intellisense, cost estimation, and data lineage visualization.",
-	"version": "2.1.0",
+	"version": "2.2.0",
 	"publisher": "s-seveur",
 	"icon": "logo.png",
 	"repository": {
@@ -56,6 +56,22 @@
 					"order": 3,
 					"title": "Clipboard Copy Size Limit (KB)",
 					"description": "Maximum size of data (in KB) to copy to clipboard. When exceeded, you will be prompted to truncate or cancel."
+				},
+				"vscode-bigquery.enableCtePreviewCodeLens": {
+					"type": "boolean",
+					"default": true,
+					"scope": "machine-overridable",
+					"title": "Enable CTE Preview CodeLens",
+					"description": "Show a clickable 'Preview CTE' link above each CTE in a WITH clause. Clicking runs that CTE (with its upstream dependencies) and shows the rows."
+				},
+				"vscode-bigquery.ctePreviewRowLimit": {
+					"type": "number",
+					"default": 100,
+					"minimum": 1,
+					"maximum": 100000,
+					"scope": "machine-overridable",
+					"title": "CTE Preview Row Limit",
+					"description": "Number of rows to fetch when previewing a CTE via the CodeLens (LIMIT appended to the rewritten query)."
 				},
 				"vscode-bigquery.gcloudPath": {
 					"type": "string",
