@@ -10,6 +10,7 @@ import { BqsqlDocumentSemanticTokensProvider } from './language/bqsqlDocumentSem
 import { BqsqlInlayHintsProvider } from './language/bqsqlInlayHintsProvider';
 import { BqsqlHoverProvider } from './language/bqsqlHoverProvider';
 import { BqsqlFoldingRangeProvider } from './language/bqsqlFoldingRangeProvider';
+import { BqsqlCtePreviewCodeLensProvider } from './language/bqsqlCtePreviewCodeLensProvider';
 import { BigqueryTableSchemaService } from './services/bigqueryTableSchemaService';
 import { BqsqlDiagnostics } from './language/bqsqlDiagnostics';
 import { QueryResultsSerializer } from './tableResultsPanel/queryResultsSerializer';
@@ -98,6 +99,17 @@ export function activate(context: ExtensionContext) {
 		vscode.commands.registerCommand(
 			commands.COMMAND_RUN_SELECTED_QUERY,
 			commands.commandRunSelectedQuery,
+			{
+				"globalState": context.globalState,
+				queryResultsWebviewMapping: queryResultsWebviewMapping
+			}
+		)
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand(
+			commands.COMMAND_PREVIEW_CTE,
+			commands.commandPreviewCte,
 			{
 				"globalState": context.globalState,
 				queryResultsWebviewMapping: queryResultsWebviewMapping
@@ -624,6 +636,21 @@ export function activate(context: ExtensionContext) {
 		vscode.languages.registerFoldingRangeProvider(
 			{ language: 'sql' },
 			foldingRangeProvider
+		)
+	);
+
+	// CodeLens provider: "Preview CTE" link above each CTE in a WITH clause
+	const ctePreviewCodeLensProvider = new BqsqlCtePreviewCodeLensProvider();
+	context.subscriptions.push(
+		vscode.languages.registerCodeLensProvider(
+			{ language: 'bqsql' },
+			ctePreviewCodeLensProvider
+		)
+	);
+	context.subscriptions.push(
+		vscode.languages.registerCodeLensProvider(
+			{ language: 'sql' },
+			ctePreviewCodeLensProvider
 		)
 	);
 
