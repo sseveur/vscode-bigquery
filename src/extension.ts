@@ -119,6 +119,17 @@ export function activate(context: ExtensionContext) {
 
 	context.subscriptions.push(
 		vscode.commands.registerCommand(
+			commands.COMMAND_PROFILE_COLUMN,
+			commands.commandProfileColumn,
+			{
+				"globalState": context.globalState,
+				queryResultsWebviewMapping: queryResultsWebviewMapping
+			}
+		)
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand(
 			commands.COMMAND_USER_LOGIN,
 			commands.commandUserLogin
 		)

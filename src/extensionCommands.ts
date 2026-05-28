@@ -31,11 +31,14 @@ import { QueryHistoryItem, QueryHistoryService } from './services/queryHistorySe
 import { TableIndexService } from './services/tableIndexService';
 import { buildMultiQueryLineage } from './services/lineageGraph';
 import { showMultiLineagePanel } from './lineage/lineageWebviewProvider';
+import { runColumnProfile } from './services/columnProfile';
+import { showColumnProfilePanel } from './tableResultsPanel/columnProfilePanel';
 
 export const COMMAND_CLEAR_EXTENSION_CACHE = "vscode-bigquery.clear-extension-cache";
 export const COMMAND_RUN_QUERY = "vscode-bigquery.run-query";
 export const COMMAND_RUN_SELECTED_QUERY = "vscode-bigquery.run-selected-query";
 export const COMMAND_PREVIEW_CTE = "vscode-bigquery.preview-cte";
+export const COMMAND_PROFILE_COLUMN = "vscode-bigquery.profile-column";
 export const COMMAND_USER_LOGIN = "vscode-bigquery.user-login";
 export const COMMAND_USER_LOGIN_WITH_DRIVE = "vscode-bigquery.user-login-drive";
 export const COMMAND_USER_LOGIN_NO_LAUNCH_BROWSER = "vscode-bigquery.user-login-no-launch-browser";
@@ -145,6 +148,104 @@ export const commandPreviewCte = async function (this: any, ...args: any[]) {
 
 };
 
+/**
+ * Profiles a single column of the most recently run query for the active editor.
+ * Pulls the destination temp table from the job metadata, runs type-aware aggregates
+ * (COUNT, DISTINCT, NULL%, MIN/MAX, APPROX_QUANTILES, top-K), and renders the
+ * result in a side panel.
+ */
+export const commandProfileColumn = async function (this: any, ...args: any[]) {
+
+	const globalState: vscode.Memento = this.globalState;
+
+	const textEditor = vscode.window.activeTextEditor;
+	if (!textEditor) {
+		vscode.window.showWarningMessage('Open a query editor to profile a column.');
+		return;
+	}
+
+	const uuid = QueryResultsMappingService.getQueryResultsMappingUuid(globalState, textEditor, QueryResultsVisualizationType.table);
+	if (!uuid) {
+		vscode.window.showWarningMessage('No recent query results for this editor. Run a query first.');
+		return;
+	}
+
+	const mapping = QueryResultsMappingService.getQueryResultsMappingItem(globalState, uuid);
+	const jobs = mapping?.jobReferences;
+	if (!jobs || jobs.length === 0) {
+		vscode.window.showWarningMessage('No recent query results for this editor. Run a query first.');
+		return;
+	}
+	const jobRef = jobs[jobs.length - 1];
+
+	const bqClient = await getBigQueryClient();
+
+	// Pull the schema from the job so we can present a column picker. For SCRIPT
+	// jobs (multi-statement files), the parent's schema may be empty — fall back
+	// to the last child job that produced a result set.
+	type SchemaField = { name: string; type: string; mode?: string };
+	let fields: SchemaField[] = [];
+	try {
+		const job = bqClient.getJob(jobRef);
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const [meta]: any = await job.getMetadata();
+		fields = (meta?.statistics?.query?.schema?.fields
+			|| meta?.configuration?.query?.schema?.fields
+			|| []) as SchemaField[];
+
+		if (fields.length === 0 && meta?.statistics?.query?.statementType === 'SCRIPT') {
+			const children = await bqClient.getChildJobs(jobRef);
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			const sorted = (children as any[]).slice().sort((a, b) => {
+				const aId: string = a?.id ?? ''; const bId: string = b?.id ?? '';
+				const aN = Number(aId.substring(aId.lastIndexOf('_') + 1)) || 0;
+				const bN = Number(bId.substring(bId.lastIndexOf('_') + 1)) || 0;
+				return bN - aN;
+			});
+			for (const child of sorted) {
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				const f = (child as any)?.metadata?.statistics?.query?.schema?.fields;
+				if (Array.isArray(f) && f.length > 0) { fields = f as SchemaField[]; break; }
+			}
+		}
+	} catch (err) {
+		vscode.window.showErrorMessage(`Could not load schema for the last query: ${(err as Error).message || err}`);
+		return;
+	}
+
+	if (!fields || fields.length === 0) {
+		vscode.window.showWarningMessage('The last job has no readable schema (it may have been a DDL or script).');
+		return;
+	}
+
+	const picks = fields.map(f => ({
+		label: f.name,
+		description: f.mode === 'REPEATED' ? `${f.type}[]` : f.type,
+		field: f
+	}));
+	const choice = await vscode.window.showQuickPick(picks, {
+		placeHolder: `Profile which column? (${fields.length} available)`,
+		matchOnDescription: true
+	});
+	if (!choice) { return; }
+
+	const columnName = choice.field.name;
+	const columnType = choice.field.mode === 'REPEATED' ? 'ARRAY' : choice.field.type;
+
+	await vscode.window.withProgress(
+		{ location: vscode.ProgressLocation.Notification, title: `Profiling \`${columnName}\`…`, cancellable: false },
+		async () => {
+			try {
+				const profile = await runColumnProfile(bqClient, jobRef, columnName, columnType);
+				showColumnProfilePanel(profile);
+			} catch (err) {
+				vscode.window.showErrorMessage(`Profile failed: ${(err as Error).message || err}`);
+			}
+		}
+	);
+
+};
+
 enum RunQueryType {
 	query = 1,
 	selectedQuery = 2
@@ -239,7 +340,23 @@ const runQuery = async function (globalState: vscode.Memento, queryResultsWebvie
 		// console.log('token:', token);
 		const job = await bqClient.runQuery(queryText);
 
-		// const jobReferences = job.map(c => { return { jobId: c.id, projectId: c.projectId, location: c.location } as JobReference; });
+		// Persist the job reference on the editor's mapping so follow-up extension-side
+		// features (Profile Column, etc.) can find the most recent job without having
+		// to round-trip through the grid webview.
+		try {
+			const jobRefMeta = job.metadata?.jobReference;
+			if (jobRefMeta?.jobId && jobRefMeta?.projectId) {
+				await QueryResultsMappingService.updateQueryResultsMapping(globalState, uuid, {
+					jobReferences: [{
+						projectId: jobRefMeta.projectId,
+						jobId: jobRefMeta.jobId,
+						location: jobRefMeta.location ?? ''
+					}],
+					jobIndex: 0
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				} as any);
+			}
+		} catch { /* non-fatal */ }
 
 
 		let _postMessageResult2 = await resultsGridRender.postMessage({

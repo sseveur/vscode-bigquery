@@ -392,6 +392,11 @@
 				"icon": "$(debug-line-by-line)"
 			},
 			{
+				"command": "vscode-bigquery.profile-column",
+				"title": "BigQuery: Profile Column",
+				"icon": "$(graph)"
+			},
+			{
 				"command": "vscode-bigquery.user-login",
 				"title": "BigQuery: User Login"
 			},
