@@ -31,8 +31,9 @@ import { QueryHistoryItem, QueryHistoryService } from './services/queryHistorySe
 import { TableIndexService } from './services/tableIndexService';
 import { buildMultiQueryLineage } from './services/lineageGraph';
 import { showMultiLineagePanel } from './lineage/lineageWebviewProvider';
-import { runColumnProfile } from './services/columnProfile';
+import { runColumnProfileForTable } from './services/columnProfile';
 import { showColumnProfilePanel } from './tableResultsPanel/columnProfilePanel';
+import { resolveColumnAtPosition, ResolvedColumn } from './services/columnResolver';
 
 export const COMMAND_CLEAR_EXTENSION_CACHE = "vscode-bigquery.clear-extension-cache";
 export const COMMAND_RUN_QUERY = "vscode-bigquery.run-query";
@@ -149,95 +150,55 @@ export const commandPreviewCte = async function (this: any, ...args: any[]) {
 };
 
 /**
- * Profiles a single column of the most recently run query for the active editor.
- * Pulls the destination temp table from the job metadata, runs type-aware aggregates
- * (COUNT, DISTINCT, NULL%, MIN/MAX, APPROX_QUANTILES, top-K), and renders the
- * result in a side panel.
+ * Profiles the column at the cursor. The SQL surrounding the cursor is parsed to
+ * find which table the identifier belongs to (via FROM/JOIN clauses and any
+ * `alias.column` qualifier), the column type is read from the schema cache, and
+ * type-aware aggregates (COUNT, DISTINCT, NULL%, MIN/MAX, APPROX_QUANTILES, top-K)
+ * are run directly against the source table. The result is rendered with charts
+ * in a side panel.
  */
 export const commandProfileColumn = async function (this: any, ...args: any[]) {
 
-	const globalState: vscode.Memento = this.globalState;
-
 	const textEditor = vscode.window.activeTextEditor;
 	if (!textEditor) {
-		vscode.window.showWarningMessage('Open a query editor to profile a column.');
+		vscode.window.showWarningMessage('Open a SQL file and place the cursor on a column name to profile it.');
 		return;
 	}
 
-	const uuid = QueryResultsMappingService.getQueryResultsMappingUuid(globalState, textEditor, QueryResultsVisualizationType.table);
-	if (!uuid) {
-		vscode.window.showWarningMessage('No recent query results for this editor. Run a query first.');
-		return;
-	}
-
-	const mapping = QueryResultsMappingService.getQueryResultsMappingItem(globalState, uuid);
-	const jobs = mapping?.jobReferences;
-	if (!jobs || jobs.length === 0) {
-		vscode.window.showWarningMessage('No recent query results for this editor. Run a query first.');
-		return;
-	}
-	const jobRef = jobs[jobs.length - 1];
+	const document = textEditor.document;
+	const sql = document.getText();
+	const offset = document.offsetAt(textEditor.selection.active);
 
 	const bqClient = await getBigQueryClient();
+	const defaultProjectId = await bqClient.getProjectId();
 
-	// Pull the schema from the job so we can present a column picker. For SCRIPT
-	// jobs (multi-statement files), the parent's schema may be empty — fall back
-	// to the last child job that produced a result set.
-	type SchemaField = { name: string; type: string; mode?: string };
-	let fields: SchemaField[] = [];
+	let resolved: ResolvedColumn | null = null;
 	try {
-		const job = bqClient.getJob(jobRef);
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const [meta]: any = await job.getMetadata();
-		fields = (meta?.statistics?.query?.schema?.fields
-			|| meta?.configuration?.query?.schema?.fields
-			|| []) as SchemaField[];
-
-		if (fields.length === 0 && meta?.statistics?.query?.statementType === 'SCRIPT') {
-			const children = await bqClient.getChildJobs(jobRef);
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			const sorted = (children as any[]).slice().sort((a, b) => {
-				const aId: string = a?.id ?? ''; const bId: string = b?.id ?? '';
-				const aN = Number(aId.substring(aId.lastIndexOf('_') + 1)) || 0;
-				const bN = Number(bId.substring(bId.lastIndexOf('_') + 1)) || 0;
-				return bN - aN;
-			});
-			for (const child of sorted) {
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				const f = (child as any)?.metadata?.statistics?.query?.schema?.fields;
-				if (Array.isArray(f) && f.length > 0) { fields = f as SchemaField[]; break; }
-			}
-		}
+		resolved = await resolveColumnAtPosition(bqClient, sql, offset, defaultProjectId);
 	} catch (err) {
-		vscode.window.showErrorMessage(`Could not load schema for the last query: ${(err as Error).message || err}`);
+		vscode.window.showErrorMessage(`Profile column: ${(err as Error).message || err}`);
 		return;
 	}
 
-	if (!fields || fields.length === 0) {
-		vscode.window.showWarningMessage('The last job has no readable schema (it may have been a DDL or script).');
+	if (!resolved) {
+		vscode.window.showWarningMessage('Place the cursor on a column name (or `alias.column`) before running Profile Column.');
 		return;
 	}
 
-	const picks = fields.map(f => ({
-		label: f.name,
-		description: f.mode === 'REPEATED' ? `${f.type}[]` : f.type,
-		field: f
-	}));
-	const choice = await vscode.window.showQuickPick(picks, {
-		placeHolder: `Profile which column? (${fields.length} available)`,
-		matchOnDescription: true
-	});
-	if (!choice) { return; }
-
-	const columnName = choice.field.name;
-	const columnType = choice.field.mode === 'REPEATED' ? 'ARRAY' : choice.field.type;
+	const target = resolved;
+	const subtitle = `${target.projectId}.${target.datasetId}.${target.tableId}.${target.columnName} · ${target.columnType}`;
 
 	await vscode.window.withProgress(
-		{ location: vscode.ProgressLocation.Notification, title: `Profiling \`${columnName}\`…`, cancellable: false },
+		{ location: vscode.ProgressLocation.Notification, title: `Profiling \`${target.columnName}\`…`, cancellable: false },
 		async () => {
 			try {
-				const profile = await runColumnProfile(bqClient, jobRef, columnName, columnType);
-				showColumnProfilePanel(profile);
+				const profile = await runColumnProfileForTable(
+					bqClient,
+					{ projectId: target.projectId, datasetId: target.datasetId, tableId: target.tableId },
+					target.columnName,
+					target.columnType
+				);
+				showColumnProfilePanel(profile, subtitle);
 			} catch (err) {
 				vscode.window.showErrorMessage(`Profile failed: ${(err as Error).message || err}`);
 			}

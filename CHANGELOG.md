@@ -5,6 +5,12 @@ All notable changes to the BigQuery Studio extension will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2026-05-30
+
+### Added
+
+- **Column Profile (right-click)** - Place the cursor on a column name in a SQL file, right-click, and pick "BigQuery: Profile Column". The surrounding statement is parsed to find tables in scope (FROM/JOIN, aliases, CTEs), the column word at the cursor is matched against their schemas — supports unqualified columns and `alias.column` references — and a type-aware aggregate query (`COUNT`, `COUNT(DISTINCT)`, `NULL%`, `MIN`, `MAX`, `APPROX_QUANTILES(20)`, top-20 values) runs directly against the source table. Results render in a side panel with a quantile-derived density histogram + box plot for numeric/temporal columns and a top-values bar chart for categorical columns. The distribution chart has a Linear/Log tab toggle (CSS-only, no scripts) using signed-log (`sign(x)·log10(1+|x|)`) so heavy-tailed distributions stay readable and negatives don't crash. All sections (Stats, Distribution, Quantiles, Top values, Source SQL) are collapsible via native `<details>`. New files: `src/services/columnResolver.ts`, charts in `src/tableResultsPanel/columnProfilePanel.ts`.
+
 ## [2.2.1] - 2026-05-29
 
 ### Fixed

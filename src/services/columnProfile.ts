@@ -1,6 +1,12 @@
 import { BigQueryClient } from './bigqueryClient';
 import { JobReference } from './queryResultsMapping';
 
+export interface TableReference {
+    projectId: string;
+    datasetId: string;
+    tableId: string;
+}
+
 export interface TopValue {
     value: unknown;
     count: number;
@@ -46,13 +52,7 @@ function quoteIdent(name: string): string {
     return '`' + name.replace(/`/g, '``') + '`';
 }
 
-interface DestinationTable {
-    projectId: string;
-    datasetId: string;
-    tableId: string;
-}
-
-function fqtn(dt: DestinationTable): string {
+function fqtn(dt: TableReference): string {
     return `\`${dt.projectId}\`.\`${dt.datasetId}\`.\`${dt.tableId}\``;
 }
 
@@ -63,7 +63,7 @@ function fqtn(dt: DestinationTable): string {
  *   - orderable (string/date/etc.): total/null/distinct/min/max/topK (no quantiles)
  *   - opaque (array/struct/json/geography): total/null only
  */
-export function buildProfileSql(dt: DestinationTable, columnName: string, columnType: string): string {
+export function buildProfileSql(dt: TableReference, columnName: string, columnType: string): string {
     const tier = classifyType(columnType);
     const col = quoteIdent(columnName);
     const source = fqtn(dt);
@@ -88,7 +88,7 @@ SELECT
   (SELECT COUNT(DISTINCT v) FROM src) AS distinct_count,
   (SELECT MIN(v) FROM src) AS min_value,
   (SELECT MAX(v) FROM src) AS max_value,
-  (SELECT APPROX_QUANTILES(v, 10) FROM src) AS quantiles,
+  (SELECT APPROX_QUANTILES(v, 20) FROM src) AS quantiles,
   (SELECT top_values FROM topk) AS top_values`;
     }
 
@@ -105,6 +105,22 @@ SELECT
   (SELECT MIN(v) FROM src) AS min_value,
   (SELECT MAX(v) FROM src) AS max_value,
   (SELECT top_values FROM topk) AS top_values`;
+}
+
+/**
+ * Profiles a column against a concrete source table. Used by the right-click flow
+ * where we've already resolved the column to its (project, dataset, table).
+ */
+export async function runColumnProfileForTable(
+    bqClient: BigQueryClient,
+    tableRef: TableReference,
+    columnName: string,
+    columnType: string
+): Promise<ColumnProfile> {
+    const sql = buildProfileSql(tableRef, columnName, columnType);
+    const profileJob = await bqClient.runQuery(sql);
+    const [rows] = await profileJob.getQueryResults({ maxResults: 1 });
+    return mapProfileRow(rows && rows[0], columnName, columnType, sql);
 }
 
 /**
@@ -131,8 +147,12 @@ export async function runColumnProfile(
     const sql = buildProfileSql(destination, columnName, columnType);
     const profileJob = await bqClient.runQuery(sql);
     const [rows] = await profileJob.getQueryResults({ maxResults: 1 });
-    const row = (rows && rows[0]) || {};
+    return mapProfileRow(rows && rows[0], columnName, columnType, sql);
+}
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapProfileRow(rowIn: any, columnName: string, columnType: string, sql: string): ColumnProfile {
+    const row = rowIn || {};
     const topValuesRaw = row.top_values as Array<{ value: unknown; count: unknown }> | null | undefined;
     const topValues: TopValue[] | null = Array.isArray(topValuesRaw)
         ? topValuesRaw.map(tv => ({ value: tv.value, count: Number(tv.count ?? 0) }))
@@ -162,7 +182,7 @@ export async function runColumnProfile(
 export async function resolveDestinationTable(
     bqClient: BigQueryClient,
     jobRef: JobReference
-): Promise<DestinationTable | null> {
+): Promise<TableReference | null> {
 
     const job = bqClient.getJob(jobRef);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
