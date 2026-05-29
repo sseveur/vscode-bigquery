@@ -275,6 +275,19 @@ WHERE table_name = @tableName AND is_hidden = 'NO'
 		return this.bqclient.job(jobReference.jobId, { location: jobReference.location, projectId: jobReference.projectId });
 	}
 
+	/**
+	 * Lists child jobs of a SCRIPT parent. Multi-statement scripts expose a parent
+	 * job with no destination table; each statement is a child job that may have
+	 * its own materialized result table.
+	 */
+	public async getChildJobs(parentJobRef: JobReference): Promise<Job[]> {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const opts: any = { parentJobId: parentJobRef.jobId, projectId: parentJobRef.projectId };
+		if (parentJobRef.location) { opts.location = parentJobRef.location; }
+		const [jobs] = await this.bqclient.getJobs(opts);
+		return jobs as Job[];
+	}
+
 	private onfulfilled(value: [any, any]): TableMetadata {
 
 		const metadata = value[0][0] as TableMetadata;

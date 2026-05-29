@@ -31,11 +31,15 @@ import { QueryHistoryItem, QueryHistoryService } from './services/queryHistorySe
 import { TableIndexService } from './services/tableIndexService';
 import { buildMultiQueryLineage } from './services/lineageGraph';
 import { showMultiLineagePanel } from './lineage/lineageWebviewProvider';
+import { runColumnProfileForTable } from './services/columnProfile';
+import { showColumnProfilePanel } from './tableResultsPanel/columnProfilePanel';
+import { resolveColumnAtPosition, ResolvedColumn } from './services/columnResolver';
 
 export const COMMAND_CLEAR_EXTENSION_CACHE = "vscode-bigquery.clear-extension-cache";
 export const COMMAND_RUN_QUERY = "vscode-bigquery.run-query";
 export const COMMAND_RUN_SELECTED_QUERY = "vscode-bigquery.run-selected-query";
 export const COMMAND_PREVIEW_CTE = "vscode-bigquery.preview-cte";
+export const COMMAND_PROFILE_COLUMN = "vscode-bigquery.profile-column";
 export const COMMAND_USER_LOGIN = "vscode-bigquery.user-login";
 export const COMMAND_USER_LOGIN_WITH_DRIVE = "vscode-bigquery.user-login-drive";
 export const COMMAND_USER_LOGIN_NO_LAUNCH_BROWSER = "vscode-bigquery.user-login-no-launch-browser";
@@ -145,6 +149,64 @@ export const commandPreviewCte = async function (this: any, ...args: any[]) {
 
 };
 
+/**
+ * Profiles the column at the cursor. The SQL surrounding the cursor is parsed to
+ * find which table the identifier belongs to (via FROM/JOIN clauses and any
+ * `alias.column` qualifier), the column type is read from the schema cache, and
+ * type-aware aggregates (COUNT, DISTINCT, NULL%, MIN/MAX, APPROX_QUANTILES, top-K)
+ * are run directly against the source table. The result is rendered with charts
+ * in a side panel.
+ */
+export const commandProfileColumn = async function (this: any, ...args: any[]) {
+
+	const textEditor = vscode.window.activeTextEditor;
+	if (!textEditor) {
+		vscode.window.showWarningMessage('Open a SQL file and place the cursor on a column name to profile it.');
+		return;
+	}
+
+	const document = textEditor.document;
+	const sql = document.getText();
+	const offset = document.offsetAt(textEditor.selection.active);
+
+	const bqClient = await getBigQueryClient();
+	const defaultProjectId = await bqClient.getProjectId();
+
+	let resolved: ResolvedColumn | null = null;
+	try {
+		resolved = await resolveColumnAtPosition(bqClient, sql, offset, defaultProjectId);
+	} catch (err) {
+		vscode.window.showErrorMessage(`Profile column: ${(err as Error).message || err}`);
+		return;
+	}
+
+	if (!resolved) {
+		vscode.window.showWarningMessage('Place the cursor on a column name (or `alias.column`) before running Profile Column.');
+		return;
+	}
+
+	const target = resolved;
+	const subtitle = `${target.projectId}.${target.datasetId}.${target.tableId}.${target.columnName} · ${target.columnType}`;
+
+	await vscode.window.withProgress(
+		{ location: vscode.ProgressLocation.Notification, title: `Profiling \`${target.columnName}\`…`, cancellable: false },
+		async () => {
+			try {
+				const profile = await runColumnProfileForTable(
+					bqClient,
+					{ projectId: target.projectId, datasetId: target.datasetId, tableId: target.tableId },
+					target.columnName,
+					target.columnType
+				);
+				showColumnProfilePanel(profile, subtitle);
+			} catch (err) {
+				vscode.window.showErrorMessage(`Profile failed: ${(err as Error).message || err}`);
+			}
+		}
+	);
+
+};
+
 enum RunQueryType {
 	query = 1,
 	selectedQuery = 2
@@ -239,7 +301,23 @@ const runQuery = async function (globalState: vscode.Memento, queryResultsWebvie
 		// console.log('token:', token);
 		const job = await bqClient.runQuery(queryText);
 
-		// const jobReferences = job.map(c => { return { jobId: c.id, projectId: c.projectId, location: c.location } as JobReference; });
+		// Persist the job reference on the editor's mapping so follow-up extension-side
+		// features (Profile Column, etc.) can find the most recent job without having
+		// to round-trip through the grid webview.
+		try {
+			const jobRefMeta = job.metadata?.jobReference;
+			if (jobRefMeta?.jobId && jobRefMeta?.projectId) {
+				await QueryResultsMappingService.updateQueryResultsMapping(globalState, uuid, {
+					jobReferences: [{
+						projectId: jobRefMeta.projectId,
+						jobId: jobRefMeta.jobId,
+						location: jobRefMeta.location ?? ''
+					}],
+					jobIndex: 0
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				} as any);
+			}
+		} catch { /* non-fatal */ }
 
 
 		let _postMessageResult2 = await resultsGridRender.postMessage({
