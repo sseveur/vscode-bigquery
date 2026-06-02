@@ -1,4 +1,5 @@
-import { BigQueryClient } from './bigqueryClient';
+import { Job } from '@google-cloud/bigquery';
+import { BigQueryClient, selectFinalResultChildJob } from './bigqueryClient';
 import { JobReference } from './queryResultsMapping';
 
 export interface TableReference {
@@ -21,6 +22,12 @@ export interface ColumnProfile {
     nullCount: number;
     /** Distinct non-null values. `null` if the type isn't hashable (ARRAY/STRUCT). */
     distinctCount: number | null;
+    /** Distinct non-null values that occur more than once. `null` for opaque types. */
+    duplicateValueCount: number | null;
+    /** Total non-null rows belonging to a duplicated value (SUM of counts where count > 1). `null` for opaque types. */
+    duplicateRowCount: number | null;
+    /** Whether every non-null value is unique (distinctCount === totalCount - nullCount). `null` for opaque types. */
+    isUnique: boolean | null;
     /** Min value as returned by BigQuery (may be a Date/Big object — caller stringifies). */
     minValue: unknown;
     /** Max value as returned by BigQuery. */
@@ -86,6 +93,8 @@ SELECT
   (SELECT COUNT(*) FROM src) AS total_count,
   (SELECT COUNTIF(v IS NULL) FROM src) AS null_count,
   (SELECT COUNT(DISTINCT v) FROM src) AS distinct_count,
+  (SELECT COUNT(*) FROM counts WHERE c > 1) AS duplicate_value_count,
+  (SELECT IFNULL(SUM(c), 0) FROM counts WHERE c > 1) AS duplicate_row_count,
   (SELECT MIN(v) FROM src) AS min_value,
   (SELECT MAX(v) FROM src) AS max_value,
   (SELECT APPROX_QUANTILES(v, 20) FROM src) AS quantiles,
@@ -102,6 +111,8 @@ SELECT
   (SELECT COUNT(*) FROM src) AS total_count,
   (SELECT COUNTIF(v IS NULL) FROM src) AS null_count,
   (SELECT COUNT(DISTINCT v) FROM src) AS distinct_count,
+  (SELECT COUNT(*) FROM counts WHERE c > 1) AS duplicate_value_count,
+  (SELECT IFNULL(SUM(c), 0) FROM counts WHERE c > 1) AS duplicate_row_count,
   (SELECT MIN(v) FROM src) AS min_value,
   (SELECT MAX(v) FROM src) AS max_value,
   (SELECT top_values FROM topk) AS top_values`;
@@ -158,12 +169,19 @@ function mapProfileRow(rowIn: any, columnName: string, columnType: string, sql: 
         ? topValuesRaw.map(tv => ({ value: tv.value, count: Number(tv.count ?? 0) }))
         : null;
 
+    const totalCount = Number(row.total_count ?? 0);
+    const nullCount = Number(row.null_count ?? 0);
+    const distinctCount = row.distinct_count == null ? null : Number(row.distinct_count);
+
     return {
         columnName,
         columnType,
-        totalCount: Number(row.total_count ?? 0),
-        nullCount: Number(row.null_count ?? 0),
-        distinctCount: row.distinct_count == null ? null : Number(row.distinct_count),
+        totalCount,
+        nullCount,
+        distinctCount,
+        duplicateValueCount: row.duplicate_value_count == null ? null : Number(row.duplicate_value_count),
+        duplicateRowCount: row.duplicate_row_count == null ? null : Number(row.duplicate_row_count),
+        isUnique: distinctCount == null ? null : distinctCount === (totalCount - nullCount),
         minValue: row.min_value ?? null,
         maxValue: row.max_value ?? null,
         quantiles: Array.isArray(row.quantiles) ? row.quantiles : null,
@@ -196,32 +214,18 @@ export async function resolveDestinationTable(
     const statementType = meta?.statistics?.query?.statementType;
     if (statementType !== 'SCRIPT') { return null; }
 
-    let children: unknown[] = [];
+    let children: Job[] = [];
     try {
         children = await bqClient.getChildJobs(jobRef);
     } catch {
         return null;
     }
 
-    // BigQuery returns child jobs in reverse chronological order; sort by job suffix
-    // to be safe and walk newest → oldest.
+    const finalChild = selectFinalResultChildJob(children);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sortable = (children as any[]).slice().sort((a, b) => {
-        const aId: string = a?.id ?? '';
-        const bId: string = b?.id ?? '';
-        const aN = Number(aId.substring(aId.lastIndexOf('_') + 1)) || 0;
-        const bN = Number(bId.substring(bId.lastIndexOf('_') + 1)) || 0;
-        return bN - aN;
-    });
-
-    for (const child of sortable) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const c: any = child;
-        const dt = c?.metadata?.configuration?.query?.destinationTable;
-        const fields = c?.metadata?.statistics?.query?.schema?.fields;
-        if (dt?.projectId && dt?.datasetId && dt?.tableId && Array.isArray(fields) && fields.length > 0) {
-            return { projectId: dt.projectId, datasetId: dt.datasetId, tableId: dt.tableId };
-        }
+    const dt = (finalChild as any)?.metadata?.configuration?.query?.destinationTable;
+    if (dt?.projectId && dt?.datasetId && dt?.tableId) {
+        return { projectId: dt.projectId, datasetId: dt.datasetId, tableId: dt.tableId };
     }
 
     return null;

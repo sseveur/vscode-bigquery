@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { BigQueryClient } from '../services/bigqueryClient';
+import { BigQueryClient, selectFinalResultChildJob } from '../services/bigqueryClient';
 import { Authentication } from '../services/authentication';
 import { QueryHistoryService } from '../services/queryHistoryService';
 import { NOTEBOOK_TYPE, CELL_LANGUAGE } from './bqSqlNotebookSerializer';
@@ -88,24 +88,46 @@ export class BqSqlNotebookController implements vscode.Disposable {
                 throw new Error('Query cancelled.');
             }
 
-            const queryResults = await job.getQueryResults({ maxResults: INITIAL_PAGE_ROWS });
+            const [metadata] = await job.getMetadata();
+
+            // Multi-statement scripts (DECLARE / CREATE TEMP TABLE / SELECT) surface as a
+            // SCRIPT parent job that carries no result rows or schema of its own — the rows
+            // live on the final SELECT child job. Calling getQueryResults() on the parent
+            // returns nothing, so resolve the child that produced the visible result set and
+            // render that instead. Mirrors the regular results-grid behaviour.
+            let resultJob = job;
+            let resultMetadata: any = metadata;
+            if (metadata?.statistics?.query?.statementType === 'SCRIPT') {
+                const parentRef: JobReference = {
+                    projectId: (metadata?.jobReference?.projectId as string) || projectId || '',
+                    jobId: metadata?.jobReference?.jobId as string,
+                    location: metadata?.jobReference?.location as string
+                };
+                const children = await bqClient.getChildJobs(parentRef).catch(() => [] as any[]);
+                const finalChild = selectFinalResultChildJob(children);
+                if (finalChild) {
+                    resultJob = finalChild;
+                    resultMetadata = finalChild.metadata ?? (await finalChild.getMetadata())[0];
+                }
+            }
+
+            const queryResults = await resultJob.getQueryResults({ maxResults: INITIAL_PAGE_ROWS });
             const rows = queryResults[0];
             const response: any = queryResults[2];
-            const [metadata] = await job.getMetadata();
 
             const schemaFields: any[] =
                 response?.schema?.fields
-                || (metadata?.statistics?.query?.schema as any)?.fields
+                || (resultMetadata?.statistics?.query?.schema as any)?.fields
                 || inferFields(rows);
 
             const bytesProcessed = parseInt(metadata?.statistics?.totalBytesProcessed ?? '0', 10);
             const durationMs = Date.now() - startTime;
-            const totalRows = parseInt(metadata?.statistics?.query?.outputRowCount ?? String(rows.length), 10);
+            const totalRows = parseInt(resultMetadata?.statistics?.query?.outputRowCount ?? String(rows.length), 10);
 
             const jobReference: JobReference = {
-                projectId: (metadata?.jobReference?.projectId as string) || projectId || '',
-                jobId: metadata?.jobReference?.jobId as string,
-                location: metadata?.jobReference?.location as string
+                projectId: (resultMetadata?.jobReference?.projectId as string) || projectId || '',
+                jobId: resultMetadata?.jobReference?.jobId as string,
+                location: resultMetadata?.jobReference?.location as string
             };
 
             const state: CellExecutionState = {

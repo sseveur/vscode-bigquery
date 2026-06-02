@@ -354,3 +354,34 @@ WHERE table_name = @tableName AND is_hidden = 'NO'
 	}
 
 }
+
+/**
+ * Picks the child job that produced the final visible result set of a multi-statement
+ * SCRIPT. BigQuery lists child jobs newest-first, but we sort by the numeric job-id
+ * suffix to be safe and walk newest → oldest, returning the first child that has a
+ * destination table with a non-empty schema (i.e. the last `SELECT`/DML the user saw).
+ * `DECLARE`/`SET`/temp-table-creation children have no result schema and are skipped.
+ * Returns `null` when no child carries a result set.
+ */
+export function selectFinalResultChildJob(children: Job[]): Job | null {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const sortable = (children as any[]).slice().sort((a, b) => {
+		const aId: string = a?.id ?? '';
+		const bId: string = b?.id ?? '';
+		const aN = Number(aId.substring(aId.lastIndexOf('_') + 1)) || 0;
+		const bN = Number(bId.substring(bId.lastIndexOf('_') + 1)) || 0;
+		return bN - aN;
+	});
+
+	for (const child of sortable) {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const c: any = child;
+		const dt = c?.metadata?.configuration?.query?.destinationTable;
+		const fields = c?.metadata?.statistics?.query?.schema?.fields;
+		if (dt?.projectId && dt?.datasetId && dt?.tableId && Array.isArray(fields) && fields.length > 0) {
+			return child;
+		}
+	}
+
+	return null;
+}
