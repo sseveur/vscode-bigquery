@@ -364,6 +364,7 @@ Configuration options:
 | `formatIndentStyle` | standard, tabularLeft, tabularRight | standard | SQL indentation style |
 | `formatLeadingCommas` | true, false | true | Use leading comma style |
 | `formatExpressionWidth` | 1-200 | 50 | Max expression width before line breaks |
+| `formatInlineKeyClauses` | true, false | false | Keep GROUP BY / ORDER BY items on one line when they fit `formatExpressionWidth` (SELECT stays expanded) |
 | `formatDenseOperators` | true, false | false | Pack operators without spaces (1+1) |
 | `formatLogicalOperatorNewline` | before, after | before | Newline position for AND/OR |
 | `formatLogicalOperatorStyle` | keywordAligned, contentAligned, indented | keywordAligned | How AND/OR/ON are positioned relative to their parent clause |
@@ -551,6 +552,7 @@ Setting: `vscode-bigquery.associateSqlFiles`
 | `vscode-bigquery.clipboardSizeLimitKb` | number | `1024` | Clipboard copy size limit (KB) |
 | `vscode-bigquery.costPerTB` | number | `6.25` | Cost per TB for estimates ($) |
 | `vscode-bigquery.formatExpressionWidth` | number | `50` | Max expression width before line break |
+| `vscode-bigquery.formatInlineKeyClauses` | boolean | `false` | Inline GROUP BY / ORDER BY items within expression width |
 | `vscode-bigquery.formatDenseOperators` | boolean | `false` | Pack operators without spaces |
 | `vscode-bigquery.formatKeywordCase` | string | `upper` | Keyword case: upper, lower, preserve |
 | `vscode-bigquery.formatFunctionCase` | string | `preserve` | Function case: upper, lower, preserve |

@@ -119,6 +119,18 @@ function renderStatsTable(profile: ColumnProfile): string {
     if (profile.distinctCount != null) {
         rows.push(['Distinct (non-null)', `${formatNumber(profile.distinctCount)}${distinctPct ? ` (${distinctPct}% unique)` : ''}`]);
     }
+    if (profile.isUnique != null) {
+        rows.push(['Unique', profile.isUnique ? 'Yes' : 'No']);
+    }
+    if (profile.duplicateValueCount != null) {
+        rows.push(['Duplicate values', `${formatNumber(profile.duplicateValueCount)} appear >1×`]);
+    }
+    if (profile.duplicateRowCount != null) {
+        const dupPct = profile.totalCount > 0
+            ? (profile.duplicateRowCount / profile.totalCount * 100).toFixed(2)
+            : '0.00';
+        rows.push(['Duplicate rows', `${formatNumber(profile.duplicateRowCount)} (${dupPct}%)`]);
+    }
     if (profile.minValue !== null) {
         rows.push(['Min', formatScalar(profile.minValue)]);
     }

@@ -5,6 +5,22 @@ All notable changes to the BigQuery Studio extension will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.0] - 2026-06-02
+
+### Added
+
+- **Column Profile: duplicate metrics** (#5) - The profile panel now surfaces duplication for numeric and orderable columns: **Unique** (Yes/No — whether every non-null value is distinct, a quick key-candidate check), **Duplicate values** (how many distinct values appear more than once), and **Duplicate rows** (total rows belonging to a duplicated value, with percentage of the result set). Computed from the existing `counts` CTE in `buildProfileSql`; opaque types (ARRAY/STRUCT/JSON/GEOGRAPHY) leave these `null`.
+- **Setting: `vscode-bigquery.formatInlineKeyClauses`** (default `false`) (#3) - When enabled, `GROUP BY` and `ORDER BY` item lists are kept on a single line if they fit within `formatExpressionWidth`, wrapping at comma boundaries only when they exceed it. `SELECT` stays expanded. A clause containing a line comment is left expanded. Implemented as a post-pass (`collapseKeyClauses`) in `bqsqlFormatter.ts`.
+
+### Changed
+
+- **Settings UI grouped into sections** - The extension's settings are now organised into themed sections in the Settings UI (General, Explorer, Results & Clipboard, CTE Preview, Formatting, Lineage) instead of one flat list. Setting keys are unchanged, so existing configurations keep working.
+
+### Fixed
+
+- **Copy to clipboard added a blank row in Excel** (#2) - The clipboard payload ended with a trailing newline, which Excel/Sheets pasted as an extra empty row. The trailing newline is now stripped before writing.
+- **SQL Notebook returned nothing for temp-table scripts** (#4) - A multi-statement script (`DECLARE` / `CREATE TEMP TABLE` / `SELECT`) runs as a SCRIPT parent job that carries no result rows of its own, so notebook cells rendered empty. The controller now detects SCRIPT jobs, resolves the final result-bearing child job (shared `selectFinalResultChildJob` helper), and renders its rows.
+
 ## [2.3.0] - 2026-05-30
 
 ### Added

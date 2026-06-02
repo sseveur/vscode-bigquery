@@ -96,7 +96,7 @@ export class CopyToClipboard {
                 }
             }
 
-            await vscode.env.clipboard.writeText(csvString);
+            await vscode.env.clipboard.writeText(csvString.replace(/[\r\n]+$/, ''));
             vscode.window.showInformationMessage(`Copied ${totalCopiedRows} rows to clipboard as CSV`);
 
         } catch (error: any) {
@@ -190,7 +190,7 @@ export class CopyToClipboard {
                 }
             }
 
-            await vscode.env.clipboard.writeText(csvString);
+            await vscode.env.clipboard.writeText(csvString.replace(/[\r\n]+$/, ''));
             vscode.window.showInformationMessage(`Copied ${totalCopiedRows} rows to clipboard as CSV`);
 
         } catch (error: any) {

@@ -2,7 +2,7 @@
 	"name": "bigquery-studio",
 	"displayName": "BigQuery Studio",
 	"description": "Fork of bstruct/vscode-bigquery. A powerful Google BigQuery extension with offline-ready charting, query execution, data browsing, SQL intellisense, cost estimation, and data lineage visualization.",
-	"version": "2.3.0",
+	"version": "2.4.0",
 	"publisher": "s-seveur",
 	"icon": "logo.png",
 	"repository": {
@@ -28,280 +28,135 @@
 	],
 	"main": "./dist/extension.js",
 	"contributes": {
-		"configuration": {
-			"title": "BigQuery Studio",
-			"properties": {
-				"vscode-bigquery.associateSqlFiles": {
-					"type": "boolean",
-					"default": false,
-					"scope": "machine-overridable",
-					"order": 1,
-					"title": "Associate .sql files",
-					"description": "When enabled, .sql files are automatically treated as BigQuery SQL with all extension features"
-				},
-				"vscode-bigquery.autoRevealResults": {
-					"type": "boolean",
-					"default": true,
-					"scope": "machine-overridable",
-					"order": 2,
-					"title": "Auto-Reveal Results Panel",
-					"description": "Automatically reveal the results panel when switching to a BigQuery SQL file that has results. Disable to prevent focus switching."
-				},
-				"vscode-bigquery.clipboardSizeLimitKb": {
-					"type": "number",
-					"default": 1024,
-					"minimum": 1,
-					"maximum": 102400,
-					"scope": "machine-overridable",
-					"order": 3,
-					"title": "Clipboard Copy Size Limit (KB)",
-					"description": "Maximum size of data (in KB) to copy to clipboard. When exceeded, you will be prompted to truncate or cancel."
-				},
-				"vscode-bigquery.enableCtePreviewCodeLens": {
-					"type": "boolean",
-					"default": true,
-					"scope": "machine-overridable",
-					"title": "Enable CTE Preview CodeLens",
-					"description": "Show a clickable 'Preview CTE' link above each CTE in a WITH clause. Clicking runs that CTE (with its upstream dependencies) and shows the rows."
-				},
-				"vscode-bigquery.ctePreviewRowLimit": {
-					"type": "number",
-					"default": 100,
-					"minimum": 1,
-					"maximum": 100000,
-					"scope": "machine-overridable",
-					"title": "CTE Preview Row Limit",
-					"description": "Number of rows to fetch when previewing a CTE via the CodeLens (LIMIT appended to the rewritten query)."
-				},
-				"vscode-bigquery.gcloudPath": {
-					"type": "string",
-					"default": "",
-					"scope": "machine-overridable",
-					"order": 4,
-					"title": "gcloud Executable Path",
-					"description": "Full path to the gcloud executable. Leave empty to auto-detect from PATH and common install locations (/opt/homebrew/bin, /usr/local/bin, ~/google-cloud-sdk/bin). Set this if VS Code cannot find gcloud when launched from the Dock/Finder."
-				},
-				"vscode-bigquery.costPerTB": {
-					"type": "number",
-					"default": 6.25,
-					"minimum": 0,
-					"maximum": 100,
-					"scope": "machine-overridable",
-					"order": 5,
-					"title": "Cost per TB ($)",
-					"description": "BigQuery cost per terabyte for query cost estimation. Default is $6.25 (on-demand pricing). Set to 0 to hide cost estimates."
-				},
-				"vscode-bigquery.formatExpressionWidth": {
-					"type": "number",
-					"default": 50,
-					"minimum": 1,
-					"maximum": 200,
-					"scope": "machine-overridable",
-					"order": 5,
-					"title": "Format: Expression Width",
-					"description": "Maximum width of expressions before breaking into multiple lines. Lower values = more line breaks."
-				},
-				"vscode-bigquery.formatDenseOperators": {
-					"type": "boolean",
-					"default": false,
-					"scope": "machine-overridable",
-					"order": 6,
-					"title": "Format: Dense Operators",
-					"description": "Pack operators without surrounding spaces (e.g., 1+1 instead of 1 + 1)"
-				},
-				"vscode-bigquery.formatKeywordCase": {
-					"type": "string",
-					"default": "upper",
-					"enum": [
-						"upper",
-						"lower",
-						"preserve"
-					],
-					"scope": "machine-overridable",
-					"order": 7,
-					"title": "Format: Keyword Case",
-					"description": "How to format SQL keywords (SELECT, FROM, etc.)"
-				},
-				"vscode-bigquery.formatFunctionCase": {
-					"type": "string",
-					"default": "preserve",
-					"enum": [
-						"upper",
-						"lower",
-						"preserve"
-					],
-					"scope": "machine-overridable",
-					"order": 8,
-					"title": "Format: Function Case",
-					"description": "How to format function names (COUNT, SUM, etc.)"
-				},
-				"vscode-bigquery.formatIdentifierCase": {
-					"type": "string",
-					"default": "preserve",
-					"enum": [
-						"upper",
-						"lower",
-						"preserve"
-					],
-					"scope": "machine-overridable",
-					"order": 9,
-					"title": "Format: Identifier Case",
-					"description": "How to format identifiers (table names, column names)"
-				},
-				"vscode-bigquery.formatDataTypeCase": {
-					"type": "string",
-					"default": "preserve",
-					"enum": [
-						"upper",
-						"lower",
-						"preserve"
-					],
-					"scope": "machine-overridable",
-					"order": 10,
-					"title": "Format: Data Type Case",
-					"description": "How to format data types (INT64, STRING, etc.)"
-				},
-				"vscode-bigquery.formatIndentStyle": {
-					"type": "string",
-					"default": "standard",
-					"enum": [
-						"standard",
-						"tabularLeft",
-						"tabularRight"
-					],
-					"scope": "machine-overridable",
-					"order": 11,
-					"title": "Format: Indent Style",
-					"description": "SQL indent style. standard = normal indentation, tabularLeft/Right = aligned keywords"
-				},
-				"vscode-bigquery.formatLeadingCommas": {
-					"type": "boolean",
-					"default": true,
-					"scope": "machine-overridable",
-					"order": 12,
-					"title": "Format: Leading Commas",
-					"description": "Use leading comma style (comma at start of line) instead of trailing commas"
-				},
-				"vscode-bigquery.formatLogicalOperatorNewline": {
-					"type": "string",
-					"default": "before",
-					"enum": [
-						"before",
-						"after"
-					],
-					"scope": "machine-overridable",
-					"order": 13,
-					"title": "Format: Logical Operator Newline",
-					"description": "Where to place newlines for AND/OR operators"
-				},
-				"vscode-bigquery.formatLogicalOperatorStyle": {
-					"type": "string",
-					"default": "keywordAligned",
-					"enum": [
-						"keywordAligned",
-						"contentAligned",
-						"indented"
-					],
-					"scope": "machine-overridable",
-					"order": 14,
-					"title": "Format: Logical Operator Style",
-					"description": "How AND/OR/ON are positioned relative to their parent clause. 'keywordAligned' treats them as alignment keywords (default), 'contentAligned' aligns them with the clause content, 'indented' indents them under the parent keyword."
-				},
-				"vscode-bigquery.formatNewlineBeforeSemicolon": {
-					"type": "boolean",
-					"default": false,
-					"scope": "machine-overridable",
-					"order": 15,
-					"title": "Format: Newline Before Semicolon",
-					"description": "Place semicolon on a separate line at the end of statements"
-				},
-				"vscode-bigquery.pinned-projects": {
-					"type": "array",
-					"default": [],
-					"scope": "machine-overridable",
-					"order": 15,
-					"title": "Pinned projects",
-					"description": "Pinned GCP projects id's in the explorer tree in the Bigquery extension"
-				},
-				"vscode-bigquery.projects": {
-					"type": "array",
-					"default": [],
-					"scope": "machine-overridable",
-					"order": 16,
-					"title": "Projects",
-					"description": "GCP projects id's that need to be listed, but there's no explicit permission to the project, only datasets"
-				},
-				"vscode-bigquery.tables": {
-					"type": "array",
-					"default": [],
-					"scope": "machine-overridable",
-					"order": 17,
-					"title": "Table full name",
-					"description": "Tables that need to be listed, but there's no explicit permission to the project nor dataset, only the table"
-				},
-				"vscode-bigquery.hidden-projects": {
-					"type": "array",
-					"default": [],
-					"scope": "machine-overridable",
-					"order": 18,
-					"title": "Hidden projects",
-					"description": "GCP projects id's that are hidden from the explorer tree in the Bigquery extension"
-				},
-				"vscode-bigquery.lineageExportTheme": {
-					"type": "string",
-					"default": "dark",
-					"enum": [
-						"dark",
-						"light"
-					],
-					"enumDescriptions": [
-						"Dark background with light text (default)",
-						"White background with dark text (better for printing)"
-					],
-					"scope": "machine-overridable",
-					"order": 19,
-					"title": "Lineage Export Theme",
-					"description": "Theme to use when exporting lineage charts as PNG or PDF. Light theme uses white background with dark text, which may improve text visibility and is better for printing."
-				},
-				"vscode-bigquery.autoPreviewCreatedTables": {
-					"type": "boolean",
-					"default": false,
-					"scope": "machine-overridable",
-					"order": 20,
-					"title": "Auto-Preview Created Tables",
-					"description": "Automatically preview first 100 rows when CREATE TABLE completes successfully (disabled by default)"
-				},
-				"vscode-bigquery.pinned-tables": {
-					"type": "array",
-					"default": [],
-					"scope": "machine-overridable",
-					"order": 21,
-					"title": "Pinned Tables",
-					"description": "Tables pinned in explorer for quick access. Format: project.dataset.table"
-				},
-				"vscode-bigquery.defaultLocation": {
-					"type": "string",
-					"default": "",
-					"scope": "machine-overridable",
-					"order": 22,
-					"title": "Default Query Location",
-					"description": "BigQuery processing location for query jobs (e.g. US, EU, australia-southeast1, asia-east1). When empty, auto-detects from the first FROM clause via datasets.get. Set explicitly to override detection or for unqualified/CTE-only queries."
-				},
-				"vscode-bigquery.copyTablePathBackticks": {
-					"type": "boolean",
-					"default": true,
-					"scope": "machine-overridable",
-					"order": 24,
-					"title": "Copy Table Path: Wrap in Backticks",
-					"description": "When copying a table path (right-click → Copy Table Path), wrap it in backticks so it's ready to paste directly into a BigQuery FROM clause."
-				},
-				"vscode-bigquery.gridColors": {
-					"type": "object",
-					"scope": "machine-overridable",
-					"order": 23,
-					"title": "Grid: Cell Color Scheme",
-					"description": "Override cell text colors per BigQuery type. Leave empty to inherit from the active VS Code theme. Supports any CSS color (hex, rgb, hsl, named).",
-					"properties": {
+		"configuration": [
+			{
+				"title": "BigQuery Studio",
+				"properties": {
+					"vscode-bigquery.associateSqlFiles": {
+						"type": "boolean",
+						"default": false,
+						"scope": "machine-overridable",
+						"order": 1,
+						"title": "Associate .sql files",
+						"description": "When enabled, .sql files are automatically treated as BigQuery SQL with all extension features"
+					},
+					"vscode-bigquery.autoRevealResults": {
+						"type": "boolean",
+						"default": true,
+						"scope": "machine-overridable",
+						"order": 2,
+						"title": "Auto-Reveal Results Panel",
+						"description": "Automatically reveal the results panel when switching to a BigQuery SQL file that has results. Disable to prevent focus switching."
+					},
+					"vscode-bigquery.gcloudPath": {
+						"type": "string",
+						"default": "",
+						"scope": "machine-overridable",
+						"order": 3,
+						"title": "gcloud Executable Path",
+						"description": "Full path to the gcloud executable. Leave empty to auto-detect from PATH and common install locations (/opt/homebrew/bin, /usr/local/bin, ~/google-cloud-sdk/bin). Set this if VS Code cannot find gcloud when launched from the Dock/Finder."
+					},
+					"vscode-bigquery.defaultLocation": {
+						"type": "string",
+						"default": "",
+						"scope": "machine-overridable",
+						"order": 4,
+						"title": "Default Query Location",
+						"description": "BigQuery processing location for query jobs (e.g. US, EU, australia-southeast1, asia-east1). When empty, auto-detects from the first FROM clause via datasets.get. Set explicitly to override detection or for unqualified/CTE-only queries."
+					},
+					"vscode-bigquery.costPerTB": {
+						"type": "number",
+						"default": 6.25,
+						"minimum": 0,
+						"maximum": 100,
+						"scope": "machine-overridable",
+						"order": 5,
+						"title": "Cost per TB ($)",
+						"description": "BigQuery cost per terabyte for query cost estimation. Default is $6.25 (on-demand pricing). Set to 0 to hide cost estimates."
+					},
+					"vscode-bigquery.autoPreviewCreatedTables": {
+						"type": "boolean",
+						"default": false,
+						"scope": "machine-overridable",
+						"order": 6,
+						"title": "Auto-Preview Created Tables",
+						"description": "Automatically preview first 100 rows when CREATE TABLE completes successfully (disabled by default)"
+					}
+				}
+			},
+			{
+				"title": "BigQuery Studio › Explorer",
+				"properties": {
+					"vscode-bigquery.pinned-projects": {
+						"type": "array",
+						"default": [],
+						"scope": "machine-overridable",
+						"order": 1,
+						"title": "Pinned projects",
+						"description": "Pinned GCP projects id's in the explorer tree in the Bigquery extension"
+					},
+					"vscode-bigquery.pinned-tables": {
+						"type": "array",
+						"default": [],
+						"scope": "machine-overridable",
+						"order": 2,
+						"title": "Pinned Tables",
+						"description": "Tables pinned in explorer for quick access. Format: project.dataset.table"
+					},
+					"vscode-bigquery.projects": {
+						"type": "array",
+						"default": [],
+						"scope": "machine-overridable",
+						"order": 3,
+						"title": "Projects",
+						"description": "GCP projects id's that need to be listed, but there's no explicit permission to the project, only datasets"
+					},
+					"vscode-bigquery.tables": {
+						"type": "array",
+						"default": [],
+						"scope": "machine-overridable",
+						"order": 4,
+						"title": "Table full name",
+						"description": "Tables that need to be listed, but there's no explicit permission to the project nor dataset, only the table"
+					},
+					"vscode-bigquery.hidden-projects": {
+						"type": "array",
+						"default": [],
+						"scope": "machine-overridable",
+						"order": 5,
+						"title": "Hidden projects",
+						"description": "GCP projects id's that are hidden from the explorer tree in the Bigquery extension"
+					}
+				}
+			},
+			{
+				"title": "BigQuery Studio › Results & Clipboard",
+				"properties": {
+					"vscode-bigquery.clipboardSizeLimitKb": {
+						"type": "number",
+						"default": 1024,
+						"minimum": 1,
+						"maximum": 102400,
+						"scope": "machine-overridable",
+						"order": 1,
+						"title": "Clipboard Copy Size Limit (KB)",
+						"description": "Maximum size of data (in KB) to copy to clipboard. When exceeded, you will be prompted to truncate or cancel."
+					},
+					"vscode-bigquery.copyTablePathBackticks": {
+						"type": "boolean",
+						"default": true,
+						"scope": "machine-overridable",
+						"order": 2,
+						"title": "Copy Table Path: Wrap in Backticks",
+						"description": "When copying a table path (right-click → Copy Table Path), wrap it in backticks so it's ready to paste directly into a BigQuery FROM clause."
+					},
+					"vscode-bigquery.gridColors": {
+						"type": "object",
+						"scope": "machine-overridable",
+						"order": 3,
+						"title": "Grid: Cell Color Scheme",
+						"description": "Override cell text colors per BigQuery type. Leave empty to inherit from the active VS Code theme. Supports any CSS color (hex, rgb, hsl, named).",
+						"properties": {
 						"number": {
 							"type": "string",
 							"description": "INT64, FLOAT, NUMERIC, BIGNUMERIC. Default: var(--vscode-charts-blue, #4fc1ff)"
@@ -335,6 +190,188 @@
 				}
 			}
 		},
+			{
+				"title": "BigQuery Studio › CTE Preview",
+				"properties": {
+					"vscode-bigquery.enableCtePreviewCodeLens": {
+						"type": "boolean",
+						"default": true,
+						"scope": "machine-overridable",
+						"order": 1,
+						"title": "Enable CTE Preview CodeLens",
+						"description": "Show a clickable 'Preview CTE' link above each CTE in a WITH clause. Clicking runs that CTE (with its upstream dependencies) and shows the rows."
+					},
+					"vscode-bigquery.ctePreviewRowLimit": {
+						"type": "number",
+						"default": 100,
+						"minimum": 1,
+						"maximum": 100000,
+						"scope": "machine-overridable",
+						"order": 2,
+						"title": "CTE Preview Row Limit",
+						"description": "Number of rows to fetch when previewing a CTE via the CodeLens (LIMIT appended to the rewritten query)."
+					}
+				}
+			},
+			{
+				"title": "BigQuery Studio › Formatting",
+				"properties": {
+					"vscode-bigquery.formatIndentStyle": {
+						"type": "string",
+						"default": "standard",
+						"enum": [
+							"standard",
+							"tabularLeft",
+							"tabularRight"
+						],
+						"scope": "machine-overridable",
+						"order": 1,
+						"title": "Format: Indent Style",
+						"description": "SQL indent style. standard = normal indentation, tabularLeft/Right = aligned keywords"
+					},
+					"vscode-bigquery.formatLeadingCommas": {
+						"type": "boolean",
+						"default": true,
+						"scope": "machine-overridable",
+						"order": 2,
+						"title": "Format: Leading Commas",
+						"description": "Use leading comma style (comma at start of line) instead of trailing commas"
+					},
+					"vscode-bigquery.formatExpressionWidth": {
+						"type": "number",
+						"default": 50,
+						"minimum": 1,
+						"maximum": 200,
+						"scope": "machine-overridable",
+						"order": 3,
+						"title": "Format: Expression Width",
+						"description": "Maximum width of expressions before breaking into multiple lines. Lower values = more line breaks."
+					},
+					"vscode-bigquery.formatInlineKeyClauses": {
+						"type": "boolean",
+						"default": false,
+						"scope": "machine-overridable",
+						"order": 4,
+						"title": "Format: Inline GROUP BY / ORDER BY",
+						"description": "Keep GROUP BY and ORDER BY item lists on a single line when they fit within 'Format: Expression Width', wrapping at commas only when they exceed it. SELECT is left expanded. Off by default."
+					},
+					"vscode-bigquery.formatNewlineBeforeSemicolon": {
+						"type": "boolean",
+						"default": false,
+						"scope": "machine-overridable",
+						"order": 5,
+						"title": "Format: Newline Before Semicolon",
+						"description": "Place semicolon on a separate line at the end of statements"
+					},
+					"vscode-bigquery.formatDenseOperators": {
+						"type": "boolean",
+						"default": false,
+						"scope": "machine-overridable",
+						"order": 6,
+						"title": "Format: Dense Operators",
+						"description": "Pack operators without surrounding spaces (e.g., 1+1 instead of 1 + 1)"
+					},
+					"vscode-bigquery.formatLogicalOperatorNewline": {
+						"type": "string",
+						"default": "before",
+						"enum": [
+							"before",
+							"after"
+						],
+						"scope": "machine-overridable",
+						"order": 7,
+						"title": "Format: Logical Operator Newline",
+						"description": "Where to place newlines for AND/OR operators"
+					},
+					"vscode-bigquery.formatLogicalOperatorStyle": {
+						"type": "string",
+						"default": "keywordAligned",
+						"enum": [
+							"keywordAligned",
+							"contentAligned",
+							"indented"
+						],
+						"scope": "machine-overridable",
+						"order": 8,
+						"title": "Format: Logical Operator Style",
+						"description": "How AND/OR/ON are positioned relative to their parent clause. 'keywordAligned' treats them as alignment keywords (default), 'contentAligned' aligns them with the clause content, 'indented' indents them under the parent keyword."
+					},
+					"vscode-bigquery.formatKeywordCase": {
+						"type": "string",
+						"default": "upper",
+						"enum": [
+							"upper",
+							"lower",
+							"preserve"
+						],
+						"scope": "machine-overridable",
+						"order": 9,
+						"title": "Format: Keyword Case",
+						"description": "How to format SQL keywords (SELECT, FROM, etc.)"
+					},
+					"vscode-bigquery.formatFunctionCase": {
+						"type": "string",
+						"default": "preserve",
+						"enum": [
+							"upper",
+							"lower",
+							"preserve"
+						],
+						"scope": "machine-overridable",
+						"order": 10,
+						"title": "Format: Function Case",
+						"description": "How to format function names (COUNT, SUM, etc.)"
+					},
+					"vscode-bigquery.formatIdentifierCase": {
+						"type": "string",
+						"default": "preserve",
+						"enum": [
+							"upper",
+							"lower",
+							"preserve"
+						],
+						"scope": "machine-overridable",
+						"order": 11,
+						"title": "Format: Identifier Case",
+						"description": "How to format identifiers (table names, column names)"
+					},
+					"vscode-bigquery.formatDataTypeCase": {
+						"type": "string",
+						"default": "preserve",
+						"enum": [
+							"upper",
+							"lower",
+							"preserve"
+						],
+						"scope": "machine-overridable",
+						"order": 12,
+						"title": "Format: Data Type Case",
+						"description": "How to format data types (INT64, STRING, etc.)"
+					}
+				}
+			},
+			{
+				"title": "BigQuery Studio › Lineage",
+				"properties": {
+					"vscode-bigquery.lineageExportTheme": {
+						"type": "string",
+						"default": "dark",
+						"enum": [
+							"dark",
+							"light"
+						],
+						"enumDescriptions": [
+							"Dark background with light text (default)",
+							"White background with dark text (better for printing)"
+						],
+						"scope": "machine-overridable",
+						"order": 1,
+						"title": "Lineage Export Theme",
+						"description": "Theme to use when exporting lineage charts as PNG or PDF. Light theme uses white background with dark text, which may improve text visibility and is better for printing."
+					}
+				}
+			}
+		],
 		"languages": [
 			{
 				"id": "bqsql",

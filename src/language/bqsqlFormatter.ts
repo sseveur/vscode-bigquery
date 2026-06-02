@@ -15,6 +15,7 @@ export interface FormatOptions {
     dataTypeCase: 'upper' | 'lower' | 'preserve';
     denseOperators: boolean;
     newlineBeforeSemicolon: boolean;
+    inlineKeyClauses: boolean;
 }
 
 export function getFormatOptions(): FormatOptions {
@@ -35,6 +36,7 @@ export function getFormatOptions(): FormatOptions {
         dataTypeCase: config.get<'upper' | 'lower' | 'preserve'>('formatDataTypeCase', 'preserve'),
         denseOperators: config.get<boolean>('formatDenseOperators', false),
         newlineBeforeSemicolon: config.get<boolean>('formatNewlineBeforeSemicolon', false),
+        inlineKeyClauses: config.get<boolean>('formatInlineKeyClauses', false),
     };
 }
 
@@ -60,6 +62,13 @@ export function formatBigQuerySQL(sql: string, options?: Partial<FormatOptions>)
     // Transform logical operator positioning if not default
     if (opts.logicalOperatorStyle !== 'keywordAligned') {
         formatted = transformLogicalOperatorStyle(formatted, opts);
+    }
+
+    // Collapse GROUP BY / ORDER BY item lists onto one line (or wrap at commas within
+    // expressionWidth). Runs before the leading-comma pass so any wrap-induced trailing
+    // commas get converted consistently with the rest of the document.
+    if (opts.inlineKeyClauses) {
+        formatted = collapseKeyClauses(formatted, opts);
     }
 
     // Convert trailing commas to leading commas if enabled
@@ -384,4 +393,133 @@ function isInsideStringOrComment(line: string): boolean {
     }
 
     return false;
+}
+
+/** Matches a GROUP BY / ORDER BY clause keyword at the start of a line, capturing the
+ *  leading indent, the keyword (case preserved), the whitespace after it, and any inline
+ *  content that follows on the same line (tabular indent styles put the first item here). */
+const INLINE_CLAUSE_KEYWORD = /^([ \t]*)(GROUP\s+BY|ORDER\s+BY)([ \t]*)(.*)$/i;
+
+/**
+ * Collapses GROUP BY / ORDER BY item lists that sql-formatter exploded onto one line each.
+ * Items are re-joined onto a single line when their combined width is within
+ * `expressionWidth`; otherwise they are greedily wrapped at comma boundaries (trailing
+ * commas, aligned under the first item). SELECT and PARTITION BY are intentionally left
+ * untouched. A clause whose body contains a line comment is left expanded (a `--` comment
+ * cannot be inlined).
+ */
+function collapseKeyClauses(sql: string, opts: FormatOptions): string {
+    const lines = sql.split('\n');
+    const out: string[] = [];
+    let i = 0;
+
+    while (i < lines.length) {
+        const line = lines[i];
+        const m = line.match(INLINE_CLAUSE_KEYWORD);
+        if (!m) {
+            out.push(line);
+            i++;
+            continue;
+        }
+
+        const [, indentStr, keyword, , firstInline] = m;
+
+        // Gather the clause body: the inline part (if any) plus all following item lines,
+        // stopping at the next clause keyword / closing paren / semicolon / blank line.
+        const segments: string[] = [];
+        if (firstInline.trim()) { segments.push(firstInline.trim()); }
+
+        let j = i + 1;
+        for (; j < lines.length; j++) {
+            const trimmed = lines[j].trim();
+            if (!trimmed) { break; }
+            if (trimmed.match(CLAUSE_KEYWORD)) { break; }
+            if (trimmed.startsWith(')') || trimmed.startsWith(';')) { break; }
+            if (/^(UNION|INTERSECT|EXCEPT)\b/i.test(trimmed)) { break; }
+            segments.push(trimmed);
+        }
+
+        // A line comment anywhere in the gathered block forces the clause to stay expanded.
+        const hasComment = firstInline.includes('--') || segments.some(s => s.includes('--'));
+        if (hasComment) {
+            out.push(line);
+            i++;
+            continue;
+        }
+
+        // Normalize each segment (drop surrounding commas), then split the joined body on
+        // top-level commas so items keep parenthesized/quoted commas intact.
+        const body = segments
+            .map(s => s.replace(/^,\s*/, '').replace(/\s*,\s*$/, ''))
+            .join(',');
+        const items = splitTopLevelCommas(body).map(s => s.trim()).filter(s => s.length > 0);
+
+        if (items.length === 0) {
+            out.push(line);
+            i++;
+            continue;
+        }
+
+        // Prefix = everything up to where the first item begins, so wrapped lines align.
+        let prefix: string;
+        if (firstInline.trim()) {
+            prefix = line.slice(0, line.length - firstInline.length);
+        } else {
+            prefix = `${indentStr}${keyword} `;
+        }
+        const contentIndent = ' '.repeat(prefix.length);
+
+        // Single line when the joined items fit expressionWidth; else greedy comma wrap.
+        const joined = items.join(', ');
+        if (joined.length <= opts.expressionWidth) {
+            out.push(prefix + joined);
+        } else {
+            let cur = prefix;
+            let curLen = 0; // content length on the current line (excludes prefix)
+            for (let k = 0; k < items.length; k++) {
+                const item = items[k];
+                const sep = curLen > 0 ? ', ' : '';
+                if (curLen > 0 && curLen + sep.length + item.length > opts.expressionWidth) {
+                    out.push(cur + ',');            // more items follow → trailing comma
+                    cur = contentIndent + item;
+                    curLen = item.length;
+                } else {
+                    cur += sep + item;
+                    curLen += sep.length + item.length;
+                }
+            }
+            out.push(cur);
+        }
+
+        i = j;
+    }
+
+    return out.join('\n');
+}
+
+/** Splits `text` on commas that sit at the top level — outside parens/brackets and string
+ *  literals. Used to break clause bodies into items without cutting inside `f(a, b)`. */
+function splitTopLevelCommas(text: string): string[] {
+    const parts: string[] = [];
+    let depth = 0;
+    let inSingle = false;
+    let inDouble = false;
+    let start = 0;
+
+    for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
+        const prev = i > 0 ? text[i - 1] : '';
+        if (ch === "'" && !inDouble && prev !== '\\') { inSingle = !inSingle; }
+        else if (ch === '"' && !inSingle && prev !== '\\') { inDouble = !inDouble; }
+        else if (!inSingle && !inDouble) {
+            if (ch === '(' || ch === '[') { depth++; }
+            else if (ch === ')' || ch === ']') { depth--; }
+            else if (ch === ',' && depth === 0) {
+                parts.push(text.slice(start, i));
+                start = i + 1;
+            }
+        }
+    }
+    parts.push(text.slice(start));
+    return parts;
 }
