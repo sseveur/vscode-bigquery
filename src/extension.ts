@@ -130,6 +130,13 @@ export function activate(context: ExtensionContext) {
 
 	context.subscriptions.push(
 		vscode.commands.registerCommand(
+			commands.COMMAND_PREVIEW_TABLE_AT_CURSOR,
+			commands.commandPreviewTableAtCursor
+		)
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand(
 			commands.COMMAND_USER_LOGIN,
 			commands.commandUserLogin
 		)
@@ -670,6 +677,16 @@ export function activate(context: ExtensionContext) {
 		if (event.affectsConfiguration('workbench.colorTheme')) {
 			vscode.commands.executeCommand(commands.COMMAND_EXPLORER_REFRESH);
 			// reporter?.sendTelemetryEvent('onDidChangeActiveColorTheme', { activeColorThemeKind: vscode.ColorThemeKind[vscode.window.activeColorTheme.kind] });
+		}
+		// Refresh the explorer when its backing settings change from any source
+		// (pin/unpin on another machine via Settings Sync, manual settings.json edits) —
+		// without this the Pinned Tables folder only updates on explicit refresh.
+		if (event.affectsConfiguration(commands.SETTING_PINNED_TABLES)
+			|| event.affectsConfiguration(commands.SETTING_PINNED_PROJECTS)
+			|| event.affectsConfiguration(commands.SETTING_HIDDEN_PROJECTS)
+			|| event.affectsConfiguration(commands.SETTING_PROJECTS)
+			|| event.affectsConfiguration(commands.SETTING_TABLES)) {
+			vscode.commands.executeCommand(commands.COMMAND_EXPLORER_REFRESH);
 		}
 	});
 

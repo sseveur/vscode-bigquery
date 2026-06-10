@@ -59,8 +59,10 @@ export function formatBigQuerySQL(sql: string, options?: Partial<FormatOptions>)
         newlineBeforeSemicolon: opts.newlineBeforeSemicolon,
     });
 
-    // Transform logical operator positioning if not default
-    if (opts.logicalOperatorStyle !== 'keywordAligned') {
+    // Transform logical operator positioning. Tabular indent styles always need the
+    // pass: sql-formatter splits compound JOIN keywords ("INNER     JOIN") and leaves
+    // ON/AND at a flat indent instead of the keyword gutter (#8).
+    if (opts.logicalOperatorStyle !== 'keywordAligned' || opts.indentStyle !== 'standard') {
         formatted = transformLogicalOperatorStyle(formatted, opts);
     }
 
@@ -82,14 +84,19 @@ export function formatBigQuerySQL(sql: string, options?: Partial<FormatOptions>)
 /** Matches a line starting with AND, OR, or ON (after whitespace). */
 const LOGICAL_OP_LINE = /^(\s*)(AND|OR|ON)(\s+)(.*)/i;
 
+/** Matches a compound JOIN split by sql-formatter's tabular padding:
+ *  "INNER     JOIN `t` s" — the first word was treated as the alignment keyword
+ *  and JOIN pushed to the content column. */
+const SPLIT_COMPOUND_JOIN = /^(\s*)(INNER|LEFT|RIGHT|FULL|CROSS)(\s{2,})((?:OUTER\s+)?JOIN)\b\s*(.*)$/i;
+
 /** Matches a JOIN line with an inline ON clause. */
-const JOIN_INLINE_ON = /^(\s*(?:LEFT\s+|RIGHT\s+|FULL\s+|CROSS\s+|INNER\s+)?JOIN\s+.*?)\s+(ON)(\s+)(.*)/i;
+const JOIN_INLINE_ON = /^(\s*(?:(?:LEFT|RIGHT|FULL)(?:\s+OUTER)?\s+|CROSS\s+|INNER\s+)?JOIN\s+.*?)\s+(ON)(\s+)(.*)/i;
 
 /** Matches a clause keyword at the start of a line. Allows keyword at end of line (standard style). */
-const CLAUSE_KEYWORD = /^(\s*)(SELECT|FROM|WHERE|HAVING|QUALIFY|GROUP\s+BY|ORDER\s+BY|LIMIT|WINDOW|(?:LEFT\s+|RIGHT\s+|FULL\s+|CROSS\s+|INNER\s+)?JOIN)(\s+|$)/i;
+const CLAUSE_KEYWORD = /^(\s*)(SELECT|FROM|WHERE|HAVING|QUALIFY|GROUP\s+BY|ORDER\s+BY|LIMIT|WINDOW|(?:(?:LEFT|RIGHT|FULL)(?:\s+OUTER)?\s+|CROSS\s+|INNER\s+)?JOIN)(\s+|$)/i;
 
 /** Multi-word SQL keywords for content-start detection. */
-const MULTI_WORD_KEYWORD = /^((?:LEFT|RIGHT|FULL|CROSS|INNER)\s+JOIN|ORDER\s+BY|GROUP\s+BY|PARTITION\s+BY)\s*/i;
+const MULTI_WORD_KEYWORD = /^((?:LEFT|RIGHT|FULL)(?:\s+OUTER)?\s+JOIN|(?:CROSS|INNER)\s+JOIN|ORDER\s+BY|GROUP\s+BY|PARTITION\s+BY)\s*/i;
 
 /**
  * Transforms AND/OR/ON positioning based on the selected logical operator style.
@@ -98,6 +105,10 @@ const MULTI_WORD_KEYWORD = /^((?:LEFT|RIGHT|FULL|CROSS|INNER)\s+JOIN|ORDER\s+BY|
  * For 'indented': AND/OR/ON are indented by tabWidth under their parent keyword.
  */
 function transformLogicalOperatorStyle(sql: string, opts: FormatOptions): string {
+    if (opts.indentStyle !== 'standard') {
+        return realignTabular(sql, opts);
+    }
+
     const lines = sql.split('\n');
     const indent = opts.useTabs ? '\t' : ' '.repeat(opts.tabWidth);
 
@@ -204,6 +215,140 @@ function transformLogicalOperatorStyle(sql: string, opts: FormatOptions): string
     }
 
     return result.join('\n');
+}
+
+/**
+ * Tabular indent styles (#8): sql-formatter pads every clause keyword into a fixed
+ * gutter, but it splits compound JOIN keywords ("INNER     JOIN" — INNER treated as the
+ * keyword, JOIN pushed to the content column) and leaves ON/AND at a flat indent. This
+ * pass re-joins compound JOINs, widens the statement gutter so the longest keyword fits
+ * (e.g. "INNER JOIN" needs 11), re-pads every clause keyword and ON/AND/OR into it, and
+ * shifts continuation lines by the same delta so all content stays on one column.
+ */
+function realignTabular(sql: string, opts: FormatOptions): string {
+    const lines = sql.split('\n');
+
+    // Re-join compound JOIN keywords split by sql-formatter's tabular padding.
+    const joined = lines.map(line => {
+        const m = line.match(SPLIT_COMPOUND_JOIN);
+        if (!m) { return line; }
+        const [, lead, first, , joinPart, rest] = m;
+        return `${lead}${first} ${joinPart.replace(/\s+/g, ' ')} ${rest}`;
+    });
+
+    // Pull inline ON conditions onto their own line (final placement happens below).
+    const expanded: string[] = [];
+    for (const line of joined) {
+        const m = line.match(JOIN_INLINE_ON);
+        if (m) {
+            const [, joinPart, onKeyword, , onCondition] = m;
+            expanded.push(joinPart);
+            expanded.push(onKeyword + ' ' + onCondition);
+        } else {
+            expanded.push(line);
+        }
+    }
+
+    // Realign each blank-line-separated statement block independently.
+    const out: string[] = [];
+    let block: string[] = [];
+    const flush = () => {
+        if (block.length > 0) {
+            out.push(...realignTabularBlock(block, opts));
+            block = [];
+        }
+    };
+    for (const line of expanded) {
+        if (!line.trim()) {
+            flush();
+            out.push(line);
+        } else {
+            block.push(line);
+        }
+    }
+    flush();
+    return out.join('\n');
+}
+
+function realignTabularBlock(blockLines: string[], opts: FormatOptions): string[] {
+    // Depth at the start of each line.
+    const depths: number[] = [];
+    let d = 0;
+    for (const line of blockLines) {
+        depths.push(d);
+        d += countParenChanges(line);
+    }
+
+    // The gutter sql-formatter produced — content column of the first top-level clause.
+    let oldCol = -1;
+    for (let i = 0; i < blockLines.length; i++) {
+        if (depths[i] === 0 && blockLines[i].match(CLAUSE_KEYWORD)) {
+            oldCol = getContentStart(blockLines[i]);
+            break;
+        }
+    }
+    if (oldCol <= 0) { return blockLines; }
+
+    // Widen the gutter so every top-level keyword fits (compound JOINs overflow it).
+    let newCol = oldCol;
+    for (let i = 0; i < blockLines.length; i++) {
+        if (depths[i] !== 0) { continue; }
+        const cm = blockLines[i].match(CLAUSE_KEYWORD);
+        if (cm) {
+            const kw = cm[2].replace(/\s+/g, ' ');
+            newCol = Math.max(newCol, cm[1].length + kw.length + 1);
+            continue;
+        }
+        const om = blockLines[i].match(LOGICAL_OP_LINE);
+        if (om && !isInsideStringOrComment(blockLines[i])) {
+            const kwLen = om[2].length;
+            const lead = (opts.logicalOperatorStyle === 'indented' && om[2].toUpperCase() !== 'ON')
+                ? opts.tabWidth : 0;
+            newCol = Math.max(newCol, lead + kwLen + 1);
+        }
+    }
+    const delta = newCol - oldCol;
+    const right = opts.indentStyle === 'tabularRight';
+    const padTo = (kwCol: number, kw: string) => ' '.repeat(Math.max(1, newCol - kwCol - kw.length));
+
+    return blockLines.map((line, i) => {
+        const leadingLen = line.length - line.trimStart().length;
+
+        if (depths[i] === 0) {
+            const cm = line.match(CLAUSE_KEYWORD);
+            if (cm) {
+                const kw = cm[2].replace(/\s+/g, ' ');
+                const contentStart = getContentStart(line);
+                const rest = line.slice(contentStart);
+                if (!rest) {
+                    return right ? ' '.repeat(Math.max(0, newCol - 1 - kw.length)) + kw : kw;
+                }
+                return right
+                    ? ' '.repeat(Math.max(0, newCol - 1 - kw.length)) + kw + ' ' + rest
+                    : kw + padTo(0, kw) + rest;
+            }
+            const om = line.match(LOGICAL_OP_LINE);
+            if (om && !isInsideStringOrComment(line)) {
+                const [, , keyword, , rest] = om;
+                if (opts.logicalOperatorStyle === 'contentAligned') {
+                    return ' '.repeat(newCol) + keyword + ' ' + rest;
+                }
+                if (right) {
+                    return ' '.repeat(Math.max(0, newCol - 1 - keyword.length)) + keyword + ' ' + rest;
+                }
+                const kwCol = (opts.logicalOperatorStyle === 'indented' && keyword.toUpperCase() !== 'ON')
+                    ? opts.tabWidth : 0;
+                return ' '.repeat(kwCol) + keyword + padTo(kwCol, keyword) + rest;
+            }
+        }
+
+        // Continuation / nested lines that sat at (or beyond) the old content column
+        // shift right by the widening delta so relative alignment is preserved.
+        if (delta > 0 && leadingLen >= oldCol) {
+            return ' '.repeat(delta) + line;
+        }
+        return line;
+    });
 }
 
 /**
