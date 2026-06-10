@@ -33,13 +33,14 @@ import { buildMultiQueryLineage } from './services/lineageGraph';
 import { showMultiLineagePanel } from './lineage/lineageWebviewProvider';
 import { runColumnProfileForTable } from './services/columnProfile';
 import { showColumnProfilePanel } from './tableResultsPanel/columnProfilePanel';
-import { resolveColumnAtPosition, ResolvedColumn } from './services/columnResolver';
+import { resolveColumnAtPosition, ResolvedColumn, resolveTableAtPosition } from './services/columnResolver';
 
 export const COMMAND_CLEAR_EXTENSION_CACHE = "vscode-bigquery.clear-extension-cache";
 export const COMMAND_RUN_QUERY = "vscode-bigquery.run-query";
 export const COMMAND_RUN_SELECTED_QUERY = "vscode-bigquery.run-selected-query";
 export const COMMAND_PREVIEW_CTE = "vscode-bigquery.preview-cte";
 export const COMMAND_PROFILE_COLUMN = "vscode-bigquery.profile-column";
+export const COMMAND_PREVIEW_TABLE_AT_CURSOR = "vscode-bigquery.preview-table-at-cursor";
 export const COMMAND_USER_LOGIN = "vscode-bigquery.user-login";
 export const COMMAND_USER_LOGIN_WITH_DRIVE = "vscode-bigquery.user-login-drive";
 export const COMMAND_USER_LOGIN_NO_LAUNCH_BROWSER = "vscode-bigquery.user-login-no-launch-browser";
@@ -205,6 +206,52 @@ export const commandProfileColumn = async function (this: any, ...args: any[]) {
 		}
 	);
 
+};
+
+/**
+ * Right-click → "BigQuery: Preview Table". Resolves the table reference under the
+ * cursor (fully-qualified path, dataset.table, bare name, or FROM/JOIN alias) and
+ * opens the standard table preview grid — same rendering the explorer tree uses.
+ */
+export const commandPreviewTableAtCursor = async function (...args: any[]) {
+
+	const textEditor = vscode.window.activeTextEditor;
+	if (!textEditor) {
+		vscode.window.showWarningMessage('Open a SQL file and place the cursor on a table name to preview it.');
+		return;
+	}
+
+	const document = textEditor.document;
+	const sql = document.getText();
+	const offset = document.offsetAt(textEditor.selection.active);
+
+	const bqClient = await getBigQueryClient();
+	const defaultProjectId = await bqClient.getProjectId();
+
+	let resolved = null;
+	try {
+		resolved = await resolveTableAtPosition(sql, offset, defaultProjectId);
+	} catch (err) {
+		vscode.window.showErrorMessage(`Preview table: ${(err as Error).message || err}`);
+		return;
+	}
+
+	if (!resolved) {
+		vscode.window.showWarningMessage('Place the cursor on a table name (or its alias) before running Preview Table.');
+		return;
+	}
+
+	const item = new BigqueryTreeItem(
+		BigqueryTreeItemType.table,
+		resolved.projectId,
+		resolved.datasetId,
+		resolved.tableId,
+		resolved.tableId,
+		'',
+		false,
+		vscode.TreeItemCollapsibleState.None
+	);
+	await commandViewTable(item);
 };
 
 enum RunQueryType {
@@ -595,7 +642,9 @@ export const commandViewTable = async function (...args: any[]) {
 		const table = bqClient.getTable(item.projectId, item.datasetId, item.tableId);
 		const metadata = await table.getMetadata();
 
-		if (metadata[0].type === 'EXTERNAL') {
+		// VIEW catches table refs resolved from the editor (no tree item type available);
+		// tabledata.list doesn't work on views/external tables, so open a SELECT instead.
+		if (metadata[0].type === 'EXTERNAL' || metadata[0].type === 'VIEW') {
 			await openQueryEditor(item);
 		} else {
 
@@ -1520,7 +1569,10 @@ export const commandPinTable = async function (...args: any[]) {
 		.getConfiguration()
 		.get(SETTING_PINNED_TABLES) as string[]) || [];
 
-	const pinnedTables = current.indexOf(tableRef) < 0 ? [...current, tableRef] : current;
+	// Case-insensitive dedupe — a previously stored entry with different casing
+	// must not produce a duplicate pin.
+	const exists = current.some(c => c.trim().toLowerCase() === tableRef.toLowerCase());
+	const pinnedTables = exists ? current : [...current, tableRef];
 
 	try {
 		await vscode.workspace
@@ -1547,7 +1599,7 @@ export const commandUnpinTable = async function (...args: any[]) {
 		.getConfiguration()
 		.get(SETTING_PINNED_TABLES) as string[]) || [];
 
-	const pinnedTables = current.filter(c => c !== tableRef);
+	const pinnedTables = current.filter(c => c.trim().toLowerCase() !== tableRef.toLowerCase());
 
 	try {
 		await vscode.workspace

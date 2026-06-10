@@ -115,6 +115,98 @@ export async function resolveColumnAtPosition(
     return matches[0];
 }
 
+export interface ResolvedTable {
+    projectId: string;
+    datasetId: string;
+    tableId: string;
+}
+
+/**
+ * Resolves the table reference at the cursor to a concrete (project, dataset, table).
+ * Handles:
+ *   - fully-qualified `project.dataset.table` (backticked or not, hyphenated projects ok)
+ *   - `dataset.table` — project from `defaultProjectId`
+ *   - bare table name or alias — matched against the FROM/JOIN tables of the
+ *     surrounding statement (same scope walk Profile Column uses).
+ * Returns null when the cursor isn't on an identifier.
+ */
+export async function resolveTableAtPosition(
+    sql: string,
+    offset: number,
+    defaultProjectId: string | null
+): Promise<ResolvedTable | null> {
+
+    const token = extractTablePathAt(sql, offset);
+    if (!token) { return null; }
+
+    const projectId = defaultProjectId || await Authentication.getDefaultProjectId();
+
+    const parts = token.split('.').map(p => p.trim()).filter(p => p.length > 0);
+    if (parts.length >= 3) {
+        return { projectId: parts[parts.length - 3], datasetId: parts[parts.length - 2], tableId: parts[parts.length - 1] };
+    }
+
+    const statement = findStatementContaining(sql, offset);
+    const tables = collectTablesInScope(statement ?? sql, projectId);
+
+    if (parts.length === 2) {
+        const [ds, tbl] = parts;
+        const match = tables.find(t =>
+            t.datasetId?.toLowerCase() === ds.toLowerCase()
+            && t.tableId.toLowerCase() === tbl.toLowerCase());
+        if (match && match.projectId && match.datasetId) {
+            return { projectId: match.projectId, datasetId: match.datasetId, tableId: match.tableId };
+        }
+        if (projectId) {
+            return { projectId, datasetId: ds, tableId: tbl };
+        }
+        return null;
+    }
+
+    // Single word — table short name or alias from the surrounding statement.
+    const word = parts[0].toLowerCase();
+    const match = tables.find(t =>
+        t.tableId.toLowerCase() === word || t.alias.toLowerCase() === word);
+    if (match && match.projectId && match.datasetId) {
+        return { projectId: match.projectId, datasetId: match.datasetId, tableId: match.tableId };
+    }
+    return null;
+}
+
+/**
+ * Extracts the dotted table path the cursor sits on. Inside a backtick span the
+ * whole quoted content is taken; otherwise the token expands over identifier
+ * characters, dots, and hyphens (hyphenated GCP project ids).
+ */
+export function extractTablePathAt(sql: string, offset: number): string | null {
+    if (offset < 0 || offset > sql.length) { return null; }
+
+    // Backtick span containing the cursor?
+    let tickStart = -1;
+    for (let i = 0; i < sql.length; i++) {
+        if (sql[i] !== '`') { continue; }
+        if (tickStart < 0) {
+            tickStart = i;
+        } else {
+            if (offset > tickStart && offset <= i) {
+                const inner = sql.slice(tickStart + 1, i);
+                return inner.length > 0 ? inner : null;
+            }
+            tickStart = -1;
+        }
+    }
+
+    const isPathChar = (c: string) => /[A-Za-z0-9_.\-`]/.test(c);
+    let start = offset;
+    while (start > 0 && isPathChar(sql[start - 1])) { start--; }
+    let end = offset;
+    while (end < sql.length && isPathChar(sql[end])) { end++; }
+    if (start === end) { return null; }
+
+    const token = sql.slice(start, end).replace(/`/g, '').replace(/^[.\-]+|[.\-]+$/g, '');
+    return token.length > 0 ? token : null;
+}
+
 interface ColumnWord {
     column: string;
     alias?: string;

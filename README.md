@@ -112,6 +112,7 @@ All commands are available via the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+
 | BigQuery: Run Query | Execute the entire query (`Ctrl+Enter`) |
 | BigQuery: Run Selected Query | Execute selected text only (`Ctrl+E`) |
 | BigQuery: Format SQL | Format the current SQL document (`Shift+Alt+F`) |
+| BigQuery: Preview Table | Right-click a table name in the editor to preview its rows (resolves full paths, `dataset.table`, bare names, and aliases) |
 | BigQuery: Open as Notebook | Open the current `.sql`/`.bqsql` file as a BigQuery notebook |
 | BigQuery: Open as Text | Switch a notebook back to the plain SQL editor |
 | **Explorer** | |

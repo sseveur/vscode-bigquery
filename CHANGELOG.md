@@ -5,6 +5,17 @@ All notable changes to the BigQuery Studio extension will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.0] - 2026-06-10
+
+### Added
+
+- **Preview Table from the editor** (#7) - Right-click a table name in a SQL file and pick "BigQuery: Preview Table". The reference under the cursor is resolved — fully-qualified `project.dataset.table` (backticked or hyphenated), `dataset.table`, a bare table name, or a FROM/JOIN alias — and the standard preview grid opens, exactly like clicking the table in the explorer. Views and external tables open a `SELECT *` editor instead (they can't be read via `tabledata.list`). New resolver: `resolveTableAtPosition` in `src/services/columnResolver.ts`.
+
+### Fixed
+
+- **ON/AND misaligned in tabular indent styles** (#8) - Two formatter bugs in `tabularLeft`/`tabularRight` modes: sql-formatter split compound JOIN keywords (`INNER     JOIN`, treating INNER as the alignment keyword), and ON/AND/OR sat at a flat 4-space indent instead of the keyword gutter. Each statement is now realigned as a whole: compound JOINs are re-joined, the keyword gutter widens to fit the longest keyword (`INNER JOIN` → 11, `LEFT OUTER JOIN` → 16), every clause keyword and ON/AND/OR is re-padded into it, and continuation lines shift with it — so all content sits on one column. `keywordAligned` puts ON/AND in the gutter, `indented` keeps AND/OR one tab in (content still aligned), `contentAligned` is unchanged; ON always reads as a clause keyword. `standard` indent style is untouched.
+- **Pinned tables not updating (Windows)** (#6) - Pin-state matching was exact-string, so entries whose casing differed from the API-returned ids (hand-edited settings, Settings Sync across machines) never matched: tables kept showing the pin icon, pinning again silently duplicated, and unpin left stale entries. Matching/dedupe is now trimmed and case-insensitive, and the explorer refreshes automatically whenever the pinned/projects/tables settings change from any source (Settings Sync, manual settings.json edits).
+
 ## [2.4.0] - 2026-06-02
 
 ### Added

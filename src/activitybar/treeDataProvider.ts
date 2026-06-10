@@ -307,7 +307,12 @@ export class BigQueryTreeDataProvider implements vscode.TreeDataProvider<Bigquer
                 }
                 const item = new BigqueryTreeItem(treeItemType, projectId, datasetId, tableId, tableId, '', false, vscode.TreeItemCollapsibleState.None);
 
-                const isPinned = pinnedRefs.some(r => r.projectId === projectId && r.datasetId === datasetId && r.tableId === tableId);
+                // Case-insensitive match: stored pin strings may differ in case from the
+                // API-returned ids (user-typed settings, settings sync across machines).
+                const isPinned = pinnedRefs.some(r =>
+                    r.projectId.toLowerCase() === projectId.toLowerCase()
+                    && r.datasetId.toLowerCase() === datasetId.toLowerCase()
+                    && r.tableId.toLowerCase() === tableId.toLowerCase());
                 if (isPinned) {
                     (item as any).contextValue = 'bq-table-already-pinned';
                 }
@@ -399,6 +404,7 @@ export class BigQueryTreeDataProvider implements vscode.TreeDataProvider<Bigquer
         return (vscode.workspace
             .getConfiguration()
             .get(SETTING_PINNED_TABLES) as string[] || [])
+            .map(c => c.trim())
             .map(c => c.split('.'))
             .filter(c => c.length === 3)
             .map(c => { return { projectId: c[0], datasetId: c[1], tableId: c[2] } as TableReference; });
