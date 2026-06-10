@@ -222,28 +222,6 @@ Schema hover works for tables in:
 - `JOIN` clauses - `JOIN project.dataset.table`, `LEFT JOIN`, `RIGHT JOIN`, `INNER JOIN`, `CROSS JOIN`, `FULL JOIN`
 - **CTE references** - When you reference a CTE name (e.g., `FROM my_cte`), the hover shows the columns defined in that CTE's SELECT clause
 
-## Export Options
-
-### Download CSV
-
-After running a query, download results as CSV from the result grid toolbar.
-
-<img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/download_csv.png" alt="download csv" width="200"/>
-
-- Supports multiline content
-- No row limit (be mindful of large result sets)
-- Does not support nested complex objects
-
-### Copy to Clipboard
-
-Copy results in CSV format with a configurable size limit (default 1MB). Configure via `vscode-bigquery.clipboardSizeLimitKb`.
-
-### Download JSONL
-
-Download results in [JSONL](https://jsonlines.org/) format from the result grid toolbar.
-
-<img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/download_jsonl.png" alt="download jsonl" width="200"/>
-
 ## Results Grid
 
 Query results, table previews, and multi-statement scripts render in a Preact-based grid that replaced the legacy WASM renderer in **v2.0.0**. Bundle is ~7× smaller (≈64 KB vs ≈442 KB; ~12 KB gzipped), fully theme-aware, and runs behind a strict Content Security Policy with nonced inline styles.
@@ -304,6 +282,56 @@ Any CSS color value works (hex, `rgb()`, `hsl()`, named colors, `var(--vscode-�
 
 Values are sanitized at HTML inject time against an allowlist regex (`[A-Za-z0-9 ,.()%#\-]`, 80-char cap) and emitted inside a nonced `<style>` block guarded by the webview's Content Security Policy. Values containing `;`, `{`, `}`, `<`, `>`, `:` other than those in allowed function syntax, or `url(...)` expressions are rejected.
 
+## Export Options
+
+### Download CSV
+
+After running a query, download results as CSV from the result grid toolbar.
+
+<img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/download_csv.png" alt="download csv" width="200"/>
+
+- Supports multiline content
+- No row limit (be mindful of large result sets)
+- Does not support nested complex objects
+
+### Copy to Clipboard
+
+Copy results in CSV format with a configurable size limit (default 1MB). Configure via `vscode-bigquery.clipboardSizeLimitKb`.
+
+### Download JSONL
+
+Download results in [JSONL](https://jsonlines.org/) format from the result grid toolbar.
+
+<img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/download_jsonl.png" alt="download jsonl" width="200"/>
+
+### Send to Pub/Sub
+
+Publish query results to Google Cloud Pub/Sub (one message per row).
+
+Requirements:
+- A column named `data` of type `STRING` or `JSON`
+- Optional: A column named `attributes` of type `RECORD`
+
+Example query:
+```sql
+SELECT
+    (
+    SELECT AS STRUCT
+        "my test test" AS test,
+        "amazing data type" AS data_type
+    ) AS attributes,
+
+    TO_JSON(t) AS data
+
+FROM `dataset.table` t
+```
+
+<img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/send_to_pubsub.png" alt="send to Pub/Sub" width="200"/>
+
+Enter the topic name in the format: `projects/<project_id>/topics/<topic_name>`
+
+<img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/send_to_pubsub_topic_name.png" alt="Pub/Sub topic name" width="200"/>
+
 ## Query History
 
 All executed queries are saved to the History panel in the BigQuery sidebar.
@@ -358,34 +386,6 @@ Configuration options:
 | `formatLogicalOperatorStyle` | keywordAligned, contentAligned, indented | keywordAligned | How AND/OR/ON are positioned relative to their parent clause |
 | `formatNewlineBeforeSemicolon` | true, false | false | Semicolon on separate line |
 
-## Send to Pub/Sub
-
-Publish query results to Google Cloud Pub/Sub (one message per row).
-
-Requirements:
-- A column named `data` of type `STRING` or `JSON`
-- Optional: A column named `attributes` of type `RECORD`
-
-Example query:
-```sql
-SELECT
-    (
-    SELECT AS STRUCT
-        "my test test" AS test,
-        "amazing data type" AS data_type
-    ) AS attributes,
-
-    TO_JSON(t) AS data
-
-FROM `dataset.table` t
-```
-
-<img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/send_to_pubsub.png" alt="send to Pub/Sub" width="200"/>
-
-Enter the topic name in the format: `projects/<project_id>/topics/<topic_name>`
-
-<img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/send_to_pubsub_topic_name.png" alt="Pub/Sub topic name" width="200"/>
-
 ## Query Location
 
 BigQuery jobs run in a specific processing location. By default the extension auto-detects the location for every query:
@@ -405,11 +405,11 @@ Set `vscode-bigquery.defaultLocation` explicitly if:
 
 ## Keyboard Shortcuts
 
-| Shortcut | Icon | Command | Description |
-|----------|------|---------|-------------|
-| `Ctrl+Enter` | <img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/icon_run_query.png" alt="run" width="16"/> | Run Query | Execute the entire query in the editor |
-| `Ctrl+E` | <img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/icon_run_selected.png" alt="run selected" width="16"/> | Run Selected Query | Execute only the selected text |
-| `Shift+Alt+F` | | Format SQL | Format the current SQL document |
+| Shortcut | Command | Description |
+|----------|---------|-------------|
+| `Ctrl+Enter` | Run Query | Execute the entire query in the editor |
+| `Ctrl+E` | Run Selected Query | Execute only the selected text |
+| `Shift+Alt+F` | Format SQL | Format the current SQL document |
 
 ## Command Palette
 
