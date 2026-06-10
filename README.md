@@ -1,50 +1,12 @@
 # BigQuery Studio for Visual Studio Code
 
-> **Fork Notice:** This extension is a fork of [bstruct/vscode-bigquery](https://github.com/bstruct/vscode-bigquery) with additional improvements and fixes.
-
 [![VS Code Marketplace](https://vsmarketplacebadges.dev/version-short/s-seveur.bigquery-studio.svg?label=VS%20Code%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=s-seveur.bigquery-studio)
 [![Installs](https://vsmarketplacebadges.dev/installs-short/s-seveur.bigquery-studio.svg)](https://marketplace.visualstudio.com/items?itemName=s-seveur.bigquery-studio)
 [![Rating](https://vsmarketplacebadges.dev/rating-short/s-seveur.bigquery-studio.svg)](https://marketplace.visualstudio.com/items?itemName=s-seveur.bigquery-studio&ssr=false#review-details)
 
 A powerful Visual Studio Code extension for Google BigQuery. Browse datasets and tables, run queries with real-time validation, view results, format SQL, track query history, estimate costs, and visualize data lineage.
 
-## What's Different
-
-This fork includes the following improvements over [bstruct/vscode-bigquery](https://github.com/bstruct/vscode-bigquery):
-
-### Highlights in v2.0.0
-
-- **Modern Results Grid (default)** — Preact-based renderer replaces the legacy WASM grid. ~7× smaller bundle (≈64 KB vs ≈442 KB), 35× smaller gzipped. Multi-column sort, find-in-page, Schema tab, resizable cell drawer for STRUCT/ARRAY/JSON, column drag-resize, multi-row selection with TSV/Markdown copy, density toggle, per-type syntax colors, click-to-copy scalars, script multi-result view, table preview parity. Runs behind a strict Content Security Policy. See [Results Grid](#results-grid).
-- **Automatic query location detection** — `datasets.get` on the first FROM picks the right BigQuery region automatically. No more "Dataset not found in location us-central1" errors for datasets outside your project's default region. Override via new `vscode-bigquery.defaultLocation` setting. See [Query Location](#query-location).
-- **Customizable cell colors** — New `vscode-bigquery.gridColors` setting lets you retune per-BQ-type cell text colors (number, boolean, timestamp, struct, bytes, string, null) without writing CSS. See [Color Customization](#color-customization).
-
-### New Features (cumulative since fork)
-- **Notebook mode for SQL files** - Open `.sql`/`.bqsql` as a BigQuery notebook. Per-cell run / cancel / exports (CSV, JSONL, Pub/Sub, Copy-as-Markdown). Tabbed Results/Schema, pagination with page-number input, configurable page size (25/50/100/250/1000), cell output persisted across VS Code restarts.
-- **Smart Column Autocomplete** - Type `alias.` or `cte_name.` to get column suggestions from tables and CTEs
-- **Data Lineage Visualization** - dbt-style lineage graphs with CTE support, multi-query support, click-to-navigate, hover tooltips, Query Result nodes, right-click lineage for selection, PNG / PDF export (individual and bulk, cross-platform)
-- **Query History** - Track all executed queries with re-run, copy, and delete; bytes / duration / status shown inline
-- **Table Schema Hover** - Hover over table names to see schema details (supports JOINs, CTEs, and backtick-quoted identifiers)
-- **Table Search** - Search tables across all projects and datasets via a cached local index (`BigQuery: Build Table Index` → `BigQuery: Search Tables`)
-- **Pinned Tables** - Pin frequently-used tables to a dedicated folder; visual feedback for already-pinned tables
-- **Hidden Projects** - Hide projects from the explorer with one-click restore
-- **Copy Table Path** - Right-click any table to copy its fully-qualified path
-- **Cost Estimator** - Real-time query cost estimates with configurable $/TB pricing
-- **SQL Formatter** - Advanced formatting with leading commas, keyword casing, indent styles, logical-operator style, dense operators, expression width
-- **Copy to Clipboard** - Copy query results directly to clipboard with configurable size limits
-- **Schema Refresh Command** - Clear cached table schemas when they become outdated
-- **Auto-preview created tables** - Optional setting to open a preview panel on successful `CREATE TABLE`
-
-### Improvements
-- **Offline-Ready Charting** - MorphCharts bundled locally instead of CDN for air-gapped environments
-- **Enhanced SQL Intellisense** - 400+ keywords/functions with syntax highlighting (including ALL, ANY, SOME)
-- **Block Comment Support** - Full `/* */` syntax highlighting and code folding
-- **Windows Support** - Fixed gcloud authentication issues on Windows
-- **Security Hardening** - XSS prevention, Content Security Policy on results webview with nonced styles, input validation, tight CSS sanitization for user-configurable colors
-- **Better Panel State** - Webview panels retain context when hidden
-- **Auto-Reveal Control** - Setting to disable automatic results panel focus switching
-
-<!-- TODO: Add hero screenshot showing the extension in action -->
-<!-- ![Extension Overview](documentation/hero_screenshot.png) -->
+<img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/hero_query_results.png" alt="BigQuery Studio — query editor with CTE preview CodeLens and results grid" width="900"/>
 
 ## Features
 
@@ -53,6 +15,9 @@ This fork includes the following improvements over [bstruct/vscode-bigquery](htt
 - **Query Execution** - Run queries with `Ctrl+Enter`, real-time error highlighting, byte estimation, and automatic region detection
 - **Results Grid** - Modern Preact-based grid with multi-column sort, find-in-page, schema tab, cell drawer, drag-resize, row selection with TSV/Markdown copy, density toggle, and customizable per-type cell colors
 - **Notebook Mode** - Open `.sql`/`.bqsql` as a notebook: per-cell run / cancel / exports, cell output persistence, stats line
+- **Column Profile** - Right-click a column name to chart its distribution: null %, distinct/duplicate counts, uniqueness, quantile histogram, top values
+- **CTE Preview** - One-click "Preview CTE" CodeLens above each CTE runs it in isolation with its dependencies
+- **Table Preview from SQL** - Right-click a table name (or alias) in the editor to preview its rows
 - **SQL Intellisense** - Autocomplete for SQL keywords, BigQuery functions, and table/CTE columns
 - **Syntax Highlighting** - Full support for `.bqsql` files with grammar injection for `.sql` files
 - **SQL Formatting** - Format queries with configurable style options (keyword case, indent style, leading commas, logical-operator style, dense operators, expression width)
@@ -85,70 +50,6 @@ Or install from the [VS Code Marketplace](https://marketplace.visualstudio.com/i
 2. Open the BigQuery panel from the Activity Bar
 3. Create a new `.bqsql` file and write your query
 4. Press `Ctrl+Enter` to run
-
-## Keyboard Shortcuts
-
-| Shortcut | Icon | Command | Description |
-|----------|------|---------|-------------|
-| `Ctrl+Enter` | <img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/icon_run_query.png" alt="run" width="16"/> | Run Query | Execute the entire query in the editor |
-| `Ctrl+E` | <img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/icon_run_selected.png" alt="run selected" width="16"/> | Run Selected Query | Execute only the selected text |
-| `Shift+Alt+F` | | Format SQL | Format the current SQL document |
-
-## Command Palette
-
-All commands are available via the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`). Type "BigQuery" to see all available commands:
-
-| Command | Description |
-|---------|-------------|
-| **Authentication** | |
-| BigQuery: User Login | Sign in with Google account (opens browser) |
-| BigQuery: User Login with Google Drive | Sign in with Google Drive access for Drive-based tables |
-| BigQuery: User Login via Console | Sign in without browser (for remote/headless environments) |
-| BigQuery: Service Account Login | Authenticate with a service account JSON key file |
-| BigQuery: Initialize gcloud | Run `gcloud init` to configure the CLI |
-| BigQuery: Refresh Authentication | Refresh the authentication panel |
-| BigQuery: Revoke Session | Sign out from a Google account |
-| **Query Execution** | |
-| BigQuery: Run Query | Execute the entire query (`Ctrl+Enter`) |
-| BigQuery: Run Selected Query | Execute selected text only (`Ctrl+E`) |
-| BigQuery: Format SQL | Format the current SQL document (`Shift+Alt+F`) |
-| BigQuery: Preview Table | Right-click a table name in the editor to preview its rows (resolves full paths, `dataset.table`, bare names, and aliases) |
-| BigQuery: Open as Notebook | Open the current `.sql`/`.bqsql` file as a BigQuery notebook |
-| BigQuery: Open as Text | Switch a notebook back to the plain SQL editor |
-| **Explorer** | |
-| BigQuery: Refresh Explorer | Refresh the project/dataset tree |
-| BigQuery: Show Hidden Projects | Unhide previously hidden projects |
-| BigQuery: Refresh Schema Cache | Clear cached table schemas |
-| BigQuery: Build Table Index | Crawl all projects/datasets/tables into a local search index |
-| BigQuery: Search Tables | Fuzzy-search tables across all indexed datasets |
-| BigQuery: Clear Search | Clear the active table search filter |
-| BigQuery: Pin Table / Unpin Table | Pin a table to the dedicated Pinned Tables folder |
-| BigQuery: Copy Table Path | Copy `project.dataset.table` to clipboard |
-| BigQuery: View Table | Open a preview of the table's rows |
-| BigQuery: Preview Schema | Open the table/view schema |
-| BigQuery: Open DDL | Show the DDL statement for the table/view/routine |
-| BigQuery: Create Table Default Query | Open a new editor with a `SELECT *` starter |
-| BigQuery: Set Default Project | Make a project the default target for new queries |
-| BigQuery: Pin / Hide Project | Pin or hide a project in the explorer |
-| **Query History** | |
-| BigQuery: Re-run Query | Execute a query from history |
-| BigQuery: Copy Query | Copy query text to clipboard |
-| BigQuery: Show Query | Open query in a new editor |
-| BigQuery: Delete from History | Remove a query from history |
-| BigQuery: Clear All History | Remove all query history |
-| BigQuery: Refresh History | Refresh the history panel |
-| **Data Lineage** | |
-| BigQuery: Show Data Lineage | Visualize data flow for the current query |
-| BigQuery: Show Data Lineage for Selection | Visualize lineage for selected SQL |
-| BigQuery: Toggle Lineage Export Theme | Switch between dark/light export theme |
-| **Results & Exports** | |
-| BigQuery: Download CSV | Export the active result set as CSV |
-| BigQuery: Download JSONL | Export the active result set as JSONL |
-| BigQuery: Copy to Clipboard | Copy the active result set as Markdown |
-| BigQuery: Send to Pub/Sub | Publish the active result set to a Pub/Sub topic |
-| **Other** | |
-| BigQuery: Troubleshoot | Open troubleshooting guide |
-| BigQuery: Open Settings - Projects | Open project settings |
 
 ## Authentication
 
@@ -238,62 +139,6 @@ Valid queries show the estimated bytes in the status bar:
 
 <img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/query_size_evaluation.png" alt="query size evaluation" width="600"/>
 
-## Query History
-
-All executed queries are saved to the History panel in the BigQuery sidebar.
-
-Each history entry shows:
-- Query preview text
-- Execution timestamp
-- Bytes processed and duration
-- Success/error status
-
-Right-click actions:
-- **Re-run** - Execute the query again
-- **Copy** - Copy query text to clipboard
-- **Delete** - Remove from history
-
-Use the clear button to remove all history entries.
-
-<img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/query_history.png" alt="query_history"/>
-
-## Cost Estimator
-
-The status bar shows real-time cost estimates based on BigQuery's dry-run feature:
-- Estimated bytes to be processed
-- Estimated cost in USD (configurable, default $6.25/TB)
-
-Configure the cost per TB in settings via `vscode-bigquery.costPerTB`. Set to 0 to hide cost estimates:
-
-<img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/cost_estimate.png" alt="cost_estimator" />
-
-## Table Schema Hover
-
-Hover over any table name in your SQL query to see schema information:
-- Column names and data types
-- Column descriptions (if available)
-- Partitioning and clustering information
-
-<img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/table_hover_schema.png" alt="table_hover_schema" />
-
-The schema is cached after first fetch for faster subsequent lookups.
-
-### Refresh Schema Cache
-
-If a table schema has changed in BigQuery, the cached schema may be outdated. To clear the cache and fetch fresh schemas:
-
-1. Open the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`)
-2. Run `BigQuery: Refresh Schema Cache`
-
-This clears all cached schemas. The next time you hover over a table, fresh schema data will be fetched from BigQuery.
-
-### Supported Locations
-
-Schema hover works for tables in:
-- `FROM` clauses - `FROM project.dataset.table`
-- `JOIN` clauses - `JOIN project.dataset.table`, `LEFT JOIN`, `RIGHT JOIN`, `INNER JOIN`, `CROSS JOIN`, `FULL JOIN`
-- **CTE references** - When you reference a CTE name (e.g., `FROM my_cte`), the hover shows the columns defined in that CTE's SELECT clause
-
 ## Data Lineage
 
 Visualize data flow in your queries. Click the lineage button in the editor title bar (top-right corner) or run `BigQuery: Show Data Lineage`.
@@ -350,26 +195,32 @@ Exported files include the complete lineage graph with proper node colors, edges
 
 > **Note:** Lineage requires valid SQL. If your query contains syntax errors, the lineage graph may be incomplete or unavailable.
 
-## Format SQL
+## Table Schema Hover
 
-Format your BigQuery SQL queries with `Shift+Alt+F` or by running `BigQuery: Format SQL`.
+Hover over any table name in your SQL query to see schema information:
+- Column names and data types
+- Column descriptions (if available)
+- Partitioning and clustering information
 
-Configuration options:
+<img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/table_hover_schema.png" alt="table_hover_schema" />
 
-| Setting | Values | Default | Description |
-|---------|--------|---------|-------------|
-| `formatKeywordCase` | upper, lower, preserve | upper | Case for SQL keywords (SELECT, FROM) |
-| `formatFunctionCase` | upper, lower, preserve | preserve | Case for function names (COUNT, SUM) |
-| `formatIdentifierCase` | upper, lower, preserve | preserve | Case for identifiers (tables, columns) |
-| `formatDataTypeCase` | upper, lower, preserve | preserve | Case for data types (INT64, STRING) |
-| `formatIndentStyle` | standard, tabularLeft, tabularRight | standard | SQL indentation style |
-| `formatLeadingCommas` | true, false | true | Use leading comma style |
-| `formatExpressionWidth` | 1-200 | 50 | Max expression width before line breaks |
-| `formatInlineKeyClauses` | true, false | false | Keep GROUP BY / ORDER BY items on one line when they fit `formatExpressionWidth` (SELECT stays expanded) |
-| `formatDenseOperators` | true, false | false | Pack operators without spaces (1+1) |
-| `formatLogicalOperatorNewline` | before, after | before | Newline position for AND/OR |
-| `formatLogicalOperatorStyle` | keywordAligned, contentAligned, indented | keywordAligned | How AND/OR/ON are positioned relative to their parent clause |
-| `formatNewlineBeforeSemicolon` | true, false | false | Semicolon on separate line |
+The schema is cached after first fetch for faster subsequent lookups.
+
+### Refresh Schema Cache
+
+If a table schema has changed in BigQuery, the cached schema may be outdated. To clear the cache and fetch fresh schemas:
+
+1. Open the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`)
+2. Run `BigQuery: Refresh Schema Cache`
+
+This clears all cached schemas. The next time you hover over a table, fresh schema data will be fetched from BigQuery.
+
+### Supported Locations
+
+Schema hover works for tables in:
+- `FROM` clauses - `FROM project.dataset.table`
+- `JOIN` clauses - `JOIN project.dataset.table`, `LEFT JOIN`, `RIGHT JOIN`, `INNER JOIN`, `CROSS JOIN`, `FULL JOIN`
+- **CTE references** - When you reference a CTE name (e.g., `FROM my_cte`), the hover shows the columns defined in that CTE's SELECT clause
 
 ## Export Options
 
@@ -393,37 +244,11 @@ Download results in [JSONL](https://jsonlines.org/) format from the result grid 
 
 <img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/download_jsonl.png" alt="download jsonl" width="200"/>
 
-## Send to Pub/Sub
-
-Publish query results to Google Cloud Pub/Sub (one message per row).
-
-Requirements:
-- A column named `data` of type `STRING` or `JSON`
-- Optional: A column named `attributes` of type `RECORD`
-
-Example query:
-```sql
-SELECT
-    (
-    SELECT AS STRUCT
-        "my test test" AS test,
-        "amazing data type" AS data_type
-    ) AS attributes,
-
-    TO_JSON(t) AS data
-
-FROM `dataset.table` t
-```
-
-<img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/send_to_pubsub.png" alt="send to Pub/Sub" width="200"/>
-
-Enter the topic name in the format: `projects/<project_id>/topics/<topic_name>`
-
-<img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/send_to_pubsub_topic_name.png" alt="Pub/Sub topic name" width="200"/>
-
 ## Results Grid
 
 Query results, table previews, and multi-statement scripts render in a Preact-based grid that replaced the legacy WASM renderer in **v2.0.0**. Bundle is ~7× smaller (≈64 KB vs ≈442 KB; ~12 KB gzipped), fully theme-aware, and runs behind a strict Content Security Policy with nonced inline styles.
+
+<img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/results_grid_v2.png" alt="results grid — tabs, pagination, find, density toggle, per-type colors, export buttons" width="900"/>
 
 ### Feature Matrix
 
@@ -479,6 +304,88 @@ Any CSS color value works (hex, `rgb()`, `hsl()`, named colors, `var(--vscode-�
 
 Values are sanitized at HTML inject time against an allowlist regex (`[A-Za-z0-9 ,.()%#\-]`, 80-char cap) and emitted inside a nonced `<style>` block guarded by the webview's Content Security Policy. Values containing `;`, `{`, `}`, `<`, `>`, `:` other than those in allowed function syntax, or `url(...)` expressions are rejected.
 
+## Query History
+
+All executed queries are saved to the History panel in the BigQuery sidebar.
+
+Each history entry shows:
+- Query preview text
+- Execution timestamp
+- Bytes processed and duration
+- Success/error status
+
+Right-click actions:
+- **Re-run** - Execute the query again
+- **Copy** - Copy query text to clipboard
+- **Delete** - Remove from history
+
+Use the clear button to remove all history entries.
+
+<img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/query_history.png" alt="query_history"/>
+
+## Cost Estimator
+
+The status bar shows real-time cost estimates based on BigQuery's dry-run feature:
+- Estimated bytes to be processed
+- Estimated cost in USD (configurable, default $6.25/TB)
+
+Configure the cost per TB in settings via `vscode-bigquery.costPerTB`. Set to 0 to hide cost estimates:
+
+<img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/cost_estimate.png" alt="cost_estimator" />
+
+## Format SQL
+
+Format your BigQuery SQL queries with `Shift+Alt+F` or by running `BigQuery: Format SQL`.
+
+<img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/format_sql_tabular.png" alt="formatted SQL — tabularLeft, leading commas, aligned ON/AND, inline GROUP BY" width="640"/>
+
+*Example: `tabularLeft` indent, leading commas, gutter-aligned `ON`/`AND`, inline `GROUP BY`/`ORDER BY`.*
+
+Configuration options:
+
+| Setting | Values | Default | Description |
+|---------|--------|---------|-------------|
+| `formatKeywordCase` | upper, lower, preserve | upper | Case for SQL keywords (SELECT, FROM) |
+| `formatFunctionCase` | upper, lower, preserve | preserve | Case for function names (COUNT, SUM) |
+| `formatIdentifierCase` | upper, lower, preserve | preserve | Case for identifiers (tables, columns) |
+| `formatDataTypeCase` | upper, lower, preserve | preserve | Case for data types (INT64, STRING) |
+| `formatIndentStyle` | standard, tabularLeft, tabularRight | standard | SQL indentation style |
+| `formatLeadingCommas` | true, false | true | Use leading comma style |
+| `formatExpressionWidth` | 1-200 | 50 | Max expression width before line breaks |
+| `formatInlineKeyClauses` | true, false | false | Keep GROUP BY / ORDER BY items on one line when they fit `formatExpressionWidth` (SELECT stays expanded) |
+| `formatDenseOperators` | true, false | false | Pack operators without spaces (1+1) |
+| `formatLogicalOperatorNewline` | before, after | before | Newline position for AND/OR |
+| `formatLogicalOperatorStyle` | keywordAligned, contentAligned, indented | keywordAligned | How AND/OR/ON are positioned relative to their parent clause |
+| `formatNewlineBeforeSemicolon` | true, false | false | Semicolon on separate line |
+
+## Send to Pub/Sub
+
+Publish query results to Google Cloud Pub/Sub (one message per row).
+
+Requirements:
+- A column named `data` of type `STRING` or `JSON`
+- Optional: A column named `attributes` of type `RECORD`
+
+Example query:
+```sql
+SELECT
+    (
+    SELECT AS STRUCT
+        "my test test" AS test,
+        "amazing data type" AS data_type
+    ) AS attributes,
+
+    TO_JSON(t) AS data
+
+FROM `dataset.table` t
+```
+
+<img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/send_to_pubsub.png" alt="send to Pub/Sub" width="200"/>
+
+Enter the topic name in the format: `projects/<project_id>/topics/<topic_name>`
+
+<img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/send_to_pubsub_topic_name.png" alt="Pub/Sub topic name" width="200"/>
+
 ## Query Location
 
 BigQuery jobs run in a specific processing location. By default the extension auto-detects the location for every query:
@@ -495,6 +402,70 @@ Set `vscode-bigquery.defaultLocation` explicitly if:
 - You always work in a single region and want to skip the lookup entirely.
 
 > Multi-statement scripts run as a single BigQuery job and cannot span regions. If a script references two datasets in different locations, either split into separate queries or pin a location via the setting.
+
+## Keyboard Shortcuts
+
+| Shortcut | Icon | Command | Description |
+|----------|------|---------|-------------|
+| `Ctrl+Enter` | <img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/icon_run_query.png" alt="run" width="16"/> | Run Query | Execute the entire query in the editor |
+| `Ctrl+E` | <img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/icon_run_selected.png" alt="run selected" width="16"/> | Run Selected Query | Execute only the selected text |
+| `Shift+Alt+F` | | Format SQL | Format the current SQL document |
+
+## Command Palette
+
+All commands are available via the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`). Type "BigQuery" to see all available commands:
+
+| Command | Description |
+|---------|-------------|
+| **Authentication** | |
+| BigQuery: User Login | Sign in with Google account (opens browser) |
+| BigQuery: User Login with Google Drive | Sign in with Google Drive access for Drive-based tables |
+| BigQuery: User Login via Console | Sign in without browser (for remote/headless environments) |
+| BigQuery: Service Account Login | Authenticate with a service account JSON key file |
+| BigQuery: Initialize gcloud | Run `gcloud init` to configure the CLI |
+| BigQuery: Refresh Authentication | Refresh the authentication panel |
+| BigQuery: Revoke Session | Sign out from a Google account |
+| **Query Execution** | |
+| BigQuery: Run Query | Execute the entire query (`Ctrl+Enter`) |
+| BigQuery: Run Selected Query | Execute selected text only (`Ctrl+E`) |
+| BigQuery: Format SQL | Format the current SQL document (`Shift+Alt+F`) |
+| BigQuery: Preview Table | Right-click a table name in the editor to preview its rows (resolves full paths, `dataset.table`, bare names, and aliases) |
+| BigQuery: Open as Notebook | Open the current `.sql`/`.bqsql` file as a BigQuery notebook |
+| BigQuery: Open as Text | Switch a notebook back to the plain SQL editor |
+| **Explorer** | |
+| BigQuery: Refresh Explorer | Refresh the project/dataset tree |
+| BigQuery: Show Hidden Projects | Unhide previously hidden projects |
+| BigQuery: Refresh Schema Cache | Clear cached table schemas |
+| BigQuery: Build Table Index | Crawl all projects/datasets/tables into a local search index |
+| BigQuery: Search Tables | Fuzzy-search tables across all indexed datasets |
+| BigQuery: Clear Search | Clear the active table search filter |
+| BigQuery: Pin Table / Unpin Table | Pin a table to the dedicated Pinned Tables folder |
+| BigQuery: Copy Table Path | Copy `project.dataset.table` to clipboard |
+| BigQuery: View Table | Open a preview of the table's rows |
+| BigQuery: Preview Schema | Open the table/view schema |
+| BigQuery: Open DDL | Show the DDL statement for the table/view/routine |
+| BigQuery: Create Table Default Query | Open a new editor with a `SELECT *` starter |
+| BigQuery: Set Default Project | Make a project the default target for new queries |
+| BigQuery: Pin / Hide Project | Pin or hide a project in the explorer |
+| **Query History** | |
+| BigQuery: Re-run Query | Execute a query from history |
+| BigQuery: Copy Query | Copy query text to clipboard |
+| BigQuery: Show Query | Open query in a new editor |
+| BigQuery: Delete from History | Remove a query from history |
+| BigQuery: Clear All History | Remove all query history |
+| BigQuery: Refresh History | Refresh the history panel |
+| **Data Lineage** | |
+| BigQuery: Show Data Lineage | Visualize data flow for the current query |
+| BigQuery: Show Data Lineage for Selection | Visualize lineage for selected SQL |
+| BigQuery: Toggle Lineage Export Theme | Switch between dark/light export theme |
+| **Results & Exports** | |
+| BigQuery: Download CSV | Export the active result set as CSV |
+| BigQuery: Download JSONL | Export the active result set as JSONL |
+| BigQuery: Copy to Clipboard | Copy the active result set as Markdown |
+| BigQuery: Send to Pub/Sub | Publish the active result set to a Pub/Sub topic |
+| **Other** | |
+| BigQuery: Troubleshoot | Open troubleshooting guide |
+| BigQuery: Open Settings - Projects | Open project settings |
 
 ## Settings
 
@@ -603,6 +574,43 @@ Please file an issue with as much detail as possible at [GitHub Issues](https://
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+
+## Project History
+
+> **Fork Notice:** This extension started as a fork of [bstruct/vscode-bigquery](https://github.com/bstruct/vscode-bigquery) and has since grown into its own project. This section is kept for attribution and history.
+
+Improvements over the original project:
+
+### Highlights in v2.0.0
+
+- **Modern Results Grid (default)** — Preact-based renderer replaces the legacy WASM grid. ~7× smaller bundle (≈64 KB vs ≈442 KB), 35× smaller gzipped. Multi-column sort, find-in-page, Schema tab, resizable cell drawer for STRUCT/ARRAY/JSON, column drag-resize, multi-row selection with TSV/Markdown copy, density toggle, per-type syntax colors, click-to-copy scalars, script multi-result view, table preview parity. Runs behind a strict Content Security Policy. See [Results Grid](#results-grid).
+- **Automatic query location detection** — `datasets.get` on the first FROM picks the right BigQuery region automatically. No more "Dataset not found in location us-central1" errors for datasets outside your project's default region. Override via new `vscode-bigquery.defaultLocation` setting. See [Query Location](#query-location).
+- **Customizable cell colors** — New `vscode-bigquery.gridColors` setting lets you retune per-BQ-type cell text colors (number, boolean, timestamp, struct, bytes, string, null) without writing CSS. See [Color Customization](#color-customization).
+
+### New Features (cumulative since fork)
+- **Notebook mode for SQL files** - Open `.sql`/`.bqsql` as a BigQuery notebook. Per-cell run / cancel / exports (CSV, JSONL, Pub/Sub, Copy-as-Markdown). Tabbed Results/Schema, pagination with page-number input, configurable page size (25/50/100/250/1000), cell output persisted across VS Code restarts.
+- **Smart Column Autocomplete** - Type `alias.` or `cte_name.` to get column suggestions from tables and CTEs
+- **Data Lineage Visualization** - dbt-style lineage graphs with CTE support, multi-query support, click-to-navigate, hover tooltips, Query Result nodes, right-click lineage for selection, PNG / PDF export (individual and bulk, cross-platform)
+- **Query History** - Track all executed queries with re-run, copy, and delete; bytes / duration / status shown inline
+- **Table Schema Hover** - Hover over table names to see schema details (supports JOINs, CTEs, and backtick-quoted identifiers)
+- **Table Search** - Search tables across all projects and datasets via a cached local index (`BigQuery: Build Table Index` → `BigQuery: Search Tables`)
+- **Pinned Tables** - Pin frequently-used tables to a dedicated folder; visual feedback for already-pinned tables
+- **Hidden Projects** - Hide projects from the explorer with one-click restore
+- **Copy Table Path** - Right-click any table to copy its fully-qualified path
+- **Cost Estimator** - Real-time query cost estimates with configurable $/TB pricing
+- **SQL Formatter** - Advanced formatting with leading commas, keyword casing, indent styles, logical-operator style, dense operators, expression width
+- **Copy to Clipboard** - Copy query results directly to clipboard with configurable size limits
+- **Schema Refresh Command** - Clear cached table schemas when they become outdated
+- **Auto-preview created tables** - Optional setting to open a preview panel on successful `CREATE TABLE`
+
+### Improvements
+- **Offline-Ready Charting** - MorphCharts bundled locally instead of CDN for air-gapped environments
+- **Enhanced SQL Intellisense** - 400+ keywords/functions with syntax highlighting (including ALL, ANY, SOME)
+- **Block Comment Support** - Full `/* */` syntax highlighting and code folding
+- **Windows Support** - Fixed gcloud authentication issues on Windows
+- **Security Hardening** - XSS prevention, Content Security Policy on results webview with nonced styles, input validation, tight CSS sanitization for user-configurable colors
+- **Better Panel State** - Webview panels retain context when hidden
+- **Auto-Reveal Control** - Setting to disable automatic results panel focus switching
 
 ## License
 
