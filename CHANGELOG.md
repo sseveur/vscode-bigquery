@@ -5,6 +5,17 @@ All notable changes to the BigQuery Studio extension will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.2] - 2026-06-13
+
+### Fixed
+
+- **Tabular formatter broke inside CTEs** (#9) - In `tabularLeft`/`tabularRight` indent styles, `ON`/`AND` inside a CTE (and any subquery/derived table) were dumped at column 0 instead of the keyword gutter, because the realign pass only handled top-level (depth-0) clauses. The realign is now depth-aware: each parenthesized scope (CTE body, subquery) computes its own gutter, every clause keyword and `ON`/`AND`/`OR` is re-padded into it, and continuation lines shift with their governing clause. `FROM` now aligns with `INNER JOIN` (gutter widens to the longest keyword), and content lines up on one column within each scope.
+- **Window frames mangled** (#10) - `ROWS`/`RANGE BETWEEN … PRECEDING AND … ` analytic frames were split across lines with the frame's `AND` mistaken for a logical operator, a spurious comma inserted, and an orphan comma turned into a blank line. New `normalizeWindowFrames` pass moves a trailing frame onto its own line and rejoins a split `AND <upper bound>`; the realign skips `OVER(…)` window internals; `collapseKeyClauses` no longer slurps the frame into the window `ORDER BY`; and the leading-comma pass drops orphan-comma blank lines.
+
+### Changed
+
+- **Default `formatLogicalOperatorStyle` is now `indented`** - `AND`/`OR` indent one level under their parent clause while `ON` stays at the keyword gutter — the most common BigQuery layout. Set the value explicitly to `keywordAligned` or `contentAligned` to keep the previous behavior.
+
 ## [2.5.1] - 2026-06-10
 
 ### Changed

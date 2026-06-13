@@ -31,7 +31,7 @@ export function getFormatOptions(): FormatOptions {
         expressionWidth: config.get<number>('formatExpressionWidth', 50),
         functionCase: config.get<'upper' | 'lower' | 'preserve'>('formatFunctionCase', 'preserve'),
         logicalOperatorNewline: config.get<'before' | 'after'>('formatLogicalOperatorNewline', 'before'),
-        logicalOperatorStyle: config.get<'keywordAligned' | 'contentAligned' | 'indented'>('formatLogicalOperatorStyle', 'keywordAligned'),
+        logicalOperatorStyle: config.get<'keywordAligned' | 'contentAligned' | 'indented'>('formatLogicalOperatorStyle', 'indented'),
         identifierCase: config.get<'upper' | 'lower' | 'preserve'>('formatIdentifierCase', 'preserve'),
         dataTypeCase: config.get<'upper' | 'lower' | 'preserve'>('formatDataTypeCase', 'preserve'),
         denseOperators: config.get<boolean>('formatDenseOperators', false),
@@ -58,6 +58,11 @@ export function formatBigQuerySQL(sql: string, options?: Partial<FormatOptions>)
         denseOperators: opts.denseOperators,
         newlineBeforeSemicolon: opts.newlineBeforeSemicolon,
     });
+
+    // Normalize analytic window frames (ROWS/RANGE BETWEEN … PRECEDING AND … ). sql-formatter
+    // leaves the frame trailing the window ORDER BY line and splits its "AND <upper bound>" onto
+    // its own line where the downstream passes mistake the frame AND for a logical operator (#10).
+    formatted = normalizeWindowFrames(formatted);
 
     // Transform logical operator positioning. Tabular indent styles always need the
     // pass: sql-formatter splits compound JOIN keywords ("INNER     JOIN") and leaves
@@ -97,6 +102,47 @@ const CLAUSE_KEYWORD = /^(\s*)(SELECT|FROM|WHERE|HAVING|QUALIFY|GROUP\s+BY|ORDER
 
 /** Multi-word SQL keywords for content-start detection. */
 const MULTI_WORD_KEYWORD = /^((?:LEFT|RIGHT|FULL)(?:\s+OUTER)?\s+JOIN|(?:CROSS|INNER)\s+JOIN|ORDER\s+BY|GROUP\s+BY|PARTITION\s+BY)\s*/i;
+
+/** Start of an analytic window frame clause (ROWS/RANGE …) inside an OVER(...) window. */
+const FRAME_START = /\b(?:ROWS|RANGE)\s+(?:BETWEEN\b|UNBOUNDED\b|CURRENT\b|INTERVAL\b|\d)/i;
+/** A frame's lower bound ends with one of these, right before its `AND <upper bound>`. */
+const FRAME_BOUND_END = /(?:PRECEDING|FOLLOWING|CURRENT\s+ROW|ROW)\s*$/i;
+
+/**
+ * Normalizes analytic window frames so downstream passes don't mangle them (#10).
+ * sql-formatter leaves the ROWS/RANGE frame trailing the window's ORDER BY line and then
+ * splits `… PRECEDING AND <upper bound>` across two lines, where the realign / leading-comma
+ * passes would treat the frame's AND as a logical operator. This:
+ *   1. moves a frame clause that trails other content onto its own line, and
+ *   2. rejoins a frame whose `AND <upper bound>` was split off, collapsing the padding.
+ */
+function normalizeWindowFrames(sql: string): string {
+    // Pass 1: split a trailing ROWS/RANGE frame onto its own line at the same indent.
+    const split: string[] = [];
+    for (const line of sql.split('\n')) {
+        const m = line.match(/^(\s*)(.*?\S)\s+((?:ROWS|RANGE)\s+.*)$/i);
+        if (m && FRAME_START.test(' ' + m[3]) && !/\b(?:ROWS|RANGE)\b/i.test(m[2]) && !isInsideStringOrComment(line)) {
+            split.push(m[1] + m[2]);
+            split.push(m[1] + m[3].replace(/\s{2,}/g, ' '));
+        } else {
+            split.push(line);
+        }
+    }
+
+    // Pass 2: rejoin a frame line whose `AND <upper bound>` landed on the following line.
+    const out: string[] = [];
+    for (let i = 0; i < split.length; i++) {
+        const cur = split[i];
+        const next = i + 1 < split.length ? split[i + 1] : '';
+        if (/^\s*(?:ROWS|RANGE)\b/i.test(cur) && FRAME_BOUND_END.test(cur) && /^\s*AND\b/i.test(next)) {
+            out.push(cur.replace(/\s+$/, '') + ' ' + next.trim().replace(/\s{2,}/g, ' '));
+            i++; // consume the AND line
+        } else {
+            out.push(cur);
+        }
+    }
+    return out.join('\n');
+}
 
 /**
  * Transforms AND/OR/ON positioning based on the selected logical operator style.
@@ -279,76 +325,119 @@ function realignTabularBlock(blockLines: string[], opts: FormatOptions): string[
         d += countParenChanges(line);
     }
 
-    // The gutter sql-formatter produced — content column of the first top-level clause.
-    let oldCol = -1;
-    for (let i = 0; i < blockLines.length; i++) {
-        if (depths[i] === 0 && blockLines[i].match(CLAUSE_KEYWORD)) {
-            oldCol = getContentStart(blockLines[i]);
-            break;
-        }
-    }
-    if (oldCol <= 0) { return blockLines; }
+    // Lines inside an OVER(...) analytic window are left to sql-formatter — their internal
+    // PARTITION BY / ORDER BY / frame layout must not be realigned to the clause gutter (#10).
+    const inWindow = computeWindowMask(blockLines, depths);
+    const right = opts.indentStyle === 'tabularRight';
+    const tab = opts.tabWidth;
 
-    // Widen the gutter so every top-level keyword fits (compound JOINs overflow it).
-    let newCol = oldCol;
+    // Per-depth gutter geometry, computed only from clause/op lines that are NOT inside a window.
+    // CTE bodies, derived tables and subqueries each live at their own paren depth and get their
+    // own gutter — the old single-depth-0 pass dumped CTE-body ON/AND at column 0 (#9).
+    //   base[d]   = leading indent of clause keywords at depth d
+    //   oldCol[d] = content column sql-formatter produced at depth d
+    //   newCol[d] = widened content column so the longest keyword/op at depth d fits
+    const base: Record<number, number> = {};
+    const oldCol: Record<number, number> = {};
+    const newCol: Record<number, number> = {};
     for (let i = 0; i < blockLines.length; i++) {
-        if (depths[i] !== 0) { continue; }
+        if (inWindow[i]) { continue; }
+        const dep = depths[i];
         const cm = blockLines[i].match(CLAUSE_KEYWORD);
         if (cm) {
             const kw = cm[2].replace(/\s+/g, ' ');
-            newCol = Math.max(newCol, cm[1].length + kw.length + 1);
+            const content = getContentStart(blockLines[i]);
+            if (!(dep in oldCol)) { base[dep] = cm[1].length; oldCol[dep] = content; newCol[dep] = content; }
+            newCol[dep] = Math.max(newCol[dep], cm[1].length + kw.length + 1);
             continue;
         }
         const om = blockLines[i].match(LOGICAL_OP_LINE);
-        if (om && !isInsideStringOrComment(blockLines[i])) {
-            const kwLen = om[2].length;
-            const lead = (opts.logicalOperatorStyle === 'indented' && om[2].toUpperCase() !== 'ON')
-                ? opts.tabWidth : 0;
-            newCol = Math.max(newCol, lead + kwLen + 1);
+        if (om && (dep in oldCol) && !isInsideStringOrComment(blockLines[i])) {
+            const isOn = om[2].toUpperCase() === 'ON';
+            const lead = base[dep] + (opts.logicalOperatorStyle === 'indented' && !isOn ? tab : 0);
+            newCol[dep] = Math.max(newCol[dep], lead + om[2].length + 1);
         }
     }
-    const delta = newCol - oldCol;
-    const right = opts.indentStyle === 'tabularRight';
-    const padTo = (kwCol: number, kw: string) => ' '.repeat(Math.max(1, newCol - kwCol - kw.length));
+
+    const clauseDepths = Object.keys(oldCol).map(Number).sort((a, b) => a - b);
+    if (clauseDepths.length === 0) { return blockLines; }
+
+    // Governing clause depth for a continuation / window line: the deepest clause-bearing
+    // depth at or below it, so the line shifts with the gutter it sits under.
+    const governing = (dep: number): number | null => {
+        let g: number | null = null;
+        for (const cd of clauseDepths) { if (cd <= dep) { g = cd; } }
+        return g;
+    };
+    const padTo = (kwCol: number, kw: string, col: number) => ' '.repeat(Math.max(1, col - kwCol - kw.length));
 
     return blockLines.map((line, i) => {
+        const dep = depths[i];
         const leadingLen = line.length - line.trimStart().length;
 
-        if (depths[i] === 0) {
+        if (!inWindow[i] && (dep in oldCol)) {
+            const col = newCol[dep];
+            const b = base[dep];
             const cm = line.match(CLAUSE_KEYWORD);
             if (cm) {
                 const kw = cm[2].replace(/\s+/g, ' ');
-                const contentStart = getContentStart(line);
-                const rest = line.slice(contentStart);
+                const rest = line.slice(getContentStart(line));
                 if (!rest) {
-                    return right ? ' '.repeat(Math.max(0, newCol - 1 - kw.length)) + kw : kw;
+                    return right ? ' '.repeat(Math.max(0, col - 1 - kw.length)) + kw : ' '.repeat(b) + kw;
                 }
                 return right
-                    ? ' '.repeat(Math.max(0, newCol - 1 - kw.length)) + kw + ' ' + rest
-                    : kw + padTo(0, kw) + rest;
+                    ? ' '.repeat(Math.max(0, col - 1 - kw.length)) + kw + ' ' + rest
+                    : ' '.repeat(b) + kw + padTo(b, kw, col) + rest;
             }
             const om = line.match(LOGICAL_OP_LINE);
             if (om && !isInsideStringOrComment(line)) {
                 const [, , keyword, , rest] = om;
                 if (opts.logicalOperatorStyle === 'contentAligned') {
-                    return ' '.repeat(newCol) + keyword + ' ' + rest;
+                    return ' '.repeat(col) + keyword + ' ' + rest;
                 }
                 if (right) {
-                    return ' '.repeat(Math.max(0, newCol - 1 - keyword.length)) + keyword + ' ' + rest;
+                    return ' '.repeat(Math.max(0, col - 1 - keyword.length)) + keyword + ' ' + rest;
                 }
-                const kwCol = (opts.logicalOperatorStyle === 'indented' && keyword.toUpperCase() !== 'ON')
-                    ? opts.tabWidth : 0;
-                return ' '.repeat(kwCol) + keyword + padTo(kwCol, keyword) + rest;
+                const isOn = keyword.toUpperCase() === 'ON';
+                const kwCol = b + (opts.logicalOperatorStyle === 'indented' && !isOn ? tab : 0);
+                return ' '.repeat(kwCol) + keyword + padTo(kwCol, keyword, col) + rest;
             }
         }
 
-        // Continuation / nested lines that sat at (or beyond) the old content column
-        // shift right by the widening delta so relative alignment is preserved.
-        if (delta > 0 && leadingLen >= oldCol) {
-            return ' '.repeat(delta) + line;
+        // Continuation / window-internal lines that sat at (or beyond) the old content column
+        // shift right by their governing clause's widening delta so alignment is preserved.
+        const g = governing(dep);
+        if (g !== null) {
+            const delta = newCol[g] - oldCol[g];
+            if (delta > 0 && leadingLen >= oldCol[g]) {
+                return ' '.repeat(delta) + line;
+            }
         }
         return line;
     });
+}
+
+/**
+ * Marks lines that sit inside an OVER( … ) analytic window. The window body (PARTITION BY,
+ * ORDER BY, and the ROWS/RANGE frame) is indented by sql-formatter and must be skipped by the
+ * tabular realign — its keywords would otherwise be pulled to the clause gutter and the frame
+ * AND mistaken for a logical operator (#10). A window opens on a line containing `OVER (` whose
+ * paren stays open, and closes when the depth returns to the level it opened at.
+ */
+function computeWindowMask(blockLines: string[], depths: number[]): boolean[] {
+    const mask = new Array(blockLines.length).fill(false);
+    const openDepths: number[] = [];
+    for (let i = 0; i < blockLines.length; i++) {
+        const startDepth = depths[i];
+        while (openDepths.length && startDepth <= openDepths[openDepths.length - 1]) {
+            openDepths.pop();
+        }
+        if (openDepths.length) { mask[i] = true; }
+        if (/\bOVER\s*\(/i.test(blockLines[i]) && !isInsideStringOrComment(blockLines[i])) {
+            openDepths.push(startDepth);
+        }
+    }
+    return mask;
 }
 
 /**
@@ -476,6 +565,21 @@ function convertToLeadingCommas(sql: string, tabWidth: number, useTabs: boolean)
         const line = lines[i];
         const trimmedLine = line.trimEnd();
 
+        // Orphan comma on its own line (sql-formatter pushes the comma past an intervening
+        // comment). Attach it as a leading comma to the next content line and drop the orphan,
+        // otherwise the trailing-comma branch below would emit it as a blank line (#10).
+        if (line.trim() === ',') {
+            for (let k = i + 1; k < lines.length; k++) {
+                const nextContent = lines[k].trimStart();
+                if (nextContent) {
+                    const lead = lines[k].match(/^(\s*)/)?.[1] || '';
+                    lines[k] = lead + ', ' + nextContent;
+                    break;
+                }
+            }
+            continue;
+        }
+
         // Check if line ends with a comma (but not inside a string or comment)
         if (trimmedLine.endsWith(',') && !isInsideStringOrComment(trimmedLine)) {
             // Remove trailing comma from current line
@@ -579,6 +683,7 @@ function collapseKeyClauses(sql: string, opts: FormatOptions): string {
             const trimmed = lines[j].trim();
             if (!trimmed) { break; }
             if (trimmed.match(CLAUSE_KEYWORD)) { break; }
+            if (/^(?:ROWS|RANGE)\b/i.test(trimmed)) { break; }  // window frame — not an ORDER BY item
             if (trimmed.startsWith(')') || trimmed.startsWith(';')) { break; }
             if (/^(UNION|INTERSECT|EXCEPT)\b/i.test(trimmed)) { break; }
             segments.push(trimmed);
