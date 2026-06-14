@@ -113,4 +113,62 @@ const gridV2Config = {
   ],
 };
 
-module.exports = [extensionConfig, gridV2Config];
+/** @type WebpackConfig */
+const notebookRendererConfig = {
+  target: 'web',
+  mode: 'none',
+  // ES module: VS Code loads a notebook renderer entrypoint as a module and calls its
+  // exported activate(). Reuses the Preact BqTable from the grid so notebook cells render
+  // identically to the results panel.
+  entry: './src/notebook/renderer/index.tsx',
+  output: {
+    path: path.resolve(__dirname, 'resources'),
+    filename: 'notebook-renderer.js',
+    library: { type: 'module' },
+  },
+  experiments: {
+    outputModule: true,
+  },
+  resolve: {
+    extensions: ['.tsx', '.ts', '.js'],
+  },
+  module: {
+    rules: [
+      {
+        test: /\.tsx?$/,
+        exclude: /node_modules/,
+        use: [
+          {
+            loader: 'ts-loader',
+            options: {
+              onlyCompileBundledFiles: true,
+              compilerOptions: {
+                module: 'esnext',
+                moduleResolution: 'node',
+                target: 'ES2020',
+                jsx: 'react-jsx',
+                jsxImportSource: 'preact',
+                rootDir: './src',
+                lib: ['ES2020', 'DOM'],
+              },
+            },
+          },
+        ],
+      },
+      {
+        // Bundle grid-v2.css as a raw string so the renderer can inject it into the cell context.
+        test: /grid-v2\.css$/,
+        type: 'asset/source',
+      },
+    ],
+  },
+  devtool: 'nosources-source-map',
+  plugins: [
+    new webpack.DefinePlugin({
+      'process.env.NODE_ENV': JSON.stringify('production'),
+      'process.env': JSON.stringify({ NODE_ENV: 'production' }),
+    }),
+  ],
+};
+
+module.exports = [extensionConfig, gridV2Config, notebookRendererConfig];

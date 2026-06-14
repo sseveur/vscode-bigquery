@@ -3,6 +3,36 @@ import { getExtensionUri } from '../extension';
 import { COMMAND_DOWNLOAD_CSV, COMMAND_DOWNLOAD_JSONL, COMMAND_SEND_PUBSUB, COMMAND_COPY_CLIPBOARD } from '../extensionCommands';
 import { ResultsGridRenderRequestV2 } from './resultsGridRenderRequestV2';
 
+const GRID_COLOR_KEY_TO_VAR: Record<string, string> = {
+    number: '--bq-color-number',
+    boolean: '--bq-color-boolean',
+    timestamp: '--bq-color-timestamp',
+    struct: '--bq-color-struct',
+    bytes: '--bq-color-bytes',
+    string: '--bq-color-string',
+    null: '--bq-color-null',
+};
+
+/**
+ * Reads the `vscode-bigquery.gridColors` setting and returns sanitized `{ cssVar: value }` overrides
+ * (allowlist regex + 80-char cap). Shared by the results-panel webview and the notebook renderer so
+ * both honor the same per-type cell colors.
+ */
+export function sanitizedGridColorVars(): Record<string, string> {
+    const cfg = vscode.workspace.getConfiguration('vscode-bigquery').get<Record<string, string>>('gridColors', {});
+    const out: Record<string, string> = {};
+    if (!cfg || typeof cfg !== 'object') { return out; }
+    for (const [k, v] of Object.entries(cfg)) {
+        const cssVar = GRID_COLOR_KEY_TO_VAR[k];
+        if (!cssVar || typeof v !== 'string') { continue; }
+        const raw = v.trim();
+        if (!raw || raw.length > 80) { continue; }
+        if (!/^[A-Za-z0-9 ,.()%#\-]+$/.test(raw)) { continue; }
+        out[cssVar] = raw;
+    }
+    return out;
+}
+
 export class ResultsGridRender {
 
     private webViewPanel: vscode.WebviewPanel;
@@ -30,27 +60,7 @@ export class ResultsGridRender {
     }
 
     private buildGridColorOverrides(): string {
-        const cfg = vscode.workspace.getConfiguration('vscode-bigquery').get<Record<string, string>>('gridColors', {});
-        if (!cfg || typeof cfg !== 'object') { return ''; }
-        const keyToVar: Record<string, string> = {
-            number: '--bq-color-number',
-            boolean: '--bq-color-boolean',
-            timestamp: '--bq-color-timestamp',
-            struct: '--bq-color-struct',
-            bytes: '--bq-color-bytes',
-            string: '--bq-color-string',
-            null: '--bq-color-null',
-        };
-        const lines: string[] = [];
-        for (const [k, v] of Object.entries(cfg)) {
-            const cssVar = keyToVar[k];
-            if (!cssVar || typeof v !== 'string') { continue; }
-            const raw = v.trim();
-            if (!raw) { continue; }
-            if (raw.length > 80) { continue; }
-            if (!/^[A-Za-z0-9 ,.()%#\-]+$/.test(raw)) { continue; }
-            lines.push(`${cssVar}: ${raw};`);
-        }
+        const lines = Object.entries(sanitizedGridColorVars()).map(([k, v]) => `${k}: ${v};`);
         return lines.length ? `:root { ${lines.join(' ')} }` : '';
     }
 

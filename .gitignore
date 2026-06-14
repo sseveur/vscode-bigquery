@@ -382,6 +382,7 @@ bqsql_parser/Cargo.lock
 
 # Build artifacts
 resources/grid-v2.js.map
+resources/notebook-renderer.js.map
 
 # Source / design artifacts (not shipped)
 logo.psd

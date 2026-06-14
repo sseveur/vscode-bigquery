@@ -664,6 +664,17 @@
 				"priority": "option"
 			}
 		],
+		"notebookRenderer": [
+			{
+				"id": "bigquery-grid-renderer",
+				"displayName": "BigQuery Results Grid",
+				"entrypoint": "./resources/notebook-renderer.js",
+				"mimeTypes": [
+					"application/vnd.bigquery.grid+json"
+				],
+				"requiresMessaging": "optional"
+			}
+		],
 		"menus": {
 			"editor/title": [
 				{

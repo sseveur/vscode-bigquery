@@ -90,6 +90,23 @@ export class BigQueryClient {
 	}
 
 	/**
+	 * Fetches a single page of an existing job's results in BigQuery REST wire format
+	 * ({ f: [{ v }] }), by job reference. Used by the notebook grid's load-more to page past the
+	 * initially loaded window. Default format (no useInt64Timestamp) matches the grid's cell
+	 * formatters, identical to the webview grid's fetchPage.
+	 */
+	public getQueryPageWire(jobRef: JobReference, startIndex: number, maxResults: number): Promise<Array<{ f: Array<{ v: unknown }> }>> {
+		return new Promise((resolve, reject) => {
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			(this.bqclient as any).request(
+				{ uri: '/queries/' + jobRef.jobId, qs: { location: jobRef.location, startIndex, maxResults } },
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				(err: any, resp: any) => err ? reject(err) : resolve((resp && resp.rows) || [])
+			);
+		});
+	}
+
+	/**
 	 * Runs a parameterized query to prevent SQL injection attacks.
 	 * Use @paramName syntax in the query and provide values in the params object.
 	 */
