@@ -8,6 +8,7 @@
 		"lib": ["ES2020", "DOM"],
 		"sourceMap": true,
 		"rootDir": "src",
+		"skipLibCheck": true,  /* skip type-checking of declaration files (third-party .d.ts) so tsc -p . / pretest aren't broken by deps' bundled types */
 		"strict": true  /* enable all strict type-checking options */
 		/* Additional Checks */
 		// "noImplicitReturns": true, /* Report error when not all code paths in function return a value. */

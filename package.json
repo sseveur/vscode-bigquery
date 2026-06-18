@@ -891,6 +891,7 @@
 		"pretest": "npm run compile-tests && npm run compile && npm run lint",
 		"lint": "eslint src --ext ts",
 		"test": "node ./out/test/runTest.js",
+		"test:unit": "npm run compile-tests && mocha \"out/test/unit/**/*.test.js\" --require ./out/test/unit/_setup.js --ui tdd --timeout 10000",
 		"deploy": "vsce publish",
 		"package-dev": "vsce package --pre-release"
 	},
