@@ -5,6 +5,18 @@ All notable changes to the BigQuery Studio extension will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.0] - 2026-06-18
+
+### Added
+
+- **Notebook cells render through the grid-v2 grid** (#1) - BigQuery notebook output now uses the same Preact grid as the results panel instead of a separate vanilla-HTML table. Cells get the full grid: per-type cell colors (honoring the `vscode-bigquery.gridColors` setting), STRUCT/ARRAY expansion, CSV/JSONL/clipboard export, and **load-more pagination beyond the first page** — the renderer requests further pages from the extension host over notebook messaging, so results no longer cap at the initially loaded rows. Multi-statement SCRIPT results source rows and schema from one raw `/queries` response so previously-empty cells now populate.
+- **Fast unit test suite** (`npm run test:unit`) - Headless mocha (no Extension Host, no network, no auth) covering the deterministic logic: BigQuery wire-format decode, the formatter fixes (#9 CTE gutter, #10 window frames), and result pagination. 40 tests, ~30 ms.
+
+### Changed
+
+- **BigQuery SDK 7.9.0 → 7.9.3** - Stays on the node>=14 release line, so the `^1.63.0` engine is unaffected. Picks up upstream fixes: `jobs.query` timeout-error propagation, no schema-field mutation when passing `selectedFields`, and `selectedFields` forwarded to `tabledata.list` (the table-preview path). The 8.x line was evaluated and declined — it requires node>=18 (conflicts with the engine) and adds only features this extension doesn't use.
+- `tsconfig.json` now sets `skipLibCheck` so `tsc -p .` / `pretest` build cleanly against third-party bundled type definitions.
+
 ## [2.5.2] - 2026-06-13
 
 ### Fixed
