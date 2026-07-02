@@ -5,6 +5,17 @@ All notable changes to the BigQuery Studio extension will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.0] - 2026-07-03
+
+### Added
+
+- **Chart tab in the results grid** - Results | Schema | **Chart**, in the results panel and notebook cells alike. Bar, line, or scatter; X is any scalar column (categories, numbers, or dates/timestamps with a time axis); Y is a row count or any numeric column with Sum/Avg/Min/Max per category. Instant hover tooltips, compact axis numbers (1.2K, 2.5M), colors from the editor theme's chart palette (light and dark both correct). Charts up to 1,000 rows and the top 30 categories — a note in the toolbar says so whenever anything is capped or skipped.
+- **Color by column** - Split the chart into one series per value of a categorical column: up to six series with fixed theme hues and a legend; smaller values fold into a neutral "Other" (aggregated correctly). Grouped bars per category, per-series lines and scatter points.
+
+### Removed
+
+- **Dead charting internals** - The old MorphCharts-based chart code had been unreachable for many releases (its command and panel registrations were disabled) while still shipping an 808 KB bundle in every install and running an extra compile pass on every build. All of it is gone: the extension is smaller, builds are faster, and the description's charting claim is true again.
+
 ## [2.6.3] - 2026-07-03
 
 ### Fixed
