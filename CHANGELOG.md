@@ -5,6 +5,18 @@ All notable changes to the BigQuery Studio extension will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.1] - 2026-06-18
+
+### Fixed
+
+- **Notebook SCRIPT cells with no final SELECT** (#8) - Scripts ending in DML now show the affected-row banner (e.g. `INSERT · 2 inserted`); pure `DECLARE`/DDL scripts show a text summary (statement count, types, bytes, duration) instead of an empty, columnless grid. Under the hood the script child-job picker was effectively dead — `jobs.list`'s default projection strips the fields it matched on — so `getChildJobs` now requests `projection=full`, the picker matches the newest non-DDL child with a destination table, and a completion barrier runs before listing children.
+- **Horizontal scrollbar covered the last row** - The results table now keeps clearance below the last row so the overlay scrollbar floats in empty space (results panel + notebook cells).
+
+### Changed
+
+- **Notebook cell output height is dynamic** - Short results hug their rows; long pages cap at 460px and scroll inside the grid. DML-only results collapse to just the banner.
+- **Notebook exports unified into the grid** - The CSV/JSONL/Pub/Sub/Copy buttons inside the grid now work in notebook cells (routed to the extension host over renderer messaging — same export flows as the results panel). The redundant cell status-bar export buttons are removed; only VS Code's language indicator remains below cells.
+
 ## [2.6.0] - 2026-06-18
 
 ### Added
