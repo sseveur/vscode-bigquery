@@ -5,11 +5,17 @@ All notable changes to the BigQuery Studio extension will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.3] - 2026-07-03
+
+### Fixed
+
+- **"Open as Notebook" on unsaved files** - Running the command on an untitled buffer produced an empty notebook (the serializer reads from disk, and unsaved buffers have none). Untitled buffers are now converted directly from the editor text — same `-- %%` marker and statement-split rules — and open as an untitled notebook you can run immediately and save later.
+
 ## [2.6.2] - 2026-07-03
 
 ### Fixed
 
-- **Tabular formatter mangled function-call arguments** (#9 follow-up) - In `tabularLeft`/`tabularRight`, arguments of calls like `LOGICAL_OR(…)` / `STRING_AGG(… ORDER BY …)` were scattered: `AND`/`OR` landed in the clause keyword gutter, `ORDER BY` inside aggregates got keyword padding, and nested parens drifted. Parens are now classified character-by-character (`OVER (` window · `IDENT(` function call · otherwise clause scope): function arguments indent one tab per nesting level under the line that opened the call, and OVER-window internals move as one block with their opener instead of with unrelated scopes at the same paren depth.
+- **Tabular formatter mangled function-call arguments** - In `tabularLeft`/`tabularRight`, arguments of calls like `LOGICAL_OR(…)` / `STRING_AGG(… ORDER BY …)` were scattered: `AND`/`OR` landed in the clause keyword gutter, `ORDER BY` inside aggregates got keyword padding, and nested parens drifted. Parens are now classified character-by-character (`OVER (` window · `IDENT(` function call · otherwise clause scope): function arguments indent one tab per nesting level under the line that opened the call, and OVER-window internals move as one block with their opener instead of with unrelated scopes at the same paren depth.
 - **Compound statement heads split** - `CREATE    TEMP TABLE` (and other `CREATE`/`INSERT INTO`/`MERGE INTO`-style heads) are re-joined the same way compound JOINs are.
 
 ### Changed
@@ -20,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **Notebook SCRIPT cells with no final SELECT** (#8) - Scripts ending in DML now show the affected-row banner (e.g. `INSERT · 2 inserted`); pure `DECLARE`/DDL scripts show a text summary (statement count, types, bytes, duration) instead of an empty, columnless grid. Under the hood the script child-job picker was effectively dead — `jobs.list`'s default projection strips the fields it matched on — so `getChildJobs` now requests `projection=full`, the picker matches the newest non-DDL child with a destination table, and a completion barrier runs before listing children.
+- **Notebook SCRIPT cells with no final SELECT** - Scripts ending in DML now show the affected-row banner (e.g. `INSERT · 2 inserted`); pure `DECLARE`/DDL scripts show a text summary (statement count, types, bytes, duration) instead of an empty, columnless grid. Under the hood the script child-job picker was effectively dead — `jobs.list`'s default projection strips the fields it matched on — so `getChildJobs` now requests `projection=full`, the picker matches the newest non-DDL child with a destination table, and a completion barrier runs before listing children.
 - **Horizontal scrollbar covered the last row** - The results table now keeps clearance below the last row so the overlay scrollbar floats in empty space (results panel + notebook cells).
 
 ### Changed
@@ -32,8 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Notebook cells render through the grid-v2 grid** (#1) - BigQuery notebook output now uses the same Preact grid as the results panel instead of a separate vanilla-HTML table. Cells get the full grid: per-type cell colors (honoring the `vscode-bigquery.gridColors` setting), STRUCT/ARRAY expansion, CSV/JSONL/clipboard export, and **load-more pagination beyond the first page** — the renderer requests further pages from the extension host over notebook messaging, so results no longer cap at the initially loaded rows. Multi-statement SCRIPT results source rows and schema from one raw `/queries` response so previously-empty cells now populate.
-- **Fast unit test suite** (`npm run test:unit`) - Headless mocha (no Extension Host, no network, no auth) covering the deterministic logic: BigQuery wire-format decode, the formatter fixes (#9 CTE gutter, #10 window frames), and result pagination. 40 tests, ~30 ms.
+- **Notebook cells render through the grid-v2 grid** - BigQuery notebook output now uses the same Preact grid as the results panel instead of a separate vanilla-HTML table. Cells get the full grid: per-type cell colors (honoring the `vscode-bigquery.gridColors` setting), STRUCT/ARRAY expansion, CSV/JSONL/clipboard export, and **load-more pagination beyond the first page** — the renderer requests further pages from the extension host over notebook messaging, so results no longer cap at the initially loaded rows. Multi-statement SCRIPT results source rows and schema from one raw `/queries` response so previously-empty cells now populate.
+- **Fast unit test suite** (`npm run test:unit`) - Headless mocha (no Extension Host, no network, no auth) covering the deterministic logic: BigQuery wire-format decode, the formatter fixes (CTE gutter, window frames), and result pagination. 40 tests, ~30 ms.
 
 ### Changed
 
@@ -44,8 +50,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **Tabular formatter broke inside CTEs** (#9) - In `tabularLeft`/`tabularRight` indent styles, `ON`/`AND` inside a CTE (and any subquery/derived table) were dumped at column 0 instead of the keyword gutter, because the realign pass only handled top-level (depth-0) clauses. The realign is now depth-aware: each parenthesized scope (CTE body, subquery) computes its own gutter, every clause keyword and `ON`/`AND`/`OR` is re-padded into it, and continuation lines shift with their governing clause. `FROM` now aligns with `INNER JOIN` (gutter widens to the longest keyword), and content lines up on one column within each scope.
-- **Window frames mangled** (#10) - `ROWS`/`RANGE BETWEEN … PRECEDING AND … ` analytic frames were split across lines with the frame's `AND` mistaken for a logical operator, a spurious comma inserted, and an orphan comma turned into a blank line. New `normalizeWindowFrames` pass moves a trailing frame onto its own line and rejoins a split `AND <upper bound>`; the realign skips `OVER(…)` window internals; `collapseKeyClauses` no longer slurps the frame into the window `ORDER BY`; and the leading-comma pass drops orphan-comma blank lines.
+- **Tabular formatter broke inside CTEs** - In `tabularLeft`/`tabularRight` indent styles, `ON`/`AND` inside a CTE (and any subquery/derived table) were dumped at column 0 instead of the keyword gutter, because the realign pass only handled top-level (depth-0) clauses. The realign is now depth-aware: each parenthesized scope (CTE body, subquery) computes its own gutter, every clause keyword and `ON`/`AND`/`OR` is re-padded into it, and continuation lines shift with their governing clause. `FROM` now aligns with `INNER JOIN` (gutter widens to the longest keyword), and content lines up on one column within each scope.
+- **Window frames mangled** - `ROWS`/`RANGE BETWEEN … PRECEDING AND … ` analytic frames were split across lines with the frame's `AND` mistaken for a logical operator, a spurious comma inserted, and an orphan comma turned into a blank line. New `normalizeWindowFrames` pass moves a trailing frame onto its own line and rejoins a split `AND <upper bound>`; the realign skips `OVER(…)` window internals; `collapseKeyClauses` no longer slurps the frame into the window `ORDER BY`; and the leading-comma pass drops orphan-comma blank lines.
 
 ### Changed
 
@@ -61,19 +67,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Preview Table from the editor** (#7) - Right-click a table name in a SQL file and pick "BigQuery: Preview Table". The reference under the cursor is resolved — fully-qualified `project.dataset.table` (backticked or hyphenated), `dataset.table`, a bare table name, or a FROM/JOIN alias — and the standard preview grid opens, exactly like clicking the table in the explorer. Views and external tables open a `SELECT *` editor instead (they can't be read via `tabledata.list`). New resolver: `resolveTableAtPosition` in `src/services/columnResolver.ts`.
+- **Preview Table from the editor** - Right-click a table name in a SQL file and pick "BigQuery: Preview Table". The reference under the cursor is resolved — fully-qualified `project.dataset.table` (backticked or hyphenated), `dataset.table`, a bare table name, or a FROM/JOIN alias — and the standard preview grid opens, exactly like clicking the table in the explorer. Views and external tables open a `SELECT *` editor instead (they can't be read via `tabledata.list`). New resolver: `resolveTableAtPosition` in `src/services/columnResolver.ts`.
 
 ### Fixed
 
-- **ON/AND misaligned in tabular indent styles** (#8) - Two formatter bugs in `tabularLeft`/`tabularRight` modes: sql-formatter split compound JOIN keywords (`INNER     JOIN`, treating INNER as the alignment keyword), and ON/AND/OR sat at a flat 4-space indent instead of the keyword gutter. Each statement is now realigned as a whole: compound JOINs are re-joined, the keyword gutter widens to fit the longest keyword (`INNER JOIN` → 11, `LEFT OUTER JOIN` → 16), every clause keyword and ON/AND/OR is re-padded into it, and continuation lines shift with it — so all content sits on one column. `keywordAligned` puts ON/AND in the gutter, `indented` keeps AND/OR one tab in (content still aligned), `contentAligned` is unchanged; ON always reads as a clause keyword. `standard` indent style is untouched.
-- **Pinned tables not updating (Windows)** (#6) - Pin-state matching was exact-string, so entries whose casing differed from the API-returned ids (hand-edited settings, Settings Sync across machines) never matched: tables kept showing the pin icon, pinning again silently duplicated, and unpin left stale entries. Matching/dedupe is now trimmed and case-insensitive, and the explorer refreshes automatically whenever the pinned/projects/tables settings change from any source (Settings Sync, manual settings.json edits).
+- **ON/AND misaligned in tabular indent styles** - Two formatter bugs in `tabularLeft`/`tabularRight` modes: sql-formatter split compound JOIN keywords (`INNER     JOIN`, treating INNER as the alignment keyword), and ON/AND/OR sat at a flat 4-space indent instead of the keyword gutter. Each statement is now realigned as a whole: compound JOINs are re-joined, the keyword gutter widens to fit the longest keyword (`INNER JOIN` → 11, `LEFT OUTER JOIN` → 16), every clause keyword and ON/AND/OR is re-padded into it, and continuation lines shift with it — so all content sits on one column. `keywordAligned` puts ON/AND in the gutter, `indented` keeps AND/OR one tab in (content still aligned), `contentAligned` is unchanged; ON always reads as a clause keyword. `standard` indent style is untouched.
+- **Pinned tables not updating (Windows)** - Pin-state matching was exact-string, so entries whose casing differed from the API-returned ids (hand-edited settings, Settings Sync across machines) never matched: tables kept showing the pin icon, pinning again silently duplicated, and unpin left stale entries. Matching/dedupe is now trimmed and case-insensitive, and the explorer refreshes automatically whenever the pinned/projects/tables settings change from any source (Settings Sync, manual settings.json edits).
 
 ## [2.4.0] - 2026-06-02
 
 ### Added
 
-- **Column Profile: duplicate metrics** (#5) - The profile panel now surfaces duplication for numeric and orderable columns: **Unique** (Yes/No — whether every non-null value is distinct, a quick key-candidate check), **Duplicate values** (how many distinct values appear more than once), and **Duplicate rows** (total rows belonging to a duplicated value, with percentage of the result set). Computed from the existing `counts` CTE in `buildProfileSql`; opaque types (ARRAY/STRUCT/JSON/GEOGRAPHY) leave these `null`.
-- **Setting: `vscode-bigquery.formatInlineKeyClauses`** (default `false`) (#3) - When enabled, `GROUP BY` and `ORDER BY` item lists are kept on a single line if they fit within `formatExpressionWidth`, wrapping at comma boundaries only when they exceed it. `SELECT` stays expanded. A clause containing a line comment is left expanded. Implemented as a post-pass (`collapseKeyClauses`) in `bqsqlFormatter.ts`.
+- **Column Profile: duplicate metrics** - The profile panel now surfaces duplication for numeric and orderable columns: **Unique** (Yes/No — whether every non-null value is distinct, a quick key-candidate check), **Duplicate values** (how many distinct values appear more than once), and **Duplicate rows** (total rows belonging to a duplicated value, with percentage of the result set). Computed from the existing `counts` CTE in `buildProfileSql`; opaque types (ARRAY/STRUCT/JSON/GEOGRAPHY) leave these `null`.
+- **Setting: `vscode-bigquery.formatInlineKeyClauses`** (default `false`) - When enabled, `GROUP BY` and `ORDER BY` item lists are kept on a single line if they fit within `formatExpressionWidth`, wrapping at comma boundaries only when they exceed it. `SELECT` stays expanded. A clause containing a line comment is left expanded. Implemented as a post-pass (`collapseKeyClauses`) in `bqsqlFormatter.ts`.
 
 ### Changed
 
@@ -81,8 +87,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **Copy to clipboard added a blank row in Excel** (#2) - The clipboard payload ended with a trailing newline, which Excel/Sheets pasted as an extra empty row. The trailing newline is now stripped before writing.
-- **SQL Notebook returned nothing for temp-table scripts** (#4) - A multi-statement script (`DECLARE` / `CREATE TEMP TABLE` / `SELECT`) runs as a SCRIPT parent job that carries no result rows of its own, so notebook cells rendered empty. The controller now detects SCRIPT jobs, resolves the final result-bearing child job (shared `selectFinalResultChildJob` helper), and renders its rows.
+- **Copy to clipboard added a blank row in Excel** - The clipboard payload ended with a trailing newline, which Excel/Sheets pasted as an extra empty row. The trailing newline is now stripped before writing.
+- **SQL Notebook returned nothing for temp-table scripts** - A multi-statement script (`DECLARE` / `CREATE TEMP TABLE` / `SELECT`) runs as a SCRIPT parent job that carries no result rows of its own, so notebook cells rendered empty. The controller now detects SCRIPT jobs, resolves the final result-bearing child job (shared `selectFinalResultChildJob` helper), and renders its rows.
 
 ## [2.3.0] - 2026-05-30
 
