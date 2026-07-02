@@ -5,6 +5,13 @@ All notable changes to the BigQuery Studio extension will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.0] - 2026-07-03
+
+### Added
+
+- **Job History (server) view** - New sidebar tree listing every job the project ran, straight from `jobs.list` — any tool, any client, load/copy/extract jobs included — unlike the local Query History, which only knows queries run from VS Code. Each row shows a one-line SQL preview, statement type, user, bytes (or `cached`), duration, age, and a state icon. Click opens the job's SQL; the inline table icon opens a finished job's results in the standard grid (Chart tab included). Toolbar: refresh and an all-users toggle (requires `bigquery.jobs.listAll`); a "Load 50 more…" node pages further back.
+- **Job Details panel** - The inline info icon opens per-job execution details: overview (slot time, cache hit, priority, reservation, destination table), the full error list, the SQL, referenced tables, the per-stage execution plan (records in/out, wait/read/compute/write times), and a slot-usage timeline — the BigQuery console's "Execution details", inside VS Code.
+
 ## [2.7.0] - 2026-07-03
 
 ### Added
