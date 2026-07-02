@@ -293,6 +293,25 @@ WHERE table_name = @tableName AND is_hidden = 'NO'
 	}
 
 	/**
+	 * Lists recent jobs of the project (any client, not just this extension), newest first.
+	 * `allUsers` includes other principals' jobs (requires bigquery.jobs.listAll on the project).
+	 * Single page + token so the caller controls "load more".
+	 */
+	public async listJobs(opts: { maxResults?: number; pageToken?: string; allUsers?: boolean } = {}): Promise<{ jobs: Job[]; nextPageToken?: string }> {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const query: any = {
+			maxResults: opts.maxResults ?? 50,
+			projection: 'full',
+			autoPaginate: false,
+		};
+		if (opts.pageToken) { query.pageToken = opts.pageToken; }
+		if (opts.allUsers) { query.allUsers = true; }
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const [jobs, nextQuery] = await (this.bqclient as any).getJobs(query);
+		return { jobs: (jobs || []) as Job[], nextPageToken: nextQuery?.pageToken };
+	}
+
+	/**
 	 * Lists child jobs of a SCRIPT parent. Multi-statement scripts expose a parent
 	 * job with no destination table; each statement is a child job that may have
 	 * its own materialized result table.

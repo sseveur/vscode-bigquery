@@ -580,6 +580,26 @@
 				"icon": "$(refresh)"
 			},
 			{
+				"command": "vscode-bigquery.job-history-refresh",
+				"title": "BigQuery: Refresh Job History",
+				"icon": "$(refresh)"
+			},
+			{
+				"command": "vscode-bigquery.job-history-toggle-all-users",
+				"title": "BigQuery: Job History — Toggle All Users",
+				"icon": "$(organization)"
+			},
+			{
+				"command": "vscode-bigquery.job-history-open-results",
+				"title": "BigQuery: Open Job Results",
+				"icon": "$(table)"
+			},
+			{
+				"command": "vscode-bigquery.job-history-details",
+				"title": "BigQuery: Job Details",
+				"icon": "$(info)"
+			},
+			{
 				"command": "vscode-bigquery.show-lineage",
 				"title": "BigQuery: Show Data Lineage",
 				"icon": "$(type-hierarchy)"
@@ -750,9 +770,29 @@
 					"command": "vscode-bigquery.history-clear",
 					"group": "navigation",
 					"when": "view == 'bigquery-query-history'"
+				},
+				{
+					"command": "vscode-bigquery.job-history-refresh",
+					"group": "navigation",
+					"when": "view == 'bigquery-job-history'"
+				},
+				{
+					"command": "vscode-bigquery.job-history-toggle-all-users",
+					"group": "navigation",
+					"when": "view == 'bigquery-job-history'"
 				}
 			],
 			"view/item/context": [
+				{
+					"command": "vscode-bigquery.job-history-open-results",
+					"when": "viewItem == 'job-history-job-results'",
+					"group": "inline"
+				},
+				{
+					"command": "vscode-bigquery.job-history-details",
+					"when": "viewItem == 'job-history-job-results' || viewItem == 'job-history-job'",
+					"group": "inline"
+				},
 				{
 					"command": "vscode-bigquery.view-table",
 					"when": "viewItem == 'bq-table' || viewItem == 'bq-pinned-table' || viewItem == 'bq-table-already-pinned'"
@@ -844,6 +884,13 @@
 					"name": "Query History",
 					"contextualTitle": "BigQuery",
 					"type": "tree"
+				},
+				{
+					"id": "bigquery-job-history",
+					"name": "Job History (server)",
+					"contextualTitle": "BigQuery",
+					"type": "tree",
+					"visibility": "collapsed"
 				}
 			]
 		},

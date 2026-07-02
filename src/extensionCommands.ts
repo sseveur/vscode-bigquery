@@ -25,6 +25,8 @@ import { ResultsGridRenderRequestV2, ResultsGridRenderRequestV2Type } from './ta
 import { AuthenticationTreeItem, AuthenticationTreeItemType } from './activitybar/authenticationTreeItem';
 import { Dataset, Table } from '@google-cloud/bigquery';
 import { formatBigQuerySQL } from './language/bqsqlFormatter';
+import { buildJobDetails } from './services/jobHistoryService';
+import { renderJobDetailsHtml } from './activitybar/jobDetailsPanel';
 import { textToNotebookData } from './notebook/bqSqlNotebookSerializer';
 import { QueryHistoryItem, QueryHistoryService } from './services/queryHistoryService';
 import { TableIndexService } from './services/tableIndexService';
@@ -74,6 +76,12 @@ export const COMMAND_HISTORY_COPY = "vscode-bigquery.history-copy";
 export const COMMAND_HISTORY_CLEAR = "vscode-bigquery.history-clear";
 export const COMMAND_HISTORY_SHOW = "vscode-bigquery.history-show";
 export const COMMAND_HISTORY_DELETE = "vscode-bigquery.history-delete";
+export const COMMAND_JOB_HISTORY_SHOW = "vscode-bigquery.job-history-show";
+export const COMMAND_JOB_HISTORY_OPEN_RESULTS = "vscode-bigquery.job-history-open-results";
+export const COMMAND_JOB_HISTORY_REFRESH = "vscode-bigquery.job-history-refresh";
+export const COMMAND_JOB_HISTORY_TOGGLE_ALL_USERS = "vscode-bigquery.job-history-toggle-all-users";
+export const COMMAND_JOB_HISTORY_LOAD_MORE = "vscode-bigquery.job-history-load-more";
+export const COMMAND_JOB_HISTORY_DETAILS = "vscode-bigquery.job-history-details";
 export const COMMAND_HISTORY_REFRESH = "vscode-bigquery.history-refresh";
 export const COMMAND_SHOW_LINEAGE = "vscode-bigquery.show-lineage";
 export const COMMAND_SHOW_LINEAGE_SELECTION = "vscode-bigquery.show-lineage-selection";
@@ -1289,6 +1297,77 @@ export const commandHistoryShow = async function (arg: any) {
 		content: item.query
 	});
 	await vscode.window.showTextDocument(doc, { preview: true });
+};
+
+// Server-side Job History: click → open the job's SQL (or a summary when it has none).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const commandJobHistoryShow = async function (arg: any) {
+	const entry = arg?.entry;
+	if (!entry) { return; }
+	const content = entry.query
+		?? [
+			`-- Job ${entry.jobReference.jobId}`,
+			`-- Type: ${entry.jobType}${entry.statementType ? ' / ' + entry.statementType : ''}`,
+			`-- State: ${entry.state}${entry.errorMessage ? '\n-- Error: ' + entry.errorMessage : ''}`,
+		].join('\n');
+	const doc = await vscode.workspace.openTextDocument({ language: 'bqsql', content });
+	await vscode.window.showTextDocument(doc, { preview: true });
+};
+
+// Server-side Job History: execution details panel (errors, plan stages, timeline, stats).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const commandJobHistoryDetails = async function (arg: any) {
+	const ref = arg?.entry?.jobReference;
+	if (!ref?.jobId || !ref?.projectId) { return; }
+	try {
+		const client = new BigQueryClient(ref.projectId);
+		const [metadata] = await client.getJob(ref).getMetadata();
+		const details = buildJobDetails(metadata);
+		const panel = vscode.window.createWebviewPanel(
+			'bigquery-job-details',
+			`Job Details: ${String(ref.jobId).slice(-8)}`,
+			{ viewColumn: vscode.ViewColumn.Two, preserveFocus: true },
+			{ enableFindWidget: true, enableScripts: false }
+		);
+		panel.webview.html = renderJobDetailsHtml(details);
+	} catch (err) {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		vscode.window.showErrorMessage(`Could not load job details: ${(err as any)?.message ?? err}`);
+	}
+};
+
+// Server-side Job History: open a finished job's result set in the standard grid panel.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const commandJobHistoryOpenResults = async function (arg: any) {
+	const entry = arg?.entry;
+	const ref = entry?.jobReference;
+	if (!ref?.jobId || !ref?.projectId) { return; }
+	try {
+		const client = new BigQueryClient(ref.projectId);
+		const job = client.getJob(ref);
+		const [metadata] = await job.getMetadata();
+		const token = await client.getToken();
+
+		const shortId = String(ref.jobId).slice(-8);
+		const panel = vscode.window.createWebviewPanel(
+			QUERY_RESULTS_VIEW_TYPE,
+			`Job: ${shortId}`,
+			{ viewColumn: vscode.ViewColumn.Two, preserveFocus: true },
+			{ enableFindWidget: true, enableScripts: true, retainContextWhenHidden: true }
+		);
+		const render = new ResultsGridRender(panel);
+		await render.render1();
+		await render.postMessage({
+			requestType: ResultsGridRenderRequestV2Type.executeQuery.toString(),
+			projectId: ref.projectId,
+			token: token,
+			job: metadata,
+			error: null
+		} as ResultsGridRenderRequestV2);
+	} catch (err) {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		vscode.window.showErrorMessage(`Could not open job results: ${(err as any)?.message ?? err}`);
+	}
 };
 
 export const commandHistoryDelete = async function (arg: any) {

@@ -22,6 +22,7 @@ import { TroubleshootSerializer } from './activitybar/troubleshootSerializer';
 import { GcpAuthenticationTreeDataProvider } from './activitybar/gcpAuthenticationTreeDataProvider';
 import { isBigQueryLanguage } from './services/languageUtils';
 import { QueryHistoryTreeDataProvider } from './activitybar/queryHistoryTreeDataProvider';
+import { JobHistoryTreeDataProvider } from './activitybar/jobHistoryTreeDataProvider';
 import { BqSqlNotebookSerializer, NOTEBOOK_TYPE } from './notebook/bqSqlNotebookSerializer';
 import { BqSqlNotebookController } from './notebook/bqSqlNotebookController';
 import { CellRegistry, runCellRegistryMigration } from './notebook/bqSqlNotebookCellRegistry';
@@ -476,6 +477,18 @@ export function activate(context: ExtensionContext) {
 			commands.COMMAND_HISTORY_REFRESH,
 			() => queryHistoryTreeDataProvider.refresh()
 		)
+	);
+
+	// Server-side Job History (jobs.list — any client, not just this extension)
+	const jobHistoryTreeDataProvider = new JobHistoryTreeDataProvider();
+	context.subscriptions.push(
+		vscode.window.registerTreeDataProvider('bigquery-job-history', jobHistoryTreeDataProvider),
+		vscode.commands.registerCommand(commands.COMMAND_JOB_HISTORY_SHOW, commands.commandJobHistoryShow),
+		vscode.commands.registerCommand(commands.COMMAND_JOB_HISTORY_OPEN_RESULTS, commands.commandJobHistoryOpenResults),
+		vscode.commands.registerCommand(commands.COMMAND_JOB_HISTORY_REFRESH, () => jobHistoryTreeDataProvider.refresh()),
+		vscode.commands.registerCommand(commands.COMMAND_JOB_HISTORY_TOGGLE_ALL_USERS, () => jobHistoryTreeDataProvider.toggleAllUsers()),
+		vscode.commands.registerCommand(commands.COMMAND_JOB_HISTORY_LOAD_MORE, () => jobHistoryTreeDataProvider.loadMore()),
+		vscode.commands.registerCommand(commands.COMMAND_JOB_HISTORY_DETAILS, commands.commandJobHistoryDetails)
 	);
 
 	// bigquery-authentication
