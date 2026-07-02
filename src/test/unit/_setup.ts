@@ -18,6 +18,14 @@ const vscodeStub = {
             get: (_key: string, def: unknown) => def,
         }),
     },
+    // Minimal notebook data classes so pure text→cells logic is testable headless.
+    NotebookCellKind: { Markup: 1, Code: 2 },
+    NotebookCellData: class {
+        constructor(public kind: number, public value: string, public languageId: string) { }
+    },
+    NotebookData: class {
+        constructor(public cells: unknown[]) { }
+    },
 };
 
 const originalLoad = nodeModule._load;

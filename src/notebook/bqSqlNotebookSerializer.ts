@@ -26,38 +26,7 @@ export class BqSqlNotebookSerializer implements vscode.NotebookSerializer {
         content: Uint8Array,
         _token: vscode.CancellationToken
     ): Promise<vscode.NotebookData> {
-        const text = new TextDecoder().decode(content);
-
-        if (text.trim().length === 0) {
-            return new vscode.NotebookData([
-                new vscode.NotebookCellData(vscode.NotebookCellKind.Code, '', CELL_LANGUAGE)
-            ]);
-        }
-
-        if (CELL_MARKER_LINE_REGEX.test(text)) {
-            const cells = splitOnMarkers(text);
-            if (cells.length > 0) {
-                return new vscode.NotebookData(
-                    cells.map(value =>
-                        new vscode.NotebookCellData(vscode.NotebookCellKind.Code, value, CELL_LANGUAGE)
-                    )
-                );
-            }
-        }
-
-        const queries = splitQueries(text);
-
-        if (queries.length === 0) {
-            return new vscode.NotebookData([
-                new vscode.NotebookCellData(vscode.NotebookCellKind.Code, text.trim(), CELL_LANGUAGE)
-            ]);
-        }
-
-        const cells = queries.map(q =>
-            new vscode.NotebookCellData(vscode.NotebookCellKind.Code, q.sql, CELL_LANGUAGE)
-        );
-
-        return new vscode.NotebookData(cells);
+        return textToNotebookData(new TextDecoder().decode(content));
     }
 
     async serializeNotebook(
@@ -85,6 +54,42 @@ export class BqSqlNotebookSerializer implements vscode.NotebookSerializer {
             .join('\n\n');
         return new TextEncoder().encode(marked);
     }
+}
+
+/**
+ * Splits SQL text into notebook cells: `-- %%` markers when present, otherwise the
+ * parser-driven statement split. Used by the serializer (file → notebook) and by
+ * "Open as Notebook" on unsaved buffers, where there is no file to deserialize from.
+ */
+export function textToNotebookData(text: string): vscode.NotebookData {
+    if (text.trim().length === 0) {
+        return new vscode.NotebookData([
+            new vscode.NotebookCellData(vscode.NotebookCellKind.Code, '', CELL_LANGUAGE)
+        ]);
+    }
+
+    if (CELL_MARKER_LINE_REGEX.test(text)) {
+        const cells = splitOnMarkers(text);
+        if (cells.length > 0) {
+            return new vscode.NotebookData(
+                cells.map(value =>
+                    new vscode.NotebookCellData(vscode.NotebookCellKind.Code, value, CELL_LANGUAGE)
+                )
+            );
+        }
+    }
+
+    const queries = splitQueries(text);
+
+    if (queries.length === 0) {
+        return new vscode.NotebookData([
+            new vscode.NotebookCellData(vscode.NotebookCellKind.Code, text.trim(), CELL_LANGUAGE)
+        ]);
+    }
+
+    return new vscode.NotebookData(
+        queries.map(q => new vscode.NotebookCellData(vscode.NotebookCellKind.Code, q.sql, CELL_LANGUAGE))
+    );
 }
 
 function splitOnMarkers(text: string): string[] {

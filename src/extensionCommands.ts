@@ -27,6 +27,7 @@ import { ResultsGridRenderRequestV2, ResultsGridRenderRequestV2Type } from './ta
 import { AuthenticationTreeItem, AuthenticationTreeItemType } from './activitybar/authenticationTreeItem';
 import { Dataset, Table } from '@google-cloud/bigquery';
 import { formatBigQuerySQL } from './language/bqsqlFormatter';
+import { textToNotebookData } from './notebook/bqSqlNotebookSerializer';
 import { QueryHistoryItem, QueryHistoryService } from './services/queryHistoryService';
 import { TableIndexService } from './services/tableIndexService';
 import { buildMultiQueryLineage } from './services/lineageGraph';
@@ -1479,6 +1480,24 @@ export const commandOpenAsNotebook = async function (uri?: vscode.Uri) {
 		vscode.window.showWarningMessage('Open a .sql or .bqsql file first.');
 		return;
 	}
+
+	// Unsaved (untitled) buffers have no file for the notebook serializer to read —
+	// vscode.openWith would yield an empty notebook. Build the notebook directly from the
+	// text buffer and open it as an untitled notebook instead.
+	if (targetUri.scheme === 'untitled') {
+		if (typeof vscode.window.showNotebookDocument !== 'function') {
+			vscode.window.showWarningMessage('Save the file first to open it as a notebook (this VS Code version cannot convert unsaved buffers).');
+			return;
+		}
+		const textDoc = vscode.workspace.textDocuments.find(d => d.uri.toString() === targetUri.toString());
+		const notebook = await vscode.workspace.openNotebookDocument(
+			'bigquery-sql-notebook',
+			textToNotebookData(textDoc?.getText() ?? '')
+		);
+		await vscode.window.showNotebookDocument(notebook);
+		return;
+	}
+
 	await vscode.commands.executeCommand('vscode.openWith', targetUri, 'bigquery-sql-notebook');
 };
 
