@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { BqField, DmlStats, ExportRef, QueryResultsResponse } from './types';
 import { flattenSchema, extractRowValue, renderCellValue, type FlatColumn } from './cellFormatters';
 import { DEFAULT_PAGE_SIZE } from './pagination';
+import { ChartPane } from './ChartPane';
 
 export type PageFetcher = (startIndex: number, pageSize: number) => Promise<QueryResultsResponse>;
 
@@ -23,7 +24,7 @@ interface Props {
 
 type SortItem = { colKey: string; dir: 1 | -1 };
 type Density = 'compact' | 'cozy' | 'comfy';
-type Tab = 'results' | 'schema';
+type Tab = 'results' | 'schema' | 'chart';
 
 const NUMERIC_TYPES = new Set(['INT64', 'INTEGER', 'FLOAT', 'FLOAT64', 'NUMERIC', 'BIGNUMERIC']);
 function isNumericType(t: string): boolean {
@@ -345,6 +346,7 @@ export function BqTable({ fetchRows, exportRef, schema, totalRows, initialRows, 
                 <div class="bq-tabs">
                     <button class={`bq-tab ${tab === 'results' ? 'active' : ''}`} onClick={() => setTab('results')}>Results</button>
                     <button class={`bq-tab ${tab === 'schema' ? 'active' : ''}`} onClick={() => setTab('schema')}>Schema <span class="bq-count">{columns.length}</span></button>
+                    <button class={`bq-tab ${tab === 'chart' ? 'active' : ''}`} onClick={() => setTab('chart')}>Chart</button>
                 </div>
                 {tab === 'results' && <>
                     <button class="bq-pg-btn" disabled={pageIndex === 0 || loading} onClick={() => setPageIndex(0)} title="First page">&laquo;</button>
@@ -417,6 +419,14 @@ export function BqTable({ fetchRows, exportRef, schema, totalRows, initialRows, 
 
             {tab === 'schema' ? (
                 <SchemaPane columns={columns} />
+            ) : tab === 'chart' ? (
+                <ChartPane
+                    schema={schema}
+                    columns={columns}
+                    totalRows={totalRows}
+                    initialRows={rows}
+                    fetchRows={fetchRows}
+                />
             ) : (
                 <div class={`bq-layout ${drawer ? 'with-drawer' : ''}`}>
                     <div class="bq-scroll">

@@ -53,6 +53,8 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var preact_hooks__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(4);
 /* harmony import */ var _cellFormatters__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(5);
 /* harmony import */ var _pagination__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(6);
+/* harmony import */ var _ChartPane__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(7);
+
 
 
 
@@ -411,12 +413,12 @@ function BqTable({ fetchRows, exportRef, schema, totalRows, initialRows, title, 
     if (showDml && totalRows === 0) {
         return ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { class: "bq-root bq-root-dml-only", style: cssVars, children: [title && (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { class: "bq-title", children: title }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { class: "bq-dml-summary", children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { class: "bq-dml-type", children: statementType || 'DML' }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { class: "bq-dml-counts", children: dmlParts.length ? dmlParts.join(' · ') : '0 rows affected' })] })] }));
     }
-    return ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { class: "bq-root", style: cssVars, children: [title && (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { class: "bq-title", children: title }), showDml && ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { class: "bq-dml-summary", children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { class: "bq-dml-type", children: statementType || 'DML' }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { class: "bq-dml-counts", children: dmlParts.length ? dmlParts.join(' · ') : '0 rows affected' })] })), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { class: "bq-controls", children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { class: "bq-tabs", children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { class: `bq-tab ${tab === 'results' ? 'active' : ''}`, onClick: () => setTab('results'), children: "Results" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("button", { class: `bq-tab ${tab === 'schema' ? 'active' : ''}`, onClick: () => setTab('schema'), children: ["Schema ", (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { class: "bq-count", children: columns.length })] })] }), tab === 'results' && (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)(preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.Fragment, { children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { class: "bq-pg-btn", disabled: pageIndex === 0 || loading, onClick: () => setPageIndex(0), title: "First page", children: "\u00AB" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { class: "bq-pg-btn", disabled: pageIndex === 0 || loading, onClick: () => setPageIndex(p => Math.max(0, p - 1)), title: "Previous page", children: "\u2039" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { class: "bq-pg-label", children: "Page" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { class: "bq-pg-input", type: "number", min: 1, max: totalPages, value: pageIndex + 1, onChange: (e) => {
+    return ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { class: "bq-root", style: cssVars, children: [title && (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { class: "bq-title", children: title }), showDml && ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { class: "bq-dml-summary", children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { class: "bq-dml-type", children: statementType || 'DML' }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { class: "bq-dml-counts", children: dmlParts.length ? dmlParts.join(' · ') : '0 rows affected' })] })), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { class: "bq-controls", children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { class: "bq-tabs", children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { class: `bq-tab ${tab === 'results' ? 'active' : ''}`, onClick: () => setTab('results'), children: "Results" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("button", { class: `bq-tab ${tab === 'schema' ? 'active' : ''}`, onClick: () => setTab('schema'), children: ["Schema ", (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { class: "bq-count", children: columns.length })] }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { class: `bq-tab ${tab === 'chart' ? 'active' : ''}`, onClick: () => setTab('chart'), children: "Chart" })] }), tab === 'results' && (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)(preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.Fragment, { children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { class: "bq-pg-btn", disabled: pageIndex === 0 || loading, onClick: () => setPageIndex(0), title: "First page", children: "\u00AB" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { class: "bq-pg-btn", disabled: pageIndex === 0 || loading, onClick: () => setPageIndex(p => Math.max(0, p - 1)), title: "Previous page", children: "\u2039" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { class: "bq-pg-label", children: "Page" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { class: "bq-pg-input", type: "number", min: 1, max: totalPages, value: pageIndex + 1, onChange: (e) => {
                                     const n = parseInt(e.currentTarget.value, 10);
                                     if (!isNaN(n)) {
                                         setPageIndex(Math.max(0, Math.min(totalPages - 1, n - 1)));
                                     }
-                                } }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("span", { class: "bq-pg-of", children: ["of ", totalPages.toLocaleString()] }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { class: "bq-pg-btn", disabled: pageIndex >= totalPages - 1 || loading, onClick: () => setPageIndex(p => Math.min(totalPages - 1, p + 1)), title: "Next page", children: "\u203A" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { class: "bq-pg-btn", disabled: pageIndex >= totalPages - 1 || loading, onClick: () => setPageIndex(totalPages - 1), title: "Last page", children: "\u00BB" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("span", { class: "bq-pg-info", children: [startRow.toLocaleString(), "-", endRow.toLocaleString(), " / ", totalRows.toLocaleString()] }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("select", { class: "bq-pg-size", value: pageSize, onChange: (e) => { setPageSize(parseInt(e.currentTarget.value, 10)); setPageIndex(0); }, title: "Rows per page", children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: 25, children: "25" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: 50, children: "50" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: 100, children: "100" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: 250, children: "250" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: 1000, children: "1000" })] }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { class: "bq-find", children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { class: "bq-find-input", type: "search", placeholder: "Find\u2026", value: find, onInput: (e) => setFind(e.currentTarget.value), title: "Filter current page" }), find && (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { class: "bq-find-count", children: filteredIndices.length })] }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { class: "bq-density", title: "Row density", children: ['compact', 'cozy', 'comfy'].map(d => ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { class: `bq-density-btn ${density === d ? 'active' : ''}`, onClick: () => setDensity(d), title: d, children: d === 'compact' ? '≡' : d === 'cozy' ? '☰' : '⋯' }))) }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { class: "bq-export", children: [selected.size > 0 && (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)(preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.Fragment, { children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("span", { class: "bq-sel-count", children: [selected.size, " sel"] }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { class: "bq-pg-btn", onClick: () => copySelected('tsv'), title: "Copy selected rows as TSV", children: "TSV" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { class: "bq-pg-btn", onClick: () => copySelected('md'), title: "Copy selected rows as Markdown", children: "MD" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { class: "bq-pg-btn", onClick: () => copySelected('json'), title: "Copy selected rows as JSON", children: "JSON" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { class: "bq-pg-btn", onClick: () => setSelected(new Set()), title: "Clear selection", children: "\u2715" })] }), onExport && (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)(preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.Fragment, { children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { class: "bq-pg-btn", onClick: () => onExport('download_csv', exportRef), title: "Download all as CSV", children: "CSV" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { class: "bq-pg-btn", onClick: () => onExport('download_jsonl', exportRef), title: "Download all as JSONL", children: "JSONL" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { class: "bq-pg-btn", onClick: () => onExport('send_pubsub', exportRef), title: "Send to Pub/Sub", children: "Pub/Sub" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { class: "bq-pg-btn", onClick: () => onExport('copy_to_clipboard', exportRef), title: "Copy all as Markdown", children: "Copy" })] })] })] })] }), loading && (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { class: "bq-notice", children: "Loading rows\u2026" }), err && (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { class: "bq-error", children: err }), tab === 'schema' ? ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(SchemaPane, { columns: columns })) : ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { class: `bq-layout ${drawer ? 'with-drawer' : ''}`, children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { class: "bq-scroll", children: (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("table", { class: "bq-grid", children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("thead", { children: (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("tr", { children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("th", { class: "bq-rownum", title: "Row", children: "#" }), columns.map(col => {
+                                } }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("span", { class: "bq-pg-of", children: ["of ", totalPages.toLocaleString()] }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { class: "bq-pg-btn", disabled: pageIndex >= totalPages - 1 || loading, onClick: () => setPageIndex(p => Math.min(totalPages - 1, p + 1)), title: "Next page", children: "\u203A" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { class: "bq-pg-btn", disabled: pageIndex >= totalPages - 1 || loading, onClick: () => setPageIndex(totalPages - 1), title: "Last page", children: "\u00BB" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("span", { class: "bq-pg-info", children: [startRow.toLocaleString(), "-", endRow.toLocaleString(), " / ", totalRows.toLocaleString()] }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("select", { class: "bq-pg-size", value: pageSize, onChange: (e) => { setPageSize(parseInt(e.currentTarget.value, 10)); setPageIndex(0); }, title: "Rows per page", children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: 25, children: "25" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: 50, children: "50" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: 100, children: "100" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: 250, children: "250" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: 1000, children: "1000" })] }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { class: "bq-find", children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("input", { class: "bq-find-input", type: "search", placeholder: "Find\u2026", value: find, onInput: (e) => setFind(e.currentTarget.value), title: "Filter current page" }), find && (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { class: "bq-find-count", children: filteredIndices.length })] }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { class: "bq-density", title: "Row density", children: ['compact', 'cozy', 'comfy'].map(d => ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { class: `bq-density-btn ${density === d ? 'active' : ''}`, onClick: () => setDensity(d), title: d, children: d === 'compact' ? '≡' : d === 'cozy' ? '☰' : '⋯' }))) }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { class: "bq-export", children: [selected.size > 0 && (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)(preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.Fragment, { children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("span", { class: "bq-sel-count", children: [selected.size, " sel"] }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { class: "bq-pg-btn", onClick: () => copySelected('tsv'), title: "Copy selected rows as TSV", children: "TSV" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { class: "bq-pg-btn", onClick: () => copySelected('md'), title: "Copy selected rows as Markdown", children: "MD" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { class: "bq-pg-btn", onClick: () => copySelected('json'), title: "Copy selected rows as JSON", children: "JSON" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { class: "bq-pg-btn", onClick: () => setSelected(new Set()), title: "Clear selection", children: "\u2715" })] }), onExport && (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)(preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.Fragment, { children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { class: "bq-pg-btn", onClick: () => onExport('download_csv', exportRef), title: "Download all as CSV", children: "CSV" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { class: "bq-pg-btn", onClick: () => onExport('download_jsonl', exportRef), title: "Download all as JSONL", children: "JSONL" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { class: "bq-pg-btn", onClick: () => onExport('send_pubsub', exportRef), title: "Send to Pub/Sub", children: "Pub/Sub" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("button", { class: "bq-pg-btn", onClick: () => onExport('copy_to_clipboard', exportRef), title: "Copy all as Markdown", children: "Copy" })] })] })] })] }), loading && (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { class: "bq-notice", children: "Loading rows\u2026" }), err && (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { class: "bq-error", children: err }), tab === 'schema' ? ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(SchemaPane, { columns: columns })) : tab === 'chart' ? ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_ChartPane__WEBPACK_IMPORTED_MODULE_4__.ChartPane, { schema: schema, columns: columns, totalRows: totalRows, initialRows: rows, fetchRows: fetchRows })) : ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { class: `bq-layout ${drawer ? 'with-drawer' : ''}`, children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { class: "bq-scroll", children: (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("table", { class: "bq-grid", children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("thead", { children: (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("tr", { children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("th", { class: "bq-rownum", title: "Row", children: "#" }), columns.map(col => {
                                                 const info = sortInfo(col);
                                                 const style = colWidths[col.key] ? { width: colWidths[col.key] + 'px', minWidth: colWidths[col.key] + 'px' } : undefined;
                                                 return ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("th", { style: style, onClick: (e) => onHeaderClick(col, e), title: `${col.label} · ${col.type}${col.mode !== 'NULLABLE' ? ' · ' + col.mode : ''} · Click to sort, Shift+click for multi-sort`, children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { class: "bq-col-name", children: col.label }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { class: "bq-col-type", children: col.mode === 'REPEATED' ? col.type + '[]' : col.type }), info && (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("span", { class: "bq-sort", children: [info.dir === 1 ? '▲' : '▼', sorts.length > 1 ? (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("sub", { class: "bq-sort-rank", children: info.rank }) : null] }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(ResizeHandle, { onResize: w => setColWidths(cw => ({ ...cw, [col.key]: w })) })] }));
@@ -797,9 +799,349 @@ const DEFAULT_PAGE_SIZE = PAGE_SIZE;
 
 /***/ }),
 /* 7 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   ChartPane: () => (/* binding */ ChartPane)
+/* harmony export */ });
+/* harmony import */ var preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(1);
+/* harmony import */ var preact_hooks__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(4);
+/* harmony import */ var _chartData__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(8);
+
+
+
+/** VS Code's theme-adaptive chart palette — hue picked by the user, values stay themed. */
+const HUES = [
+    { id: 'blue', label: 'Blue', css: 'var(--vscode-charts-blue, #4fc1ff)' },
+    { id: 'purple', label: 'Purple', css: 'var(--vscode-charts-purple, #c586c0)' },
+    { id: 'orange', label: 'Orange', css: 'var(--vscode-charts-orange, #ce9178)' },
+    { id: 'green', label: 'Green', css: 'var(--vscode-charts-green, #89d185)' },
+    { id: 'yellow', label: 'Yellow', css: 'var(--vscode-charts-yellow, #cca700)' },
+    { id: 'red', label: 'Red', css: 'var(--vscode-charts-red, #f14c4c)' },
+];
+/** Rows charted at most — fetched once through the grid's own pager. */
+const CHART_ROW_CAP = 1000;
+/**
+ * Compact chart pane inside the results grid. Single measure, single hue
+ * (--vscode-charts-blue adapts to the active theme in light and dark); axes and grid stay
+ * recessive; values surface via per-mark tooltips.
+ */
+function ChartPane({ schema, columns, totalRows, initialRows, fetchRows }) {
+    const dims = (0,preact_hooks__WEBPACK_IMPORTED_MODULE_1__.useMemo)(() => (0,_chartData__WEBPACK_IMPORTED_MODULE_2__.dimensionColumns)(columns), [columns]);
+    const measures = (0,preact_hooks__WEBPACK_IMPORTED_MODULE_1__.useMemo)(() => (0,_chartData__WEBPACK_IMPORTED_MODULE_2__.numericColumns)(columns), [columns]);
+    const [type, setType] = (0,preact_hooks__WEBPACK_IMPORTED_MODULE_1__.useState)('bar');
+    const [xKey, setXKey] = (0,preact_hooks__WEBPACK_IMPORTED_MODULE_1__.useState)(dims[0]?.key ?? '');
+    // '' = count of rows
+    const [yKey, setYKey] = (0,preact_hooks__WEBPACK_IMPORTED_MODULE_1__.useState)(measures[0]?.key ?? '');
+    const [agg, setAgg] = (0,preact_hooks__WEBPACK_IMPORTED_MODULE_1__.useState)('sum');
+    const [hue, setHue] = (0,preact_hooks__WEBPACK_IMPORTED_MODULE_1__.useState)('blue');
+    // Chart data window: what the grid already loaded, topped up to the cap once.
+    const [rows, setRows] = (0,preact_hooks__WEBPACK_IMPORTED_MODULE_1__.useState)(initialRows);
+    const [loading, setLoading] = (0,preact_hooks__WEBPACK_IMPORTED_MODULE_1__.useState)(false);
+    (0,preact_hooks__WEBPACK_IMPORTED_MODULE_1__.useEffect)(() => {
+        const want = Math.min(totalRows, CHART_ROW_CAP);
+        if (rows.length >= want) {
+            return;
+        }
+        setLoading(true);
+        fetchRows(0, want)
+            .then(r => setRows(r.rows || []))
+            .catch(() => { })
+            .then(() => setLoading(false));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+    const xCol = dims.find(c => c.key === xKey) ?? null;
+    const yCol = measures.find(c => c.key === yKey) ?? null;
+    // Aggregation only applies when categories are being grouped with a real measure.
+    const isCategoryX = !!xCol && !(0,_chartData__WEBPACK_IMPORTED_MODULE_2__.isNumericType)(xCol.type) && !(0,_chartData__WEBPACK_IMPORTED_MODULE_2__.isTemporalType)(xCol.type);
+    const aggApplies = isCategoryX && !!yCol;
+    const series = (0,preact_hooks__WEBPACK_IMPORTED_MODULE_1__.useMemo)(() => {
+        if (!xCol || rows.length === 0) {
+            return null;
+        }
+        return (0,_chartData__WEBPACK_IMPORTED_MODULE_2__.buildChartSeries)(rows, schema, xCol, yCol, agg);
+    }, [rows, schema, xCol, yCol, agg]);
+    const notes = [];
+    if (totalRows > CHART_ROW_CAP) {
+        notes.push(`charting first ${CHART_ROW_CAP.toLocaleString()} of ${totalRows.toLocaleString()} rows`);
+    }
+    if (series?.truncated) {
+        notes.push('top 30 categories shown');
+    }
+    if (series && series.skipped > 0) {
+        notes.push(`${series.skipped.toLocaleString()} row${series.skipped === 1 ? '' : 's'} skipped (null/non-numeric)`);
+    }
+    return ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { class: "bq-chart", children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { class: "bq-chart-controls", children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("select", { class: "bq-pg-size", value: type, onChange: (e) => setType(e.currentTarget.value), title: "Chart type", children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "bar", children: "Bar" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "line", children: "Line" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "scatter", children: "Scatter" })] }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { class: "bq-chart-label", children: "X" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("select", { class: "bq-pg-size", value: xKey, onChange: (e) => setXKey(e.currentTarget.value), title: "X axis column", children: dims.map(c => (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: c.key, children: c.label })) }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { class: "bq-chart-label", children: "Y" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("select", { class: "bq-pg-size", value: yKey, onChange: (e) => setYKey(e.currentTarget.value), title: "Y axis measure", children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "", children: "Count of rows" }), measures.map(c => (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: c.key, children: c.label }))] }), aggApplies && ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("select", { class: "bq-pg-size", value: agg, onChange: (e) => setAgg(e.currentTarget.value), title: "Aggregation per category", children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "sum", children: "Sum" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "avg", children: "Avg" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "min", children: "Min" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "max", children: "Max" })] })), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { class: "bq-chart-swatch", style: { background: HUES.find(h => h.id === hue)?.css } }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("select", { class: "bq-pg-size", value: hue, onChange: (e) => setHue(e.currentTarget.value), title: "Chart color (theme palette)", children: HUES.map(h => (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: h.id, children: h.label })) }), notes.length > 0 && (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { class: "bq-chart-note", children: notes.join(' · ') })] }), loading && (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { class: "bq-notice", children: "Loading rows for chart\u2026" }), !xCol && (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { class: "bq-empty", children: "No chartable column." }), xCol && series && series.points.length === 0 && !loading && ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { class: "bq-empty", children: "No plottable values for this X/Y choice." })), xCol && series && series.points.length > 0 && ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(ChartSvg, { type: type, series: series, yName: yCol ? (aggApplies ? `${agg}(${yCol.label})` : yCol.label) : 'count', color: HUES.find(h => h.id === hue)?.css ?? HUES[0].css }))] }));
+}
+const W = 920;
+const H = 360;
+const M = { top: 14, right: 16, bottom: 42, left: 56 };
+function ChartSvg({ type, series, yName, color }) {
+    // Custom hover tooltip — instant, unlike native SVG <title> (fixed OS delay).
+    const [tip, setTip] = (0,preact_hooks__WEBPACK_IMPORTED_MODULE_1__.useState)(null);
+    const showTip = (e, lines) => {
+        const host = e.currentTarget.closest('.bq-chart-scroll');
+        if (!host) {
+            return;
+        }
+        const rect = host.getBoundingClientRect();
+        setTip({ x: e.clientX - rect.left + 12, y: e.clientY - rect.top - 10, lines });
+    };
+    const hideTip = () => setTip(null);
+    const iw = W - M.left - M.right;
+    const ih = H - M.top - M.bottom;
+    const pts = series.points;
+    const ys = pts.map(p => p.y);
+    const yMin = Math.min(0, ...ys);
+    const yMax = Math.max(0, ...ys);
+    const yTicks = (0,_chartData__WEBPACK_IMPORTED_MODULE_2__.niceTicks)(yMin, yMax, 5);
+    const yLo = yTicks.length ? Math.min(yTicks[0], yMin) : yMin;
+    const yHi = yTicks.length ? Math.max(yTicks[yTicks.length - 1], yMax) : yMax;
+    const sy = (v) => M.top + ih - ((v - yLo) / (yHi - yLo || 1)) * ih;
+    // X scale.
+    const isCat = series.kind === 'category' || type === 'bar';
+    let sx;
+    let band = 0;
+    let xNums = [];
+    if (isCat) {
+        band = iw / pts.length;
+        sx = (_p, i) => M.left + i * band + band / 2;
+    }
+    else {
+        xNums = pts.map(p => p.x);
+        const xLo = Math.min(...xNums);
+        const xHi = Math.max(...xNums);
+        sx = (p) => M.left + ((p.x - xLo) / (xHi - xLo || 1)) * iw;
+    }
+    const stroke = color;
+    const ink = 'var(--vscode-foreground)';
+    const grid = 'var(--vscode-editorWidget-border, rgba(128,128,128,.25))';
+    // Category tick labels: show at most ~12, evenly skipped.
+    const catSkip = isCat ? Math.max(1, Math.ceil(pts.length / 12)) : 1;
+    const spanMs = !isCat && series.kind === 'time' ? Math.max(...xNums) - Math.min(...xNums) : 0;
+    const xTickVals = !isCat ? (0,_chartData__WEBPACK_IMPORTED_MODULE_2__.niceTicks)(Math.min(...xNums), Math.max(...xNums), 5) : [];
+    const fmtX = (v) => series.kind === 'time' ? (0,_chartData__WEBPACK_IMPORTED_MODULE_2__.formatTimeTick)(v, spanMs)
+        : typeof v === 'number' ? (0,_chartData__WEBPACK_IMPORTED_MODULE_2__.compactNumber)(v)
+            : String(v).length > 14 ? String(v).slice(0, 13) + '…' : String(v);
+    const barW = Math.max(2, Math.min(28, band - 2)); // ≥2px surface gap between bars
+    const zeroY = sy(Math.max(0, yLo));
+    return ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { class: "bq-chart-scroll", children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("svg", { viewBox: `0 0 ${W} ${H}`, class: "bq-chart-svg", role: "img", "aria-label": `${type} chart of ${yName}`, children: [yTicks.map(t => ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("g", { children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("line", { x1: M.left, x2: W - M.right, y1: sy(t), y2: sy(t), stroke: grid, "stroke-width": "1" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("text", { x: M.left - 8, y: sy(t) + 3.5, "text-anchor": "end", class: "bq-chart-tick", fill: ink, children: (0,_chartData__WEBPACK_IMPORTED_MODULE_2__.compactNumber)(t) })] }))), isCat
+                        ? pts.map((p, i) => (i % catSkip === 0
+                            ? (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("text", { x: sx(p, i), y: H - M.bottom + 16, "text-anchor": "middle", class: "bq-chart-tick", fill: ink, children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("title", { children: String(p.x) }), fmtX(p.x)] })
+                            : null))
+                        : xTickVals.map(v => ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("text", { x: sx({ x: v }, 0), y: H - M.bottom + 16, "text-anchor": "middle", class: "bq-chart-tick", fill: ink, children: fmtX(v) }))), type === 'bar' && pts.map((p, i) => {
+                        const y = sy(p.y);
+                        const top = Math.min(y, zeroY);
+                        const h = Math.max(1, Math.abs(zeroY - y));
+                        const lines = [String(p.x), `${yName}: ${p.y.toLocaleString()}`];
+                        return ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("rect", { x: sx(p, i) - barW / 2, y: top, width: barW, height: h, rx: Math.min(3, barW / 2), fill: stroke, onMouseMove: (e) => showTip(e, lines), onMouseLeave: hideTip }));
+                    }), type === 'line' && ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)(preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.Fragment, { children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("path", { d: pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${sx(p, i).toFixed(1)},${sy(p.y).toFixed(1)}`).join(' '), fill: "none", stroke: stroke, "stroke-width": "2", "stroke-linejoin": "round" }), pts.length <= 120 && pts.map((p, i) => ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("circle", { cx: sx(p, i), cy: sy(p.y), r: "3", fill: stroke, stroke: "transparent", "stroke-width": "12", onMouseMove: (e) => showTip(e, [fmtX(p.x), `${yName}: ${p.y.toLocaleString()}`]), onMouseLeave: hideTip })))] })), type === 'scatter' && pts.map((p, i) => ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("circle", { cx: sx(p, i), cy: sy(p.y), r: "4", fill: stroke, "fill-opacity": "0.75", stroke: "transparent", "stroke-width": "10", onMouseMove: (e) => showTip(e, [fmtX(p.x), `${yName}: ${p.y.toLocaleString()}`]), onMouseLeave: hideTip }))), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("line", { x1: M.left, x2: W - M.right, y1: zeroY, y2: zeroY, stroke: ink, "stroke-opacity": "0.45", "stroke-width": "1" })] }), tip && ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { class: "bq-chart-tip", style: { left: `${tip.x}px`, top: `${tip.y}px` }, children: tip.lines.map(l => (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { children: l })) }))] }));
+}
+
+
+/***/ }),
+/* 8 */
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   buildChartSeries: () => (/* binding */ buildChartSeries),
+/* harmony export */   compactNumber: () => (/* binding */ compactNumber),
+/* harmony export */   dimensionColumns: () => (/* binding */ dimensionColumns),
+/* harmony export */   formatTimeTick: () => (/* binding */ formatTimeTick),
+/* harmony export */   isNumericType: () => (/* binding */ isNumericType),
+/* harmony export */   isTemporalType: () => (/* binding */ isTemporalType),
+/* harmony export */   niceTicks: () => (/* binding */ niceTicks),
+/* harmony export */   numericColumns: () => (/* binding */ numericColumns)
+/* harmony export */ });
+/* harmony import */ var _cellFormatters__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(5);
+
+const NUMERIC_TYPES = new Set(['INT64', 'INTEGER', 'FLOAT', 'FLOAT64', 'NUMERIC', 'BIGNUMERIC']);
+const TEMPORAL_TYPES = new Set(['TIMESTAMP', 'DATE', 'DATETIME']);
+function isNumericType(type) {
+    return NUMERIC_TYPES.has((type || '').toUpperCase());
+}
+function isTemporalType(type) {
+    return TEMPORAL_TYPES.has((type || '').toUpperCase());
+}
+/** Columns usable as a Y measure (numeric scalars). */
+function numericColumns(columns) {
+    return columns.filter(c => c.mode !== 'REPEATED' && isNumericType(c.type));
+}
+/** Columns usable as an X dimension (any non-repeated scalar). */
+function dimensionColumns(columns) {
+    return columns.filter(c => c.mode !== 'REPEATED' && c.type !== 'RECORD' && c.type !== 'STRUCT');
+}
+/** Parses a wire cell into an x-axis value for the given column, or null when unusable. */
+function parseX(raw, col) {
+    if (raw === null || raw === undefined) {
+        return null;
+    }
+    const t = col.type.toUpperCase();
+    if (t === 'TIMESTAMP') {
+        const ms = parseFloat(String(raw)) * 1000;
+        return isFinite(ms) ? Math.round(ms) : null;
+    }
+    if (t === 'DATE' || t === 'DATETIME') {
+        const ms = Date.parse(String(raw));
+        return isFinite(ms) ? ms : null;
+    }
+    if (isNumericType(t)) {
+        const n = Number(raw);
+        return isFinite(n) ? n : null;
+    }
+    return String(raw);
+}
+/** Parses a wire cell into a y measure, or null when unusable. */
+function parseY(raw) {
+    if (raw === null || raw === undefined) {
+        return null;
+    }
+    const n = Number(raw);
+    return isFinite(n) ? n : null;
+}
+/**
+ * Builds a drawable series from wire-format rows.
+ *  - `yCol === null` → y is a row count (agg ignored).
+ *  - Categorical x → one point per category (`agg` of y, or count), sorted by y descending,
+ *    capped at `maxCategories` (sets `truncated`).
+ *  - Numeric/temporal x → one point per row, sorted by x ascending (agg not applicable).
+ */
+function buildChartSeries(rows, fields, xCol, yCol, agg = 'sum', maxCategories = 30) {
+    const xType = xCol.type.toUpperCase();
+    const kind = isTemporalType(xType) ? 'time' : isNumericType(xType) ? 'linear' : 'category';
+    let skipped = 0;
+    if (kind === 'category') {
+        // Track enough per category to answer any of the aggregations.
+        const acc = new Map();
+        for (const row of rows) {
+            const x = parseX((0,_cellFormatters__WEBPACK_IMPORTED_MODULE_0__.extractRowValue)(row, fields, xCol.path), xCol);
+            if (x === null) {
+                skipped++;
+                continue;
+            }
+            let y = 1;
+            if (yCol) {
+                const parsed = parseY((0,_cellFormatters__WEBPACK_IMPORTED_MODULE_0__.extractRowValue)(row, fields, yCol.path));
+                if (parsed === null) {
+                    skipped++;
+                    continue;
+                }
+                y = parsed;
+            }
+            const key = String(x);
+            const a = acc.get(key);
+            if (a) {
+                a.sum += y;
+                a.n++;
+                a.min = Math.min(a.min, y);
+                a.max = Math.max(a.max, y);
+            }
+            else {
+                acc.set(key, { sum: y, n: 1, min: y, max: y });
+            }
+        }
+        const finalize = (a) => {
+            if (!yCol) {
+                return a.n;
+            } // count of rows
+            switch (agg) {
+                case 'avg': return a.sum / a.n;
+                case 'min': return a.min;
+                case 'max': return a.max;
+                default: return a.sum;
+            }
+        };
+        const sorted = [...acc.entries()]
+            .map(([x, a]) => ({ x, y: finalize(a) }))
+            .sort((a, b) => b.y - a.y);
+        const truncated = sorted.length > maxCategories;
+        return {
+            kind,
+            points: sorted.slice(0, maxCategories).map(({ x, y }) => ({ x, y })),
+            truncated,
+            skipped,
+        };
+    }
+    const points = [];
+    for (const row of rows) {
+        const x = parseX((0,_cellFormatters__WEBPACK_IMPORTED_MODULE_0__.extractRowValue)(row, fields, xCol.path), xCol);
+        if (x === null || typeof x !== 'number') {
+            skipped++;
+            continue;
+        }
+        let y = 1;
+        if (yCol) {
+            const parsed = parseY((0,_cellFormatters__WEBPACK_IMPORTED_MODULE_0__.extractRowValue)(row, fields, yCol.path));
+            if (parsed === null) {
+                skipped++;
+                continue;
+            }
+            y = parsed;
+        }
+        points.push({ x, y });
+    }
+    points.sort((a, b) => a.x - b.x);
+    return { kind, points, truncated: false, skipped };
+}
+/** Nice-number axis ticks covering [min, max] (inclusive-ish), ~`count` steps. */
+function niceTicks(min, max, count = 5) {
+    if (!isFinite(min) || !isFinite(max)) {
+        return [];
+    }
+    if (min === max) {
+        return min === 0 ? [0, 1] : [0, min].sort((a, b) => a - b);
+    }
+    const span = max - min;
+    const rawStep = span / Math.max(1, count);
+    const mag = Math.pow(10, Math.floor(Math.log10(rawStep)));
+    const norm = rawStep / mag;
+    const step = (norm >= 5 ? 10 : norm >= 2 ? 5 : norm >= 1 ? 2 : 1) * mag;
+    const start = Math.floor(min / step) * step;
+    const ticks = [];
+    for (let v = start; v <= max + step * 0.5; v += step) {
+        // Snap floating point noise (0.30000000000000004 → 0.3).
+        ticks.push(Number(v.toPrecision(12)));
+    }
+    return ticks;
+}
+/** Compact number for axis labels: 1200000 → "1.2M". */
+function compactNumber(n) {
+    const abs = Math.abs(n);
+    if (abs >= 1e9) {
+        return `${trimFixed(n / 1e9)}B`;
+    }
+    if (abs >= 1e6) {
+        return `${trimFixed(n / 1e6)}M`;
+    }
+    if (abs >= 1e3) {
+        return `${trimFixed(n / 1e3)}K`;
+    }
+    return String(Number(n.toPrecision(6)));
+}
+function trimFixed(n) {
+    const s = n.toFixed(1);
+    return s.endsWith('.0') ? s.slice(0, -2) : s;
+}
+/** Short x tick label for time axes; span decides the precision shown. */
+function formatTimeTick(ms, spanMs) {
+    const d = new Date(ms);
+    if (spanMs >= 365 * 864e5) {
+        return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+    }
+    if (spanMs >= 864e5) {
+        return `${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+    }
+    return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
+}
+
+
+/***/ }),
+/* 9 */
 /***/ ((module) => {
 
-module.exports = ":root {\n    --bq-border: var(--vscode-panel-border, rgba(255,255,255,0.08));\n    --bq-border-soft: color-mix(in srgb, var(--vscode-panel-border, #3e3e3e) 50%, transparent);\n    --bq-accent: var(--vscode-focusBorder, #007acc);\n    --bq-hover: var(--vscode-list-hoverBackground, rgba(255,255,255,0.04));\n    --bq-stripe: color-mix(in srgb, var(--vscode-editor-background, #1e1e1e) 92%, var(--vscode-foreground, white) 8%);\n    --bq-muted: color-mix(in srgb, var(--vscode-foreground, #ccc) 55%, transparent);\n    --bq-radius: 4px;\n}\n\nbody { margin: 0; padding: 0; font-family: var(--vscode-font-family, sans-serif); font-size: var(--vscode-font-size, 13px); color: var(--vscode-foreground); background: var(--vscode-editor-background); }\n\n.bq-root { display: flex; flex-direction: column; height: 100vh; }\n/* DML-only result: just the summary banner, no table — don't stretch to fill the panel. */\n.bq-root.bq-root-dml-only { height: auto; }\n\n.bq-ctx-menu {\n    position: fixed;\n    z-index: 20;\n    min-width: 180px;\n    background: var(--vscode-menu-background, var(--vscode-editor-background));\n    color: var(--vscode-menu-foreground, var(--vscode-foreground));\n    border: 1px solid var(--vscode-menu-border, var(--bq-border));\n    border-radius: 4px;\n    box-shadow: 0 6px 18px rgba(0,0,0,0.35);\n    padding: 4px;\n    font-size: 0.88em;\n    user-select: none;\n}\n.bq-ctx-head {\n    padding: 4px 10px 6px;\n    font-size: 0.78em;\n    color: color-mix(in srgb, var(--vscode-foreground) 55%, transparent);\n    border-bottom: 1px solid var(--bq-border);\n    margin-bottom: 4px;\n    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;\n}\n.bq-ctx-sep {\n    height: 1px;\n    background: var(--bq-border);\n    margin: 4px 0;\n}\n.bq-ctx-item {\n    display: block;\n    width: 100%;\n    text-align: left;\n    padding: 5px 10px;\n    background: transparent;\n    color: inherit;\n    border: none;\n    border-radius: 3px;\n    cursor: pointer;\n    font: inherit;\n}\n.bq-ctx-item:hover {\n    background: var(--vscode-menu-selectionBackground, var(--vscode-list-hoverBackground));\n    color: var(--vscode-menu-selectionForeground, var(--vscode-list-hoverForeground, inherit));\n}\n\n.bq-dml-summary {\n    display: flex;\n    align-items: center;\n    gap: 10px;\n    padding: 8px 12px;\n    border-bottom: 1px solid var(--bq-border);\n    background: color-mix(in srgb, var(--vscode-charts-green, #4ec9b0) 12%, var(--vscode-editor-background) 88%);\n    font-size: 0.88em;\n}\n.bq-dml-type {\n    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;\n    font-weight: 600;\n    padding: 2px 8px;\n    border-radius: 3px;\n    background: color-mix(in srgb, var(--vscode-charts-green, #4ec9b0) 25%, transparent);\n    color: color-mix(in srgb, var(--vscode-foreground) 70%, var(--vscode-charts-green, #4ec9b0) 30%);\n    letter-spacing: 0.02em;\n    font-size: 0.82em;\n}\n.bq-dml-counts {\n    color: var(--vscode-foreground);\n}\n\n.bq-controls {\n    display: flex;\n    align-items: center;\n    gap: 6px;\n    padding: 8px 12px;\n    border-bottom: 1px solid var(--bq-border);\n    background: var(--vscode-editor-background);\n    font-size: 0.9em;\n    flex-wrap: wrap;\n    position: sticky;\n    top: 0;\n    z-index: 3;\n    backdrop-filter: blur(6px);\n}\n\n.bq-pg-btn {\n    background: transparent;\n    color: inherit;\n    border: 1px solid var(--bq-border);\n    padding: 3px 9px;\n    cursor: pointer;\n    border-radius: var(--bq-radius);\n    font: inherit;\n    transition: background 0.12s, border-color 0.12s, color 0.12s;\n    line-height: 1.2;\n}\n.bq-pg-btn:hover:not(:disabled) { background: var(--bq-hover); border-color: var(--bq-accent); }\n.bq-pg-btn:active:not(:disabled) { transform: translateY(1px); }\n.bq-pg-btn:disabled { opacity: 0.35; cursor: default; }\n\n.bq-pg-label { color: var(--bq-muted); margin-left: 2px; }\n.bq-pg-input {\n    background: var(--vscode-input-background, transparent);\n    color: inherit;\n    border: 1px solid var(--bq-border);\n    padding: 3px 6px;\n    border-radius: var(--bq-radius);\n    width: 58px;\n    text-align: center;\n    font: inherit;\n    transition: border-color 0.12s;\n}\n.bq-pg-input:focus { outline: none; border-color: var(--bq-accent); }\n.bq-pg-of { color: var(--bq-muted); }\n.bq-pg-info { padding: 0 8px; color: var(--bq-muted); font-size: 0.9em; }\n.bq-pg-size {\n    background: transparent;\n    color: inherit;\n    border: 1px solid var(--bq-border);\n    padding: 3px 6px;\n    border-radius: var(--bq-radius);\n    font: inherit;\n    cursor: pointer;\n}\n.bq-pg-size:hover { border-color: var(--bq-accent); }\n\n.bq-export { display: flex; gap: 4px; margin-left: auto; padding-left: 12px; border-left: 1px solid var(--bq-border-soft); }\n\n.bq-notice { padding: 8px 12px; color: var(--bq-muted); font-style: italic; font-size: 0.9em; }\n.bq-empty { padding: 16px; color: var(--bq-muted); font-size: 0.9em; text-align: center; }\n\n.bq-error, .bq-error-panel {\n    padding: 10px 14px;\n    background: var(--vscode-inputValidation-errorBackground, rgba(255,0,0,0.1));\n    border: 1px solid var(--vscode-inputValidation-errorBorder, rgba(255,0,0,0.5));\n    color: var(--vscode-inputValidation-errorForeground, inherit);\n    margin: 8px 12px;\n    border-radius: var(--bq-radius);\n}\n.bq-error-title { font-weight: 600; margin-bottom: 4px; }\n.bq-error-reason { color: var(--bq-muted); margin-top: 4px; font-size: 0.9em; }\n\n.bq-scroll {\n    flex: 1;\n    overflow: auto;\n    background: var(--vscode-editor-background);\n}\n\n.bq-grid {\n    border-collapse: separate;\n    border-spacing: 0;\n    width: max-content;\n    min-width: 100%;\n    font-family: var(--vscode-editor-font-family, ui-monospace, SFMono-Regular, Menlo, monospace);\n    font-size: 0.88em;\n    line-height: 1.45;\n    /* The overlay horizontal scrollbar floats over the container's bottom edge — keep the\n       last row clear of it. */\n    margin-bottom: 12px;\n}\n\n.bq-grid thead th {\n    position: sticky;\n    top: 0;\n    z-index: 2;\n    background: var(--vscode-editor-background);\n    border-bottom: 1px solid var(--bq-accent);\n    font-weight: 600;\n    padding: 8px 14px;\n    text-align: left;\n    cursor: pointer;\n    user-select: none;\n    font-family: var(--vscode-font-family, sans-serif);\n    font-size: 0.9em;\n    letter-spacing: 0.01em;\n    white-space: nowrap;\n    transition: background 0.12s;\n}\n.bq-grid thead th::after {\n    content: '';\n    position: absolute;\n    right: 0; top: 25%; bottom: 25%;\n    width: 1px;\n    background: var(--bq-border-soft);\n}\n.bq-grid thead th:last-child::after { display: none; }\n.bq-grid thead th:hover { background: var(--bq-hover); }\n.bq-grid thead th .bq-col-type {\n    display: inline-block;\n    margin-left: 6px;\n    padding: 1px 5px;\n    border: 1px solid var(--bq-border-soft);\n    border-radius: 3px;\n    font-size: 0.75em;\n    color: var(--bq-muted);\n    font-weight: 500;\n    letter-spacing: 0.04em;\n    text-transform: lowercase;\n    vertical-align: middle;\n}\n.bq-grid thead th .bq-sort {\n    color: var(--bq-accent);\n    font-size: 0.8em;\n    margin-left: 4px;\n}\n\n.bq-grid tbody td {\n    padding: 5px 14px;\n    border-bottom: 1px solid var(--bq-border-soft);\n    white-space: nowrap;\n    vertical-align: top;\n}\n\n.bq-grid tbody tr:nth-child(even) td { background: var(--bq-stripe); }\n.bq-grid tbody tr:hover td {\n    background: var(--bq-hover);\n}\n\n.bq-grid td.bq-rownum {\n    position: sticky;\n    left: 0;\n    z-index: 1;\n    background: var(--vscode-editor-background);\n    color: var(--bq-muted);\n    text-align: right;\n    font-size: 0.78em;\n    padding: 5px 6px 5px 8px;\n    user-select: none;\n    border-right: 1px solid var(--bq-border-soft);\n    min-width: 0;\n    width: 1%;\n    white-space: nowrap;\n}\n.bq-grid tbody tr:nth-child(even) td.bq-rownum { background: var(--bq-stripe); }\n.bq-grid tbody tr:hover td.bq-rownum { background: var(--bq-hover); color: var(--bq-accent); }\n\n.bq-grid thead th.bq-rownum {\n    position: sticky;\n    left: 0;\n    z-index: 3;\n    background: var(--vscode-editor-background);\n    cursor: default;\n    padding: 8px 6px 8px 8px;\n    width: 1%;\n    text-align: right;\n    color: var(--bq-muted);\n}\n\n.bq-grid td.bq-numeric { text-align: right; font-variant-numeric: tabular-nums; }\n.bq-grid td.bq-cell-max { max-width: 800px; overflow: hidden; text-overflow: ellipsis; }\n\n.bq-grid tbody tr { position: relative; }\n.bq-grid tbody tr:hover td:not(.bq-rownum):first-of-type { box-shadow: inset 2px 0 0 var(--bq-accent); }\n\n.bq-grid tbody td:not(.bq-rownum) { cursor: cell; }\n.bq-grid tbody td:not(.bq-rownum):active { background: color-mix(in srgb, var(--bq-accent) 15%, var(--vscode-editor-background)) !important; }\n\n.bq-toast {\n    position: fixed;\n    bottom: 18px;\n    left: 50%;\n    transform: translateX(-50%) translateY(20px);\n    padding: 6px 14px;\n    background: var(--vscode-notifications-background, #252526);\n    color: var(--vscode-notifications-foreground, inherit);\n    border: 1px solid var(--bq-accent);\n    border-radius: 20px;\n    font-size: 0.85em;\n    box-shadow: 0 4px 14px rgba(0,0,0,0.4);\n    opacity: 0;\n    pointer-events: none;\n    transition: opacity 0.18s, transform 0.18s;\n    z-index: 10;\n}\n.bq-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }\n\n/* Density */\n.bq-grid tbody td { padding: var(--bq-cell-pad-y, 5px) 14px; font-size: var(--bq-cell-font, 0.88em); }\n\n/* Tabs */\n.bq-tabs { display: flex; gap: 2px; padding-right: 8px; border-right: 1px solid var(--bq-border-soft); margin-right: 4px; }\n.bq-tab {\n    background: transparent; color: inherit; border: none;\n    padding: 4px 10px; cursor: pointer; border-radius: var(--bq-radius);\n    font: inherit; font-weight: 500;\n    transition: background 0.12s, color 0.12s;\n    border-bottom: 2px solid transparent;\n}\n.bq-tab:hover { background: var(--bq-hover); }\n.bq-tab.active { color: var(--bq-accent); border-bottom-color: var(--bq-accent); border-radius: 0; }\n.bq-count { display: inline-block; margin-left: 4px; padding: 0 5px; font-size: 0.78em; color: var(--bq-muted); background: var(--bq-hover); border-radius: 8px; font-weight: 400; }\n\n/* Find */\n.bq-find { position: relative; display: inline-flex; align-items: center; }\n.bq-find-input {\n    background: var(--vscode-input-background, transparent);\n    color: inherit;\n    border: 1px solid var(--bq-border);\n    padding: 3px 26px 3px 8px;\n    border-radius: var(--bq-radius);\n    font: inherit;\n    width: 120px;\n    transition: border-color 0.12s, width 0.18s;\n}\n.bq-find-input:focus { outline: none; border-color: var(--bq-accent); width: 180px; }\n.bq-find-count { position: absolute; right: 6px; font-size: 0.75em; color: var(--bq-muted); pointer-events: none; }\n\n/* Density toggle */\n.bq-density { display: inline-flex; border: 1px solid var(--bq-border); border-radius: var(--bq-radius); overflow: hidden; }\n.bq-density-btn {\n    background: transparent; color: inherit; border: none;\n    padding: 3px 8px; cursor: pointer; font: inherit;\n    border-right: 1px solid var(--bq-border-soft);\n    transition: background 0.12s, color 0.12s;\n    line-height: 1.2;\n}\n.bq-density-btn:last-child { border-right: none; }\n.bq-density-btn:hover { background: var(--bq-hover); }\n.bq-density-btn.active { background: var(--bq-accent); color: var(--vscode-button-foreground, white); }\n\n/* Selected */\n.bq-grid tbody tr.bq-selected td { background: color-mix(in srgb, var(--bq-accent) 18%, var(--vscode-editor-background)) !important; }\n.bq-grid tbody tr.bq-selected td.bq-rownum { color: var(--bq-accent); font-weight: 600; }\n.bq-sel-count { padding: 0 6px; font-size: 0.82em; color: var(--bq-accent); font-weight: 600; }\n\n/* Header name + resize */\n.bq-grid thead th { position: relative; padding-right: 10px; }\n.bq-col-name { margin-right: 4px; }\n.bq-resize {\n    position: absolute;\n    top: 0; bottom: 0; right: -3px;\n    width: 6px;\n    cursor: col-resize;\n    z-index: 2;\n}\n.bq-resize:hover { background: var(--bq-accent); }\n.bq-sort-rank { font-size: 0.7em; opacity: 0.8; margin-left: 1px; }\n\n/* Find highlight */\nmark.bq-mark { background: color-mix(in srgb, var(--bq-accent) 35%, transparent); color: inherit; padding: 0 1px; border-radius: 2px; }\n\n/* Layout with drawer */\n.bq-layout { flex: 1; display: flex; min-height: 0; overflow: hidden; }\n.bq-layout .bq-scroll { flex: 1; min-width: 0; }\n\n.bq-drawer {\n    width: 380px;\n    min-width: 240px;\n    max-width: 60vw;\n    border-left: 1px solid var(--bq-border);\n    display: flex;\n    flex-direction: column;\n    background: var(--vscode-editor-background);\n    resize: horizontal;\n    overflow: hidden;\n}\n.bq-drawer-head { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-bottom: 1px solid var(--bq-border); }\n.bq-drawer-title { display: flex; gap: 8px; align-items: center; font-weight: 600; font-size: 0.9em; min-width: 0; }\n.bq-drawer-title > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }\n.bq-drawer-actions { display: flex; gap: 4px; }\n.bq-drawer-body {\n    flex: 1;\n    overflow: auto;\n    margin: 0;\n    padding: 12px;\n    font-family: var(--vscode-editor-font-family, ui-monospace, SFMono-Regular, Menlo, monospace);\n    font-size: 0.85em;\n    line-height: 1.45;\n    white-space: pre-wrap;\n    word-break: break-word;\n    color: var(--vscode-editor-foreground, inherit);\n}\n\n/* Type syntax colors — subtle, theme-aware.\n   Each var can be overridden by the extension via vscode-bigquery.gridColors.\n   Defaults cascade: user override → VS Code chart var → hardcoded fallback. */\n:root {\n    --bq-color-number: var(--vscode-charts-blue, #4fc1ff);\n    --bq-color-boolean: var(--vscode-charts-purple, #c586c0);\n    --bq-color-timestamp: var(--vscode-charts-orange, #ce9178);\n    --bq-color-struct: color-mix(in srgb, var(--vscode-foreground) 70%, var(--vscode-charts-green, #4ec9b0) 30%);\n    --bq-color-bytes: color-mix(in srgb, var(--vscode-foreground) 65%, var(--vscode-charts-yellow, #dcdcaa) 35%);\n    --bq-color-string: inherit;\n    --bq-color-null: var(--vscode-inputValidation-warningBorder, #c5a300);\n}\n\n.bq-grid td.bq-numeric,\n.bq-grid td.bq-t-int64,\n.bq-grid td.bq-t-integer,\n.bq-grid td.bq-t-float,\n.bq-grid td.bq-t-float64,\n.bq-grid td.bq-t-numeric,\n.bq-grid td.bq-t-bignumeric { color: var(--bq-color-number); }\n\n.bq-grid td.bq-t-bool,\n.bq-grid td.bq-t-boolean { color: var(--bq-color-boolean); font-weight: 500; }\n\n.bq-grid td.bq-t-timestamp,\n.bq-grid td.bq-t-date,\n.bq-grid td.bq-t-datetime,\n.bq-grid td.bq-t-time { color: var(--bq-color-timestamp); }\n\n.bq-grid td.bq-t-json,\n.bq-grid td.bq-t-record,\n.bq-grid td.bq-t-struct { color: var(--bq-color-struct); }\n\n.bq-grid td.bq-t-bytes,\n.bq-grid td.bq-t-geography { color: var(--bq-color-bytes); }\n\n.bq-grid td.bq-t-string { color: var(--bq-color-string); }\n\n.bq-grid td.bq-null { color: var(--bq-color-null) !important; }\n\n/* Schema grid tweaks */\n.bq-schema-grid td, .bq-schema-grid th { font-family: var(--vscode-font-family, sans-serif); }\n.bq-muted { color: var(--bq-muted); }\n\n.bq-null {\n    color: var(--vscode-inputValidation-warningBorder, #c5a300);\n    font-style: italic;\n    opacity: 0.75;\n    font-size: 0.82em;\n    letter-spacing: 0.05em;\n}\n";
+module.exports = ":root {\n    --bq-border: var(--vscode-panel-border, rgba(255,255,255,0.08));\n    --bq-border-soft: color-mix(in srgb, var(--vscode-panel-border, #3e3e3e) 50%, transparent);\n    --bq-accent: var(--vscode-focusBorder, #007acc);\n    --bq-hover: var(--vscode-list-hoverBackground, rgba(255,255,255,0.04));\n    --bq-stripe: color-mix(in srgb, var(--vscode-editor-background, #1e1e1e) 92%, var(--vscode-foreground, white) 8%);\n    --bq-muted: color-mix(in srgb, var(--vscode-foreground, #ccc) 55%, transparent);\n    --bq-radius: 4px;\n}\n\nbody { margin: 0; padding: 0; font-family: var(--vscode-font-family, sans-serif); font-size: var(--vscode-font-size, 13px); color: var(--vscode-foreground); background: var(--vscode-editor-background); }\n\n.bq-root { display: flex; flex-direction: column; height: 100vh; }\n/* DML-only result: just the summary banner, no table — don't stretch to fill the panel. */\n.bq-root.bq-root-dml-only { height: auto; }\n\n.bq-ctx-menu {\n    position: fixed;\n    z-index: 20;\n    min-width: 180px;\n    background: var(--vscode-menu-background, var(--vscode-editor-background));\n    color: var(--vscode-menu-foreground, var(--vscode-foreground));\n    border: 1px solid var(--vscode-menu-border, var(--bq-border));\n    border-radius: 4px;\n    box-shadow: 0 6px 18px rgba(0,0,0,0.35);\n    padding: 4px;\n    font-size: 0.88em;\n    user-select: none;\n}\n.bq-ctx-head {\n    padding: 4px 10px 6px;\n    font-size: 0.78em;\n    color: color-mix(in srgb, var(--vscode-foreground) 55%, transparent);\n    border-bottom: 1px solid var(--bq-border);\n    margin-bottom: 4px;\n    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;\n}\n.bq-ctx-sep {\n    height: 1px;\n    background: var(--bq-border);\n    margin: 4px 0;\n}\n.bq-ctx-item {\n    display: block;\n    width: 100%;\n    text-align: left;\n    padding: 5px 10px;\n    background: transparent;\n    color: inherit;\n    border: none;\n    border-radius: 3px;\n    cursor: pointer;\n    font: inherit;\n}\n.bq-ctx-item:hover {\n    background: var(--vscode-menu-selectionBackground, var(--vscode-list-hoverBackground));\n    color: var(--vscode-menu-selectionForeground, var(--vscode-list-hoverForeground, inherit));\n}\n\n.bq-dml-summary {\n    display: flex;\n    align-items: center;\n    gap: 10px;\n    padding: 8px 12px;\n    border-bottom: 1px solid var(--bq-border);\n    background: color-mix(in srgb, var(--vscode-charts-green, #4ec9b0) 12%, var(--vscode-editor-background) 88%);\n    font-size: 0.88em;\n}\n.bq-dml-type {\n    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;\n    font-weight: 600;\n    padding: 2px 8px;\n    border-radius: 3px;\n    background: color-mix(in srgb, var(--vscode-charts-green, #4ec9b0) 25%, transparent);\n    color: color-mix(in srgb, var(--vscode-foreground) 70%, var(--vscode-charts-green, #4ec9b0) 30%);\n    letter-spacing: 0.02em;\n    font-size: 0.82em;\n}\n.bq-dml-counts {\n    color: var(--vscode-foreground);\n}\n\n.bq-controls {\n    display: flex;\n    align-items: center;\n    gap: 6px;\n    padding: 8px 12px;\n    border-bottom: 1px solid var(--bq-border);\n    background: var(--vscode-editor-background);\n    font-size: 0.9em;\n    flex-wrap: wrap;\n    position: sticky;\n    top: 0;\n    z-index: 3;\n    backdrop-filter: blur(6px);\n}\n\n.bq-pg-btn {\n    background: transparent;\n    color: inherit;\n    border: 1px solid var(--bq-border);\n    padding: 3px 9px;\n    cursor: pointer;\n    border-radius: var(--bq-radius);\n    font: inherit;\n    transition: background 0.12s, border-color 0.12s, color 0.12s;\n    line-height: 1.2;\n}\n.bq-pg-btn:hover:not(:disabled) { background: var(--bq-hover); border-color: var(--bq-accent); }\n.bq-pg-btn:active:not(:disabled) { transform: translateY(1px); }\n.bq-pg-btn:disabled { opacity: 0.35; cursor: default; }\n\n.bq-pg-label { color: var(--bq-muted); margin-left: 2px; }\n.bq-pg-input {\n    background: var(--vscode-input-background, transparent);\n    color: inherit;\n    border: 1px solid var(--bq-border);\n    padding: 3px 6px;\n    border-radius: var(--bq-radius);\n    width: 58px;\n    text-align: center;\n    font: inherit;\n    transition: border-color 0.12s;\n}\n.bq-pg-input:focus { outline: none; border-color: var(--bq-accent); }\n.bq-pg-of { color: var(--bq-muted); }\n.bq-pg-info { padding: 0 8px; color: var(--bq-muted); font-size: 0.9em; }\n.bq-pg-size {\n    background: transparent;\n    color: inherit;\n    border: 1px solid var(--bq-border);\n    padding: 3px 6px;\n    border-radius: var(--bq-radius);\n    font: inherit;\n    cursor: pointer;\n}\n.bq-pg-size:hover { border-color: var(--bq-accent); }\n\n.bq-export { display: flex; gap: 4px; margin-left: auto; padding-left: 12px; border-left: 1px solid var(--bq-border-soft); }\n\n.bq-notice { padding: 8px 12px; color: var(--bq-muted); font-style: italic; font-size: 0.9em; }\n.bq-empty { padding: 16px; color: var(--bq-muted); font-size: 0.9em; text-align: center; }\n\n.bq-error, .bq-error-panel {\n    padding: 10px 14px;\n    background: var(--vscode-inputValidation-errorBackground, rgba(255,0,0,0.1));\n    border: 1px solid var(--vscode-inputValidation-errorBorder, rgba(255,0,0,0.5));\n    color: var(--vscode-inputValidation-errorForeground, inherit);\n    margin: 8px 12px;\n    border-radius: var(--bq-radius);\n}\n.bq-error-title { font-weight: 600; margin-bottom: 4px; }\n.bq-error-reason { color: var(--bq-muted); margin-top: 4px; font-size: 0.9em; }\n\n.bq-scroll {\n    flex: 1;\n    overflow: auto;\n    background: var(--vscode-editor-background);\n}\n\n.bq-grid {\n    border-collapse: separate;\n    border-spacing: 0;\n    width: max-content;\n    min-width: 100%;\n    font-family: var(--vscode-editor-font-family, ui-monospace, SFMono-Regular, Menlo, monospace);\n    font-size: 0.88em;\n    line-height: 1.45;\n    /* The overlay horizontal scrollbar floats over the container's bottom edge — keep the\n       last row clear of it. */\n    margin-bottom: 12px;\n}\n\n.bq-grid thead th {\n    position: sticky;\n    top: 0;\n    z-index: 2;\n    background: var(--vscode-editor-background);\n    border-bottom: 1px solid var(--bq-accent);\n    font-weight: 600;\n    padding: 8px 14px;\n    text-align: left;\n    cursor: pointer;\n    user-select: none;\n    font-family: var(--vscode-font-family, sans-serif);\n    font-size: 0.9em;\n    letter-spacing: 0.01em;\n    white-space: nowrap;\n    transition: background 0.12s;\n}\n.bq-grid thead th::after {\n    content: '';\n    position: absolute;\n    right: 0; top: 25%; bottom: 25%;\n    width: 1px;\n    background: var(--bq-border-soft);\n}\n.bq-grid thead th:last-child::after { display: none; }\n.bq-grid thead th:hover { background: var(--bq-hover); }\n.bq-grid thead th .bq-col-type {\n    display: inline-block;\n    margin-left: 6px;\n    padding: 1px 5px;\n    border: 1px solid var(--bq-border-soft);\n    border-radius: 3px;\n    font-size: 0.75em;\n    color: var(--bq-muted);\n    font-weight: 500;\n    letter-spacing: 0.04em;\n    text-transform: lowercase;\n    vertical-align: middle;\n}\n.bq-grid thead th .bq-sort {\n    color: var(--bq-accent);\n    font-size: 0.8em;\n    margin-left: 4px;\n}\n\n.bq-grid tbody td {\n    padding: 5px 14px;\n    border-bottom: 1px solid var(--bq-border-soft);\n    white-space: nowrap;\n    vertical-align: top;\n}\n\n.bq-grid tbody tr:nth-child(even) td { background: var(--bq-stripe); }\n.bq-grid tbody tr:hover td {\n    background: var(--bq-hover);\n}\n\n.bq-grid td.bq-rownum {\n    position: sticky;\n    left: 0;\n    z-index: 1;\n    background: var(--vscode-editor-background);\n    color: var(--bq-muted);\n    text-align: right;\n    font-size: 0.78em;\n    padding: 5px 6px 5px 8px;\n    user-select: none;\n    border-right: 1px solid var(--bq-border-soft);\n    min-width: 0;\n    width: 1%;\n    white-space: nowrap;\n}\n.bq-grid tbody tr:nth-child(even) td.bq-rownum { background: var(--bq-stripe); }\n.bq-grid tbody tr:hover td.bq-rownum { background: var(--bq-hover); color: var(--bq-accent); }\n\n.bq-grid thead th.bq-rownum {\n    position: sticky;\n    left: 0;\n    z-index: 3;\n    background: var(--vscode-editor-background);\n    cursor: default;\n    padding: 8px 6px 8px 8px;\n    width: 1%;\n    text-align: right;\n    color: var(--bq-muted);\n}\n\n.bq-grid td.bq-numeric { text-align: right; font-variant-numeric: tabular-nums; }\n.bq-grid td.bq-cell-max { max-width: 800px; overflow: hidden; text-overflow: ellipsis; }\n\n.bq-grid tbody tr { position: relative; }\n.bq-grid tbody tr:hover td:not(.bq-rownum):first-of-type { box-shadow: inset 2px 0 0 var(--bq-accent); }\n\n.bq-grid tbody td:not(.bq-rownum) { cursor: cell; }\n.bq-grid tbody td:not(.bq-rownum):active { background: color-mix(in srgb, var(--bq-accent) 15%, var(--vscode-editor-background)) !important; }\n\n.bq-toast {\n    position: fixed;\n    bottom: 18px;\n    left: 50%;\n    transform: translateX(-50%) translateY(20px);\n    padding: 6px 14px;\n    background: var(--vscode-notifications-background, #252526);\n    color: var(--vscode-notifications-foreground, inherit);\n    border: 1px solid var(--bq-accent);\n    border-radius: 20px;\n    font-size: 0.85em;\n    box-shadow: 0 4px 14px rgba(0,0,0,0.4);\n    opacity: 0;\n    pointer-events: none;\n    transition: opacity 0.18s, transform 0.18s;\n    z-index: 10;\n}\n.bq-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }\n\n/* Density */\n.bq-grid tbody td { padding: var(--bq-cell-pad-y, 5px) 14px; font-size: var(--bq-cell-font, 0.88em); }\n\n/* Tabs */\n.bq-tabs { display: flex; gap: 2px; padding-right: 8px; border-right: 1px solid var(--bq-border-soft); margin-right: 4px; }\n.bq-tab {\n    background: transparent; color: inherit; border: none;\n    padding: 4px 10px; cursor: pointer; border-radius: var(--bq-radius);\n    font: inherit; font-weight: 500;\n    transition: background 0.12s, color 0.12s;\n    border-bottom: 2px solid transparent;\n}\n.bq-tab:hover { background: var(--bq-hover); }\n.bq-tab.active { color: var(--bq-accent); border-bottom-color: var(--bq-accent); border-radius: 0; }\n.bq-count { display: inline-block; margin-left: 4px; padding: 0 5px; font-size: 0.78em; color: var(--bq-muted); background: var(--bq-hover); border-radius: 8px; font-weight: 400; }\n\n/* Find */\n.bq-find { position: relative; display: inline-flex; align-items: center; }\n.bq-find-input {\n    background: var(--vscode-input-background, transparent);\n    color: inherit;\n    border: 1px solid var(--bq-border);\n    padding: 3px 26px 3px 8px;\n    border-radius: var(--bq-radius);\n    font: inherit;\n    width: 120px;\n    transition: border-color 0.12s, width 0.18s;\n}\n.bq-find-input:focus { outline: none; border-color: var(--bq-accent); width: 180px; }\n.bq-find-count { position: absolute; right: 6px; font-size: 0.75em; color: var(--bq-muted); pointer-events: none; }\n\n/* Density toggle */\n.bq-density { display: inline-flex; border: 1px solid var(--bq-border); border-radius: var(--bq-radius); overflow: hidden; }\n.bq-density-btn {\n    background: transparent; color: inherit; border: none;\n    padding: 3px 8px; cursor: pointer; font: inherit;\n    border-right: 1px solid var(--bq-border-soft);\n    transition: background 0.12s, color 0.12s;\n    line-height: 1.2;\n}\n.bq-density-btn:last-child { border-right: none; }\n.bq-density-btn:hover { background: var(--bq-hover); }\n.bq-density-btn.active { background: var(--bq-accent); color: var(--vscode-button-foreground, white); }\n\n/* Selected */\n.bq-grid tbody tr.bq-selected td { background: color-mix(in srgb, var(--bq-accent) 18%, var(--vscode-editor-background)) !important; }\n.bq-grid tbody tr.bq-selected td.bq-rownum { color: var(--bq-accent); font-weight: 600; }\n.bq-sel-count { padding: 0 6px; font-size: 0.82em; color: var(--bq-accent); font-weight: 600; }\n\n/* Header name + resize */\n.bq-grid thead th { position: relative; padding-right: 10px; }\n.bq-col-name { margin-right: 4px; }\n.bq-resize {\n    position: absolute;\n    top: 0; bottom: 0; right: -3px;\n    width: 6px;\n    cursor: col-resize;\n    z-index: 2;\n}\n.bq-resize:hover { background: var(--bq-accent); }\n.bq-sort-rank { font-size: 0.7em; opacity: 0.8; margin-left: 1px; }\n\n/* Find highlight */\nmark.bq-mark { background: color-mix(in srgb, var(--bq-accent) 35%, transparent); color: inherit; padding: 0 1px; border-radius: 2px; }\n\n/* Layout with drawer */\n.bq-layout { flex: 1; display: flex; min-height: 0; overflow: hidden; }\n.bq-layout .bq-scroll { flex: 1; min-width: 0; }\n\n.bq-drawer {\n    width: 380px;\n    min-width: 240px;\n    max-width: 60vw;\n    border-left: 1px solid var(--bq-border);\n    display: flex;\n    flex-direction: column;\n    background: var(--vscode-editor-background);\n    resize: horizontal;\n    overflow: hidden;\n}\n.bq-drawer-head { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-bottom: 1px solid var(--bq-border); }\n.bq-drawer-title { display: flex; gap: 8px; align-items: center; font-weight: 600; font-size: 0.9em; min-width: 0; }\n.bq-drawer-title > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }\n.bq-drawer-actions { display: flex; gap: 4px; }\n.bq-drawer-body {\n    flex: 1;\n    overflow: auto;\n    margin: 0;\n    padding: 12px;\n    font-family: var(--vscode-editor-font-family, ui-monospace, SFMono-Regular, Menlo, monospace);\n    font-size: 0.85em;\n    line-height: 1.45;\n    white-space: pre-wrap;\n    word-break: break-word;\n    color: var(--vscode-editor-foreground, inherit);\n}\n\n/* Type syntax colors — subtle, theme-aware.\n   Each var can be overridden by the extension via vscode-bigquery.gridColors.\n   Defaults cascade: user override → VS Code chart var → hardcoded fallback. */\n:root {\n    --bq-color-number: var(--vscode-charts-blue, #4fc1ff);\n    --bq-color-boolean: var(--vscode-charts-purple, #c586c0);\n    --bq-color-timestamp: var(--vscode-charts-orange, #ce9178);\n    --bq-color-struct: color-mix(in srgb, var(--vscode-foreground) 70%, var(--vscode-charts-green, #4ec9b0) 30%);\n    --bq-color-bytes: color-mix(in srgb, var(--vscode-foreground) 65%, var(--vscode-charts-yellow, #dcdcaa) 35%);\n    --bq-color-string: inherit;\n    --bq-color-null: var(--vscode-inputValidation-warningBorder, #c5a300);\n}\n\n.bq-grid td.bq-numeric,\n.bq-grid td.bq-t-int64,\n.bq-grid td.bq-t-integer,\n.bq-grid td.bq-t-float,\n.bq-grid td.bq-t-float64,\n.bq-grid td.bq-t-numeric,\n.bq-grid td.bq-t-bignumeric { color: var(--bq-color-number); }\n\n.bq-grid td.bq-t-bool,\n.bq-grid td.bq-t-boolean { color: var(--bq-color-boolean); font-weight: 500; }\n\n.bq-grid td.bq-t-timestamp,\n.bq-grid td.bq-t-date,\n.bq-grid td.bq-t-datetime,\n.bq-grid td.bq-t-time { color: var(--bq-color-timestamp); }\n\n.bq-grid td.bq-t-json,\n.bq-grid td.bq-t-record,\n.bq-grid td.bq-t-struct { color: var(--bq-color-struct); }\n\n.bq-grid td.bq-t-bytes,\n.bq-grid td.bq-t-geography { color: var(--bq-color-bytes); }\n\n.bq-grid td.bq-t-string { color: var(--bq-color-string); }\n\n.bq-grid td.bq-null { color: var(--bq-color-null) !important; }\n\n/* Schema grid tweaks */\n.bq-schema-grid td, .bq-schema-grid th { font-family: var(--vscode-font-family, sans-serif); }\n.bq-muted { color: var(--bq-muted); }\n\n.bq-null {\n    color: var(--vscode-inputValidation-warningBorder, #c5a300);\n    font-style: italic;\n    opacity: 0.75;\n    font-size: 0.82em;\n    letter-spacing: 0.05em;\n}\n\n/* ---- Chart pane ---- */\n.bq-chart { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: auto; }\n.bq-chart-controls { display: flex; align-items: center; gap: 6px; padding: 6px 8px; flex-wrap: wrap; }\n.bq-chart-label { opacity: .7; font-size: .85em; }\n.bq-chart-note { opacity: .6; font-size: .8em; margin-left: 8px; }\n.bq-chart-scroll { flex: 1; min-height: 0; padding: 4px 8px 10px; }\n.bq-chart-svg { width: 100%; height: auto; max-height: 420px; display: block; }\n.bq-chart-tick { font-size: 10px; opacity: .65; font-family: var(--vscode-editor-font-family, monospace); }\n.bq-chart-swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; margin-left: 6px; }\n.bq-chart-scroll { position: relative; }\n.bq-chart-tip {\n    position: absolute;\n    z-index: 10;\n    pointer-events: none;\n    padding: 4px 8px;\n    font-size: 11px;\n    font-family: var(--vscode-editor-font-family, monospace);\n    background: var(--vscode-editorHoverWidget-background, #252526);\n    color: var(--vscode-editorHoverWidget-foreground, var(--vscode-foreground));\n    border: 1px solid var(--vscode-editorHoverWidget-border, rgba(128,128,128,.35));\n    border-radius: 3px;\n    white-space: nowrap;\n    box-shadow: 0 2px 8px rgba(0,0,0,.25);\n}\n";
 
 /***/ })
 /******/ ]);
@@ -869,7 +1211,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(1);
 /* harmony import */ var preact__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(2);
 /* harmony import */ var _tableResultsPanel_grid_BqTable__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(3);
-/* harmony import */ var _resources_grid_v2_css__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(7);
+/* harmony import */ var _resources_grid_v2_css__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(9);
 
 
 

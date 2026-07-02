@@ -17,7 +17,6 @@ import { QueryResultsSerializer } from './tableResultsPanel/queryResultsSerializ
 import { QueryResultsMappingService } from './services/queryResultsMappingService';
 import { TableResultsSerializer } from './tableResultsPanel/tableResultsSerializer';
 import { ResultsRender } from './services/resultsRender';
-// import { ChartResultsSerializer } from './charts/chartResultsSerializer';
 import { QueryResultsVisualizationType } from './services/queryResultsVisualizationType';
 import { TroubleshootSerializer } from './activitybar/troubleshootSerializer';
 import { GcpAuthenticationTreeDataProvider } from './activitybar/gcpAuthenticationTreeDataProvider';
@@ -34,7 +33,6 @@ export const gcpAuthenticationTreeDataProvider = new GcpAuthenticationTreeDataPr
 export const bigQueryTreeDataProvider = new BigQueryTreeDataProvider();
 export const bigqueryTableSchemaService = new BigqueryTableSchemaService();
 
-export const CHART_VIEW_TYPE = "bigquery-query-chart";
 export const QUERY_RESULTS_VIEW_TYPE = "bigquery-query-results";
 export const TABLE_RESULTS_VIEW_TYPE = "bigquery-table-results";
 export const TROUBLESHOOT_VIEW_TYPE = "authentication-troubleshoot";
@@ -273,17 +271,6 @@ export function activate(context: ExtensionContext) {
 		)
 	);
 
-	// context.subscriptions.push(
-	// 	vscode.commands.registerCommand(
-	// 		commands.COMMAND_PLOT_CHART,
-	// 		commands.commandPlotChart,
-	// 		{
-	// 			"globalState": context.globalState,
-	// 			queryResultsWebviewMapping: queryResultsWebviewMapping
-	// 		}
-	// 	)
-	// );
-
 	context.subscriptions.push(
 		vscode.commands.registerCommand(
 			commands.AUTHENTICATION_TROUBLESHOOT,
@@ -515,14 +502,6 @@ export function activate(context: ExtensionContext) {
 		)
 	);
 
-	// //bigquery-query-chart
-	// context.subscriptions.push(
-	// 	vscode.window.registerWebviewPanelSerializer(
-	// 		CHART_VIEW_TYPE,
-	// 		new ChartResultsSerializer(context.globalState, queryResultsWebviewMapping)
-	// 	)
-	// );
-
 	//bigquery-query-results
 	context.subscriptions.push(
 		vscode.window.registerWebviewPanelSerializer(
@@ -676,7 +655,7 @@ export function activate(context: ExtensionContext) {
 			const autoReveal = config.get('autoRevealResults', true);
 
 			if (autoReveal) {
-				[QueryResultsVisualizationType.chart, QueryResultsVisualizationType.table].forEach(t => {
+				[QueryResultsVisualizationType.table].forEach(t => {
 					const uuid = QueryResultsMappingService.getQueryResultsMappingUuid(context.globalState, e, t);
 					if (uuid) {
 						const resultsGridRender = QueryResultsMappingService.getQueryResultsMappingResultsGridRender(queryResultsWebviewMapping, uuid);

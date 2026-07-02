@@ -1,6 +1,4 @@
 import * as vscode from 'vscode';
-import { ResultsChartRender } from '../charts/resultsChartRender';
-import { ResultsChartRenderRequest } from '../charts/ResultsChartRenderRequest';
 import { ResultsGridRender } from '../tableResultsPanel/resultsGridRender';
 import { ResultsGridRenderRequest } from '../tableResultsPanel/resultsGridRenderRequest';
 import { QueryResultsMapping } from './queryResultsMapping';
@@ -43,23 +41,6 @@ export class QueryResultsMappingService {
         return undefined;
     };
 
-    public static getQueryResultsChartMappingItem(globalState: vscode.Memento, uuid: string): QueryResultsMapping | undefined {
-
-        let queryResultsMapping: QueryResultsMapping[] | undefined = globalState.get('queryResultsChartMapping');
-        if (queryResultsMapping) {
-            //possible corrections
-            QueryResultsMappingService.correctQueryResultsMapping(globalState, queryResultsMapping);
-
-            //
-            const item = queryResultsMapping.find(c => c.uuid === uuid);
-            if (item) {
-                return item;
-            }
-        }
-
-        return undefined;
-    };
-
     public static async upsertQueryResultsMapping(globalState: vscode.Memento, uuid: string, textEditor: vscode.TextEditor, visualizationType: QueryResultsVisualizationType) {
 
         let queryResultsMapping: QueryResultsMapping[] | undefined = globalState.get('queryResultsMapping');
@@ -81,7 +62,7 @@ export class QueryResultsMappingService {
 
     };
 
-    public static async updateQueryResultsMapping(globalState: vscode.Memento, uuid: string, request: ResultsGridRenderRequest | ResultsChartRenderRequest) {
+    public static async updateQueryResultsMapping(globalState: vscode.Memento, uuid: string, request: ResultsGridRenderRequest) {
 
         let queryResultsMapping: QueryResultsMapping[] | undefined = globalState.get('queryResultsMapping');
         if (queryResultsMapping) {
@@ -118,35 +99,9 @@ export class QueryResultsMappingService {
         return undefined;
     }
 
-    static getQueryResultsMappingResultsChartRender(queryResultsWebviewMapping: Map<string, ResultsRender>, uuid: string): ResultsChartRender | undefined {
-        if (queryResultsWebviewMapping) {
-            const mapping = queryResultsWebviewMapping.get(uuid);
-            if (mapping && mapping.resultsChartRender) {
-                return mapping.resultsChartRender;
-            }
-        }
-        return undefined;
-    }
-
     static updateQueryResultsMappingWebviewPanel(queryResultsWebviewMapping: Map<string, ResultsRender>, uuid: string, resultsGridRender: ResultsGridRender) {
         if (queryResultsWebviewMapping) {
-            const mapping = queryResultsWebviewMapping.get(uuid);
-            if (mapping) {
-                queryResultsWebviewMapping.set(uuid, { resultsGridRender: resultsGridRender, resultsChartRender: mapping.resultsChartRender });
-            } else {
-                queryResultsWebviewMapping.set(uuid, { resultsGridRender: resultsGridRender, resultsChartRender: undefined });
-            }
-        }
-    }
-
-    static updateQueryResultsChartMappingWebviewPanel(queryResultsWebviewMapping: Map<string, ResultsRender>, uuid: string, resultsChartRender: ResultsChartRender) {
-        if (queryResultsWebviewMapping) {
-            const mapping = queryResultsWebviewMapping.get(uuid);
-            if (mapping) {
-                queryResultsWebviewMapping.set(uuid, { resultsGridRender: mapping.resultsGridRender, resultsChartRender: resultsChartRender });
-            } else {
-                queryResultsWebviewMapping.set(uuid, { resultsGridRender: undefined, resultsChartRender: resultsChartRender });
-            }
+            queryResultsWebviewMapping.set(uuid, { resultsGridRender: resultsGridRender });
         }
     }
 

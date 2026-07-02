@@ -157,39 +157,39 @@
 						"title": "Grid: Cell Color Scheme",
 						"description": "Override cell text colors per BigQuery type. Leave empty to inherit from the active VS Code theme. Supports any CSS color (hex, rgb, hsl, named).",
 						"properties": {
-						"number": {
-							"type": "string",
-							"description": "INT64, FLOAT, NUMERIC, BIGNUMERIC. Default: var(--vscode-charts-blue, #4fc1ff)"
+							"number": {
+								"type": "string",
+								"description": "INT64, FLOAT, NUMERIC, BIGNUMERIC. Default: var(--vscode-charts-blue, #4fc1ff)"
+							},
+							"boolean": {
+								"type": "string",
+								"description": "BOOL. Default: var(--vscode-charts-purple, #c586c0)"
+							},
+							"timestamp": {
+								"type": "string",
+								"description": "TIMESTAMP, DATE, DATETIME, TIME. Default: var(--vscode-charts-orange, #ce9178)"
+							},
+							"struct": {
+								"type": "string",
+								"description": "STRUCT, RECORD, JSON. Default: blended teal"
+							},
+							"bytes": {
+								"type": "string",
+								"description": "BYTES, GEOGRAPHY. Default: blended yellow"
+							},
+							"string": {
+								"type": "string",
+								"description": "STRING. Default: neutral (inherits foreground)"
+							},
+							"null": {
+								"type": "string",
+								"description": "NULL cells. Default: var(--vscode-inputValidation-warningBorder, #c5a300)"
+							}
 						},
-						"boolean": {
-							"type": "string",
-							"description": "BOOL. Default: var(--vscode-charts-purple, #c586c0)"
-						},
-						"timestamp": {
-							"type": "string",
-							"description": "TIMESTAMP, DATE, DATETIME, TIME. Default: var(--vscode-charts-orange, #ce9178)"
-						},
-						"struct": {
-							"type": "string",
-							"description": "STRUCT, RECORD, JSON. Default: blended teal"
-						},
-						"bytes": {
-							"type": "string",
-							"description": "BYTES, GEOGRAPHY. Default: blended yellow"
-						},
-						"string": {
-							"type": "string",
-							"description": "STRING. Default: neutral (inherits foreground)"
-						},
-						"null": {
-							"type": "string",
-							"description": "NULL cells. Default: var(--vscode-inputValidation-warningBorder, #c5a300)"
-						}
-					},
-					"default": {}
+						"default": {}
+					}
 				}
-			}
-		},
+			},
 			{
 				"title": "BigQuery Studio › CTE Preview",
 				"properties": {
@@ -882,10 +882,9 @@
 	},
 	"scripts": {
 		"vscode:prepublish": "npm run package",
-		"compile": "npm run compile-morphcharts && webpack",
-		"compile-morphcharts": "webpack --config webpack.morphcharts.config.js",
+		"compile": "webpack",
 		"watch": "webpack --watch",
-		"package": "npm run compile-morphcharts && webpack --mode production --devtool hidden-source-map",
+		"package": "webpack --mode production --devtool hidden-source-map",
 		"compile-tests": "tsc -p . --outDir out",
 		"watch-tests": "tsc -p . -w --outDir out",
 		"pretest": "npm run compile-tests && npm run compile && npm run lint",
@@ -925,7 +924,6 @@
 		"csv-writer": "^1.6.0",
 		"jsdom": "^27.4.0",
 		"jspdf": "^2.5.2",
-		"morphcharts": "^1.3.2",
 		"preact": "^10.28.0",
 		"preact-render-to-string": "^6.6.3",
 		"sql-formatter": "^15.6.10",
