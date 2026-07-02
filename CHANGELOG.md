@@ -5,6 +5,17 @@ All notable changes to the BigQuery Studio extension will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.2] - 2026-07-03
+
+### Fixed
+
+- **Tabular formatter mangled function-call arguments** (#9 follow-up) - In `tabularLeft`/`tabularRight`, arguments of calls like `LOGICAL_OR(…)` / `STRING_AGG(… ORDER BY …)` were scattered: `AND`/`OR` landed in the clause keyword gutter, `ORDER BY` inside aggregates got keyword padding, and nested parens drifted. Parens are now classified character-by-character (`OVER (` window · `IDENT(` function call · otherwise clause scope): function arguments indent one tab per nesting level under the line that opened the call, and OVER-window internals move as one block with their opener instead of with unrelated scopes at the same paren depth.
+- **Compound statement heads split** - `CREATE    TEMP TABLE` (and other `CREATE`/`INSERT INTO`/`MERGE INTO`-style heads) are re-joined the same way compound JOINs are.
+
+### Changed
+
+- **CTE and subquery bodies sit one tab in** - Tabular styles previously started a CTE body at the `WITH` content column (~10 columns deep). Bodies are now re-based to one `tabWidth` per nesting depth, with the closing `)` and follow-up `, name AS (` aligned at the parent keyword column.
+
 ## [2.6.1] - 2026-06-18
 
 ### Fixed
