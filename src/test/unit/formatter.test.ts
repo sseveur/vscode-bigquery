@@ -99,6 +99,83 @@ suite('bqsqlFormatter', () => {
         }
     });
 
+    // Issue: tabular styles scattered function-call arguments — sql-formatter put AND/OR at the
+    // clause gutter inside LOGICAL_OR(...), padded ORDER BY inside STRING_AGG(...), and the
+    // realign compounded it via phantom clause depths. Args must nest under the call instead.
+    suite('function-call args in tabular styles', () => {
+        const sql = [
+            'SELECT ps.profile_id,',
+            "LOGICAL_OR(s.h = 'x' AND (ps.e IS NULL OR ps.e > CURRENT_TIMESTAMP())) AS f,",
+            'STRING_AGG(DISTINCT s.handle ORDER BY s.handle) AS g',
+            'FROM t ps GROUP BY ps.profile_id',
+        ].join('\n');
+
+        for (const indentStyle of ['tabularLeft', 'tabularRight'] as const) {
+            test(`${indentStyle}: AND/OR stay nested in the args, never in the clause gutter`, () => {
+                const out = formatBigQuerySQL(sql, { ...BASE, indentStyle });
+                const outLines = lines(out);
+                const gutterCol = outLines.find(l => /^\s*FROM\b/i.test(l))!.match(/^\s*/)![0].length;
+                for (const l of outLines) {
+                    const m = l.match(/^(\s*)(AND|OR)\b/);
+                    if (!m) { continue; }
+                    // Function-arg AND/OR must sit deeper than the clause keyword column and
+                    // never carry tabular padding after the keyword.
+                    assert.ok(m[1].length > gutterCol, `gutter-aligned ${m[2]}:\n${out}`);
+                    assert.ok(!new RegExp(`^\\s*${m[2]}\\s{2,}`).test(l), `padded ${m[2]}:\n${out}`);
+                }
+            });
+        }
+
+        test('ORDER BY inside STRING_AGG keeps single spacing and stays indented', () => {
+            const out = formatBigQuerySQL(sql, { ...BASE, indentStyle: 'tabularLeft' });
+            const orderBy = lines(out).find(l => /ORDER\s+BY\s+s\.handle/i.test(l));
+            assert.ok(orderBy, 'ORDER BY line missing:\n' + out);
+            assert.ok(!/ORDER\s+BY\s{2,}/i.test(orderBy!), `padded ORDER BY:\n${out}`);
+        });
+
+        test('function-arg layout is idempotent', () => {
+            const opts = { ...BASE, indentStyle: 'tabularLeft' as const };
+            const once = formatBigQuerySQL(sql, opts);
+            assert.strictEqual(formatBigQuerySQL(once, opts), once);
+        });
+    });
+
+    // User feedback: sql-formatter starts a CTE body at the WITH content column (~10 deep);
+    // nested clause scopes are re-based to one tab per depth, with ")" and ", name AS (" at
+    // the parent keyword column.
+    suite('CTE body sits one tab in (tabular)', () => {
+        const sql = [
+            'WITH a AS (SELECT x, y FROM t WHERE x > 0),',
+            'b AS (SELECT * FROM a)',
+            'SELECT * FROM b JOIN a ON a.x = b.x',
+        ].join('\n');
+
+        test('tabularLeft: CTE-body clause keywords start at one tabWidth', () => {
+            const out = formatBigQuerySQL(sql, { ...BASE, indentStyle: 'tabularLeft' });
+            const outLines = lines(out);
+            const bodySelect = outLines.find(l => /^\s+SELECT\b/.test(l));
+            assert.ok(bodySelect, 'no indented SELECT found:\n' + out);
+            assert.strictEqual(bodySelect!.match(/^\s*/)![0].length, 4, `body not one tab in:\n${out}`);
+        });
+
+        test('closing paren and follow-up CTE name align at column 0', () => {
+            const out = formatBigQuerySQL(sql, { ...BASE, indentStyle: 'tabularLeft' });
+            assert.ok(lines(out).some(l => /^\)/.test(l)), `no column-0 ")":\n${out}`);
+            assert.ok(lines(out).some(l => /^,?\s?b AS \($/i.test(l.trim()) && /^[,b]/.test(l)),
+                `follow-up CTE name not at column 0:\n${out}`);
+        });
+    });
+
+    test('tabular: CREATE TEMP TABLE statement head is not split by gutter padding', () => {
+        const out = formatBigQuerySQL(
+            'CREATE TEMP TABLE test AS SELECT 1 AS a',
+            { ...BASE, indentStyle: 'tabularLeft' }
+        );
+        assert.ok(/^CREATE TEMP TABLE test AS$/m.test(out) || /^CREATE TEMP TABLE test AS\b/m.test(out),
+            `CREATE head split:\n${out}`);
+        assert.ok(!/CREATE\s{2,}/.test(out), `CREATE padded:\n${out}`);
+    });
+
     test('idempotent: formatting twice yields the same text', () => {
         const sql = [
             'WITH joined AS (',

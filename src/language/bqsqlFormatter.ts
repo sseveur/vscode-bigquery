@@ -94,6 +94,12 @@ const LOGICAL_OP_LINE = /^(\s*)(AND|OR|ON)(\s+)(.*)/i;
  *  and JOIN pushed to the content column. */
 const SPLIT_COMPOUND_JOIN = /^(\s*)(INNER|LEFT|RIGHT|FULL|CROSS)(\s{2,})((?:OUTER\s+)?JOIN)\b\s*(.*)$/i;
 
+/** Matches a compound statement head split the same way: "CREATE    TEMP TABLE t AS" —
+ *  sql-formatter's tabular mode pads the first word into the gutter. Only rejoined when the
+ *  next word provably continues the statement head, so aligned single-word statements are
+ *  left alone. */
+const SPLIT_STATEMENT_HEAD = /^(\s*)(CREATE|INSERT|MERGE|DELETE|DROP|ALTER|TRUNCATE|EXPORT)\s{2,}((?:TEMP|TEMPORARY|OR\s+REPLACE|TABLE|VIEW|MATERIALIZED|EXTERNAL|SCHEMA|FUNCTION|PROCEDURE|INTO|FROM|DATA)\b.*)$/i;
+
 /** Matches a JOIN line with an inline ON clause. */
 const JOIN_INLINE_ON = /^(\s*(?:(?:LEFT|RIGHT|FULL)(?:\s+OUTER)?\s+|CROSS\s+|INNER\s+)?JOIN\s+.*?)\s+(ON)(\s+)(.*)/i;
 
@@ -274,12 +280,20 @@ function transformLogicalOperatorStyle(sql: string, opts: FormatOptions): string
 function realignTabular(sql: string, opts: FormatOptions): string {
     const lines = sql.split('\n');
 
-    // Re-join compound JOIN keywords split by sql-formatter's tabular padding.
+    // Re-join compound JOIN keywords and statement heads split by sql-formatter's tabular
+    // padding ("INNER     JOIN", "CREATE    TEMP TABLE").
     const joined = lines.map(line => {
         const m = line.match(SPLIT_COMPOUND_JOIN);
-        if (!m) { return line; }
-        const [, lead, first, , joinPart, rest] = m;
-        return `${lead}${first} ${joinPart.replace(/\s+/g, ' ')} ${rest}`;
+        if (m) {
+            const [, lead, first, , joinPart, rest] = m;
+            return `${lead}${first} ${joinPart.replace(/\s+/g, ' ')} ${rest}`;
+        }
+        const h = line.match(SPLIT_STATEMENT_HEAD);
+        if (h) {
+            const [, lead, keyword, rest] = h;
+            return `${lead}${keyword} ${rest}`;
+        }
+        return line;
     });
 
     // Pull inline ON conditions onto their own line (final placement happens below).
@@ -325,30 +339,38 @@ function realignTabularBlock(blockLines: string[], opts: FormatOptions): string[
         d += countParenChanges(line);
     }
 
-    // Lines inside an OVER(...) analytic window are left to sql-formatter — their internal
-    // PARTITION BY / ORDER BY / frame layout must not be realigned to the clause gutter (#10).
-    const inWindow = computeWindowMask(blockLines, depths);
+    // Scope classification: OVER(...) window internals are preserved (#10); function-call
+    // argument lines are re-indented as nested expression content (#9); everything else is
+    // clause territory for the per-depth gutters below.
+    const scopes = computeLineScopes(blockLines);
     const right = opts.indentStyle === 'tabularRight';
     const tab = opts.tabWidth;
 
-    // Per-depth gutter geometry, computed only from clause/op lines that are NOT inside a window.
-    // CTE bodies, derived tables and subqueries each live at their own paren depth and get their
-    // own gutter — the old single-depth-0 pass dumped CTE-body ON/AND at column 0 (#9).
-    //   base[d]   = leading indent of clause keywords at depth d
-    //   oldCol[d] = content column sql-formatter produced at depth d
-    //   newCol[d] = widened content column so the longest keyword/op at depth d fits
+    // Per-depth gutter geometry, computed only from clause/op lines that are NOT inside a window
+    // or function call. CTE bodies, derived tables and subqueries each live at their own paren
+    // depth and get their own gutter — the old single-depth-0 pass dumped CTE-body ON/AND at
+    // column 0 (#9).
+    //   base[d]   = keyword column for depth d — depth 0 keeps sql-formatter's placement, nested
+    //               scopes are re-based to one tab per depth (sql-formatter starts a CTE body at
+    //               the WITH content column, pushing it ~10 columns deep)
+    //   oldCol[d] = content column sql-formatter produced at depth d (shift reference)
+    //   newCol[d] = content column so the longest keyword/op at depth d fits from base[d]
     const base: Record<number, number> = {};
     const oldCol: Record<number, number> = {};
     const newCol: Record<number, number> = {};
     for (let i = 0; i < blockLines.length; i++) {
-        if (inWindow[i]) { continue; }
+        if (scopes[i].window || scopes[i].special) { continue; }
         const dep = depths[i];
         const cm = blockLines[i].match(CLAUSE_KEYWORD);
         if (cm) {
             const kw = cm[2].replace(/\s+/g, ' ');
             const content = getContentStart(blockLines[i]);
-            if (!(dep in oldCol)) { base[dep] = cm[1].length; oldCol[dep] = content; newCol[dep] = content; }
-            newCol[dep] = Math.max(newCol[dep], cm[1].length + kw.length + 1);
+            if (!(dep in oldCol)) {
+                base[dep] = dep > 0 ? tab * dep : cm[1].length;
+                oldCol[dep] = content;
+                newCol[dep] = dep > 0 ? 0 : content;
+            }
+            newCol[dep] = Math.max(newCol[dep], base[dep] + kw.length + 1);
             continue;
         }
         const om = blockLines[i].match(LOGICAL_OP_LINE);
@@ -375,7 +397,44 @@ function realignTabularBlock(blockLines: string[], opts: FormatOptions): string[
         const dep = depths[i];
         const leadingLen = line.length - line.trimStart().length;
 
-        if (!inWindow[i] && (dep in oldCol)) {
+        // Lines inside a function call or OVER window move with the line that OPENED that scope
+        // (not with whatever clause gutter shares their numeric paren depth — unrelated scopes
+        // can collide on depth). The opener is a continuation line of its clause, so its shift
+        // is that clause's content-column delta.
+        const sp = scopes[i].special;
+        if (sp) {
+            const openerLead = blockLines[sp.openerIdx].length - blockLines[sp.openerIdx].trimStart().length;
+            const gO = governing(depths[sp.openerIdx]);
+            const shift = gO !== null && openerLead >= oldCol[gO] ? newCol[gO] - oldCol[gO] : 0;
+            if (scopes[i].window) {
+                // Window internals keep sql-formatter's layout (#10), shifted as a block.
+                return shift !== 0
+                    ? ' '.repeat(Math.max(0, leadingLen + shift)) + line.trimStart()
+                    : line;
+            }
+            // Function-call arguments: one tab per nesting level under the opener, collapsing
+            // sql-formatter's tabular keyword padding ("AND       (" → "AND ("). A line that
+            // starts by closing a paren sits one level out.
+            const closes = /^\s*\)/.test(line);
+            const rd = Math.max(0, sp.relDepth - (closes ? 1 : 0));
+            const content = line.trim().replace(/^((?:ORDER|GROUP|PARTITION)\s+BY|[A-Za-z_]+)\s{2,}/i, '$1 ');
+            return ' '.repeat(Math.max(0, sp.openerIndent + tab * rd + shift)) + content;
+        }
+
+        if (dep in oldCol) {
+            // Structural close of a clause scope (end of a CTE body / subquery): align with the
+            // parent scope's keyword column — "  )" hanging at the old content column reads as
+            // part of the body.
+            if (/^\s*\)/.test(line)) {
+                let parentBase = 0;
+                for (const cd of clauseDepths) { if (cd < dep) { parentBase = base[cd]; } }
+                return ' '.repeat(parentBase) + line.trim();
+            }
+            // A follow-up CTE name on its own line ("name AS (" / ", name AS (") sits at its
+            // depth's keyword column, pairing with the closing paren above it.
+            if (/^\s*,?\s*[A-Za-z_]\w*\s+AS\s*\(\s*$/i.test(line)) {
+                return ' '.repeat(base[dep]) + line.trim();
+            }
             const col = newCol[dep];
             const b = base[dep];
             const cm = line.match(CLAUSE_KEYWORD);
@@ -405,39 +464,109 @@ function realignTabularBlock(blockLines: string[], opts: FormatOptions): string[
         }
 
         // Continuation / window-internal lines that sat at (or beyond) the old content column
-        // shift right by their governing clause's widening delta so alignment is preserved.
+        // shift with their governing clause's content-column delta so alignment is preserved —
+        // right when the gutter widened, left when a nested scope was re-based to tab depth.
         const g = governing(dep);
         if (g !== null) {
             const delta = newCol[g] - oldCol[g];
-            if (delta > 0 && leadingLen >= oldCol[g]) {
-                return ' '.repeat(delta) + line;
+            if (delta !== 0 && leadingLen >= oldCol[g]) {
+                return ' '.repeat(Math.max(0, leadingLen + delta)) + line.trimStart();
             }
         }
         return line;
     });
 }
 
+/** Per-line paren-scope classification for the tabular realign. */
+interface LineScope {
+    /** Inside an OVER( … ) analytic window — layout preserved (only shifted), see #10. */
+    window: boolean;
+    /** Set when inside a function call or window: geometry of the OUTERMOST such scope, so the
+     *  whole block moves with the line that opened it rather than with unrelated clause gutters
+     *  that happen to share the same numeric paren depth. */
+    special: null | {
+        /** Index (into the block) of the line that opened the outermost special scope. */
+        openerIdx: number;
+        /** Leading indent of that opener line (original, pre-realign). */
+        openerIndent: number;
+        /** Nesting level relative to that scope: 1 = direct content, +1 per inner paren. */
+        relDepth: number;
+    };
+}
+
 /**
- * Marks lines that sit inside an OVER( … ) analytic window. The window body (PARTITION BY,
- * ORDER BY, and the ROWS/RANGE frame) is indented by sql-formatter and must be skipped by the
- * tabular realign — its keywords would otherwise be pulled to the clause gutter and the frame
- * AND mistaken for a logical operator (#10). A window opens on a line containing `OVER (` whose
- * paren stays open, and closes when the depth returns to the level it opened at.
+ * Walks every paren in the block (char-level, string/comment-aware) and classifies the scope
+ * each line STARTS in. Three scope kinds, by the token before the `(`:
+ *   - `OVER (`      → window: sql-formatter's internal window layout is kept (#10);
+ *   - `IDENT(`      → expression (function call): sql-formatter's tabular mode scatters the
+ *     arguments — AND/OR land in the clause gutter, ORDER BY inside STRING_AGG gets keyword
+ *     padding — so the realign re-indents these as nested expression content instead (#9);
+ *   - anything else → group (CTE body, subquery, parenthesized condition): clause scope,
+ *     handled by the per-depth gutter logic.
+ * A window anywhere in the enclosing stack wins over expression handling.
  */
-function computeWindowMask(blockLines: string[], depths: number[]): boolean[] {
-    const mask = new Array(blockLines.length).fill(false);
-    const openDepths: number[] = [];
-    for (let i = 0; i < blockLines.length; i++) {
-        const startDepth = depths[i];
-        while (openDepths.length && startDepth <= openDepths[openDepths.length - 1]) {
-            openDepths.pop();
+function computeLineScopes(blockLines: string[]): LineScope[] {
+    type Scope = { kind: 'window' | 'expr' | 'group'; openerIndent: number; openerIdx: number };
+    const stack: Scope[] = [];
+    const scopes: LineScope[] = [];
+
+    for (let lineIdx = 0; lineIdx < blockLines.length; lineIdx++) {
+        const line = blockLines[lineIdx];
+
+        // Classify from the state at the START of the line.
+        const window = stack.some(s => s.kind === 'window');
+        let special: LineScope['special'] = null;
+        const outer = stack.findIndex(s => s.kind !== 'group');
+        if (outer >= 0) {
+            special = {
+                openerIdx: stack[outer].openerIdx,
+                openerIndent: stack[outer].openerIndent,
+                relDepth: stack.length - outer,
+            };
         }
-        if (openDepths.length) { mask[i] = true; }
-        if (/\bOVER\s*\(/i.test(blockLines[i]) && !isInsideStringOrComment(blockLines[i])) {
-            openDepths.push(startDepth);
+        scopes.push({ window, special });
+
+        // Advance the stack across this line's parens.
+        const leading = line.length - line.trimStart().length;
+        const commentIdx = findLineCommentStart(line);
+        let inSingle = false;
+        let inDouble = false;
+        for (let i = 0; i < (commentIdx >= 0 ? commentIdx : line.length); i++) {
+            const ch = line[i];
+            const prev = i > 0 ? line[i - 1] : '';
+            if (ch === "'" && !inDouble && prev !== '\\') { inSingle = !inSingle; continue; }
+            if (ch === '"' && !inSingle && prev !== '\\') { inDouble = !inDouble; continue; }
+            if (inSingle || inDouble) { continue; }
+            if (ch === '(') {
+                stack.push({ kind: classifyParen(line, i), openerIndent: leading, openerIdx: lineIdx });
+            } else if (ch === ')') {
+                stack.pop();
+            }
         }
     }
-    return mask;
+    return scopes;
+}
+
+/** Classifies the paren at `idx`: `OVER (` → window, identifier`(` (no space) → expr, else group. */
+function classifyParen(line: string, idx: number): 'window' | 'expr' | 'group' {
+    const before = line.slice(0, idx);
+    if (/\bOVER\s*$/i.test(before)) { return 'window'; }
+    if (/[A-Za-z0-9_`]$/.test(before)) { return 'expr'; }
+    return 'group';
+}
+
+/** Index of a `--` comment start outside string literals, or -1. */
+function findLineCommentStart(line: string): number {
+    let inSingle = false;
+    let inDouble = false;
+    for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        const prev = i > 0 ? line[i - 1] : '';
+        if (ch === "'" && !inDouble && prev !== '\\') { inSingle = !inSingle; }
+        else if (ch === '"' && !inSingle && prev !== '\\') { inDouble = !inDouble; }
+        else if (ch === '-' && line[i + 1] === '-' && !inSingle && !inDouble) { return i; }
+    }
+    return -1;
 }
 
 /**
