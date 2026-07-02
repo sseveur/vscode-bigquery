@@ -995,7 +995,7 @@ __webpack_require__.r(__webpack_exports__);
 
 
 
-/** VS Code's theme-adaptive chart palette — hue picked by the user, values stay themed. */
+/** VS Code's theme-adaptive chart palette. Fixed order for series identity — never cycled. */
 const HUES = [
     { id: 'blue', label: 'Blue', css: 'var(--vscode-charts-blue, #4fc1ff)' },
     { id: 'purple', label: 'Purple', css: 'var(--vscode-charts-purple, #c586c0)' },
@@ -1004,22 +1004,27 @@ const HUES = [
     { id: 'yellow', label: 'Yellow', css: 'var(--vscode-charts-yellow, #cca700)' },
     { id: 'red', label: 'Red', css: 'var(--vscode-charts-red, #f14c4c)' },
 ];
+/** "Other" is a fold-bucket, not an entity — neutral, outside the identity palette. */
+const OTHER_COLOR = 'var(--vscode-descriptionForeground, #8a8a8a)';
 /** Rows charted at most — fetched once through the grid's own pager. */
 const CHART_ROW_CAP = 1000;
 /**
- * Compact chart pane inside the results grid. Single measure, single hue
- * (--vscode-charts-blue adapts to the active theme in light and dark); axes and grid stay
- * recessive; values surface via per-mark tooltips.
+ * Compact chart pane inside the results grid. Single hue when one series; coloring by a
+ * column splits into up to MAX_SERIES entities (fixed hue order) + a neutral "Other",
+ * with a legend. Axes/grid stay recessive; values surface via an instant hover tooltip.
  */
 function ChartPane({ schema, columns, totalRows, initialRows, fetchRows }) {
     const dims = (0,preact_hooks__WEBPACK_IMPORTED_MODULE_1__.useMemo)(() => (0,_chartData__WEBPACK_IMPORTED_MODULE_2__.dimensionColumns)(columns), [columns]);
     const measures = (0,preact_hooks__WEBPACK_IMPORTED_MODULE_1__.useMemo)(() => (0,_chartData__WEBPACK_IMPORTED_MODULE_2__.numericColumns)(columns), [columns]);
+    const categoricals = (0,preact_hooks__WEBPACK_IMPORTED_MODULE_1__.useMemo)(() => dims.filter(c => !(0,_chartData__WEBPACK_IMPORTED_MODULE_2__.isNumericType)(c.type) && !(0,_chartData__WEBPACK_IMPORTED_MODULE_2__.isTemporalType)(c.type)), [dims]);
     const [type, setType] = (0,preact_hooks__WEBPACK_IMPORTED_MODULE_1__.useState)('bar');
     const [xKey, setXKey] = (0,preact_hooks__WEBPACK_IMPORTED_MODULE_1__.useState)(dims[0]?.key ?? '');
     // '' = count of rows
     const [yKey, setYKey] = (0,preact_hooks__WEBPACK_IMPORTED_MODULE_1__.useState)(measures[0]?.key ?? '');
     const [agg, setAgg] = (0,preact_hooks__WEBPACK_IMPORTED_MODULE_1__.useState)('sum');
     const [hue, setHue] = (0,preact_hooks__WEBPACK_IMPORTED_MODULE_1__.useState)('blue');
+    // '' = no series split
+    const [colorKey, setColorKey] = (0,preact_hooks__WEBPACK_IMPORTED_MODULE_1__.useState)('');
     // Chart data window: what the grid already loaded, topped up to the cap once.
     const [rows, setRows] = (0,preact_hooks__WEBPACK_IMPORTED_MODULE_1__.useState)(initialRows);
     const [loading, setLoading] = (0,preact_hooks__WEBPACK_IMPORTED_MODULE_1__.useState)(false);
@@ -1037,31 +1042,40 @@ function ChartPane({ schema, columns, totalRows, initialRows, fetchRows }) {
     }, []);
     const xCol = dims.find(c => c.key === xKey) ?? null;
     const yCol = measures.find(c => c.key === yKey) ?? null;
+    const colorCol = categoricals.find(c => c.key === colorKey) ?? null;
     // Aggregation only applies when categories are being grouped with a real measure.
     const isCategoryX = !!xCol && !(0,_chartData__WEBPACK_IMPORTED_MODULE_2__.isNumericType)(xCol.type) && !(0,_chartData__WEBPACK_IMPORTED_MODULE_2__.isTemporalType)(xCol.type);
     const aggApplies = isCategoryX && !!yCol;
-    const series = (0,preact_hooks__WEBPACK_IMPORTED_MODULE_1__.useMemo)(() => {
+    const group = (0,preact_hooks__WEBPACK_IMPORTED_MODULE_1__.useMemo)(() => {
         if (!xCol || rows.length === 0) {
             return null;
         }
-        return (0,_chartData__WEBPACK_IMPORTED_MODULE_2__.buildChartSeries)(rows, schema, xCol, yCol, agg);
-    }, [rows, schema, xCol, yCol, agg]);
+        return (0,_chartData__WEBPACK_IMPORTED_MODULE_2__.buildChartGroups)(rows, schema, xCol, yCol, agg, colorCol);
+    }, [rows, schema, xCol, yCol, agg, colorCol]);
+    const multi = !!colorCol && !!group && group.series.length > 1;
+    const seriesColor = (name, idx) => !multi ? (HUES.find(h => h.id === hue)?.css ?? HUES[0].css)
+        : name === _chartData__WEBPACK_IMPORTED_MODULE_2__.OTHER_SERIES ? OTHER_COLOR
+            : HUES[idx % HUES.length].css;
     const notes = [];
     if (totalRows > CHART_ROW_CAP) {
         notes.push(`charting first ${CHART_ROW_CAP.toLocaleString()} of ${totalRows.toLocaleString()} rows`);
     }
-    if (series?.truncated) {
+    if (group?.truncated) {
         notes.push('top 30 categories shown');
     }
-    if (series && series.skipped > 0) {
-        notes.push(`${series.skipped.toLocaleString()} row${series.skipped === 1 ? '' : 's'} skipped (null/non-numeric)`);
+    if (group?.seriesFolded) {
+        notes.push('smaller series folded into Other');
     }
-    return ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { class: "bq-chart", children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { class: "bq-chart-controls", children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("select", { class: "bq-pg-size", value: type, onChange: (e) => setType(e.currentTarget.value), title: "Chart type", children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "bar", children: "Bar" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "line", children: "Line" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "scatter", children: "Scatter" })] }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { class: "bq-chart-label", children: "X" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("select", { class: "bq-pg-size", value: xKey, onChange: (e) => setXKey(e.currentTarget.value), title: "X axis column", children: dims.map(c => (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: c.key, children: c.label })) }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { class: "bq-chart-label", children: "Y" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("select", { class: "bq-pg-size", value: yKey, onChange: (e) => setYKey(e.currentTarget.value), title: "Y axis measure", children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "", children: "Count of rows" }), measures.map(c => (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: c.key, children: c.label }))] }), aggApplies && ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("select", { class: "bq-pg-size", value: agg, onChange: (e) => setAgg(e.currentTarget.value), title: "Aggregation per category", children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "sum", children: "Sum" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "avg", children: "Avg" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "min", children: "Min" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "max", children: "Max" })] })), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { class: "bq-chart-swatch", style: { background: HUES.find(h => h.id === hue)?.css } }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("select", { class: "bq-pg-size", value: hue, onChange: (e) => setHue(e.currentTarget.value), title: "Chart color (theme palette)", children: HUES.map(h => (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: h.id, children: h.label })) }), notes.length > 0 && (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { class: "bq-chart-note", children: notes.join(' · ') })] }), loading && (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { class: "bq-notice", children: "Loading rows for chart\u2026" }), !xCol && (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { class: "bq-empty", children: "No chartable column." }), xCol && series && series.points.length === 0 && !loading && ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { class: "bq-empty", children: "No plottable values for this X/Y choice." })), xCol && series && series.points.length > 0 && ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(ChartSvg, { type: type, series: series, yName: yCol ? (aggApplies ? `${agg}(${yCol.label})` : yCol.label) : 'count', color: HUES.find(h => h.id === hue)?.css ?? HUES[0].css }))] }));
+    if (group && group.skipped > 0) {
+        notes.push(`${group.skipped.toLocaleString()} row${group.skipped === 1 ? '' : 's'} skipped (null/non-numeric)`);
+    }
+    const hasData = !!group && group.series.some(s => s.points.length > 0 || s.values.some(v => v !== null));
+    return ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { class: "bq-chart", children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { class: "bq-chart-controls", children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("select", { class: "bq-pg-size", value: type, onChange: (e) => setType(e.currentTarget.value), title: "Chart type", children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "bar", children: "Bar" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "line", children: "Line" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "scatter", children: "Scatter" })] }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { class: "bq-chart-label", children: "X" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("select", { class: "bq-pg-size", value: xKey, onChange: (e) => setXKey(e.currentTarget.value), title: "X axis column", children: dims.map(c => (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: c.key, children: c.label })) }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { class: "bq-chart-label", children: "Y" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("select", { class: "bq-pg-size", value: yKey, onChange: (e) => setYKey(e.currentTarget.value), title: "Y axis measure", children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "", children: "Count of rows" }), measures.map(c => (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: c.key, children: c.label }))] }), aggApplies && ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("select", { class: "bq-pg-size", value: agg, onChange: (e) => setAgg(e.currentTarget.value), title: "Aggregation per category", children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "sum", children: "Sum" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "avg", children: "Avg" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "min", children: "Min" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "max", children: "Max" })] })), categoricals.length > 0 && ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)(preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.Fragment, { children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { class: "bq-chart-label", children: "Color by" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("select", { class: "bq-pg-size", value: colorKey, onChange: (e) => setColorKey(e.currentTarget.value), title: "Split into one series per value", children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "", children: "None" }), categoricals.map(c => (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: c.key, children: c.label }))] })] })), !multi && ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)(preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.Fragment, { children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { class: "bq-chart-swatch", style: { background: HUES.find(h => h.id === hue)?.css } }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("select", { class: "bq-pg-size", value: hue, onChange: (e) => setHue(e.currentTarget.value), title: "Chart color (theme palette)", children: HUES.map(h => (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: h.id, children: h.label })) })] })), notes.length > 0 && (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { class: "bq-chart-note", children: notes.join(' · ') })] }), multi && group && ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { class: "bq-chart-legend", children: group.series.map((s, i) => ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("span", { class: "bq-chart-legend-item", children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { class: "bq-chart-swatch", style: { background: seriesColor(s.name, i) } }), s.name.length > 24 ? s.name.slice(0, 23) + '…' : s.name] }))) })), loading && (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { class: "bq-notice", children: "Loading rows for chart\u2026" }), !xCol && (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { class: "bq-empty", children: "No chartable column." }), xCol && group && !hasData && !loading && ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { class: "bq-empty", children: "No plottable values for this X/Y choice." })), xCol && group && hasData && ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(ChartSvg, { type: type, group: group, yName: yCol ? (aggApplies ? `${agg}(${yCol.label})` : yCol.label) : 'count', colorOf: seriesColor, showSeriesName: multi }))] }));
 }
 const W = 920;
-const H = 360;
+const H = 300;
 const M = { top: 14, right: 16, bottom: 42, left: 56 };
-function ChartSvg({ type, series, yName, color }) {
+function ChartSvg({ type, group, yName, colorOf, showSeriesName }) {
     // Custom hover tooltip — instant, unlike native SVG <title> (fixed OS delay).
     const [tip, setTip] = (0,preact_hooks__WEBPACK_IMPORTED_MODULE_1__.useState)(null);
     const showTip = (e, lines) => {
@@ -1075,52 +1089,93 @@ function ChartSvg({ type, series, yName, color }) {
     const hideTip = () => setTip(null);
     const iw = W - M.left - M.right;
     const ih = H - M.top - M.bottom;
-    const pts = series.points;
-    const ys = pts.map(p => p.y);
-    const yMin = Math.min(0, ...ys);
-    const yMax = Math.max(0, ...ys);
+    const isCat = group.kind === 'category';
+    const cats = group.categories ?? [];
+    // Y domain across every series.
+    const allYs = [];
+    for (const s of group.series) {
+        for (const v of s.values) {
+            if (v !== null) {
+                allYs.push(v);
+            }
+        }
+        for (const p of s.points) {
+            allYs.push(p.y);
+        }
+    }
+    const yMin = Math.min(0, ...allYs);
+    const yMax = Math.max(0, ...allYs);
     const yTicks = (0,_chartData__WEBPACK_IMPORTED_MODULE_2__.niceTicks)(yMin, yMax, 5);
     const yLo = yTicks.length ? Math.min(yTicks[0], yMin) : yMin;
     const yHi = yTicks.length ? Math.max(yTicks[yTicks.length - 1], yMax) : yMax;
     const sy = (v) => M.top + ih - ((v - yLo) / (yHi - yLo || 1)) * ih;
     // X scale.
-    const isCat = series.kind === 'category' || type === 'bar';
-    let sx;
-    let band = 0;
-    let xNums = [];
-    if (isCat) {
-        band = iw / pts.length;
-        sx = (_p, i) => M.left + i * band + band / 2;
-    }
-    else {
-        xNums = pts.map(p => p.x);
-        const xLo = Math.min(...xNums);
-        const xHi = Math.max(...xNums);
-        sx = (p) => M.left + ((p.x - xLo) / (xHi - xLo || 1)) * iw;
-    }
-    const stroke = color;
+    const allXs = isCat ? [] : group.series.flatMap(s => s.points.map(p => p.x));
+    const xLo = isCat ? 0 : Math.min(...allXs);
+    const xHi = isCat ? 0 : Math.max(...allXs);
+    const band = isCat ? iw / Math.max(1, cats.length) : 0;
+    const sxCat = (i) => M.left + i * band + band / 2;
+    const sxNum = (x) => M.left + ((x - xLo) / (xHi - xLo || 1)) * iw;
     const ink = 'var(--vscode-foreground)';
-    const grid = 'var(--vscode-editorWidget-border, rgba(128,128,128,.25))';
-    // Category tick labels: show at most ~12, evenly skipped.
-    const catSkip = isCat ? Math.max(1, Math.ceil(pts.length / 12)) : 1;
-    const spanMs = !isCat && series.kind === 'time' ? Math.max(...xNums) - Math.min(...xNums) : 0;
-    const xTickVals = !isCat ? (0,_chartData__WEBPACK_IMPORTED_MODULE_2__.niceTicks)(Math.min(...xNums), Math.max(...xNums), 5) : [];
-    const fmtX = (v) => series.kind === 'time' ? (0,_chartData__WEBPACK_IMPORTED_MODULE_2__.formatTimeTick)(v, spanMs)
+    const gridLn = 'var(--vscode-editorWidget-border, rgba(128,128,128,.25))';
+    const catSkip = isCat ? Math.max(1, Math.ceil(cats.length / 12)) : 1;
+    const spanMs = !isCat && group.kind === 'time' ? xHi - xLo : 0;
+    const xTickVals = !isCat && allXs.length ? (0,_chartData__WEBPACK_IMPORTED_MODULE_2__.niceTicks)(xLo, xHi, 5) : [];
+    const fmtX = (v) => group.kind === 'time' ? (0,_chartData__WEBPACK_IMPORTED_MODULE_2__.formatTimeTick)(v, spanMs)
         : typeof v === 'number' ? (0,_chartData__WEBPACK_IMPORTED_MODULE_2__.compactNumber)(v)
             : String(v).length > 14 ? String(v).slice(0, 13) + '…' : String(v);
-    const barW = Math.max(2, Math.min(28, band - 2)); // ≥2px surface gap between bars
+    const nSeries = Math.max(1, group.series.length);
+    // Grouped bars: split the category band into per-series slots (2px surface gaps).
+    const slot = isCat ? Math.max(3, (band - 4) / nSeries) : 8;
+    const barW = Math.max(2, Math.min(24, slot - 2));
     const zeroY = sy(Math.max(0, yLo));
-    return ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { class: "bq-chart-scroll", children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("svg", { viewBox: `0 0 ${W} ${H}`, class: "bq-chart-svg", role: "img", "aria-label": `${type} chart of ${yName}`, children: [yTicks.map(t => ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("g", { children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("line", { x1: M.left, x2: W - M.right, y1: sy(t), y2: sy(t), stroke: grid, "stroke-width": "1" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("text", { x: M.left - 8, y: sy(t) + 3.5, "text-anchor": "end", class: "bq-chart-tick", fill: ink, children: (0,_chartData__WEBPACK_IMPORTED_MODULE_2__.compactNumber)(t) })] }))), isCat
-                        ? pts.map((p, i) => (i % catSkip === 0
-                            ? (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("text", { x: sx(p, i), y: H - M.bottom + 16, "text-anchor": "middle", class: "bq-chart-tick", fill: ink, children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("title", { children: String(p.x) }), fmtX(p.x)] })
+    const tipLines = (sName, x, y) => {
+        const l = [String(typeof x === 'number' ? fmtX(x) : x)];
+        if (showSeriesName) {
+            l.push(sName);
+        }
+        l.push(`${yName}: ${y.toLocaleString()}`);
+        return l;
+    };
+    return ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { class: "bq-chart-scroll", children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("svg", { viewBox: `0 0 ${W} ${H}`, class: "bq-chart-svg", role: "img", "aria-label": `${type} chart of ${yName}`, children: [yTicks.map(t => ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("g", { children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("line", { x1: M.left, x2: W - M.right, y1: sy(t), y2: sy(t), stroke: gridLn, "stroke-width": "1" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("text", { x: M.left - 8, y: sy(t) + 3.5, "text-anchor": "end", class: "bq-chart-tick", fill: ink, children: (0,_chartData__WEBPACK_IMPORTED_MODULE_2__.compactNumber)(t) })] }))), isCat
+                        ? cats.map((c, i) => (i % catSkip === 0
+                            ? (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("text", { x: sxCat(i), y: H - M.bottom + 16, "text-anchor": "middle", class: "bq-chart-tick", fill: ink, children: fmtX(c) })
                             : null))
-                        : xTickVals.map(v => ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("text", { x: sx({ x: v }, 0), y: H - M.bottom + 16, "text-anchor": "middle", class: "bq-chart-tick", fill: ink, children: fmtX(v) }))), type === 'bar' && pts.map((p, i) => {
-                        const y = sy(p.y);
-                        const top = Math.min(y, zeroY);
-                        const h = Math.max(1, Math.abs(zeroY - y));
-                        const lines = [String(p.x), `${yName}: ${p.y.toLocaleString()}`];
-                        return ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("rect", { x: sx(p, i) - barW / 2, y: top, width: barW, height: h, rx: Math.min(3, barW / 2), fill: stroke, onMouseMove: (e) => showTip(e, lines), onMouseLeave: hideTip }));
-                    }), type === 'line' && ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)(preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.Fragment, { children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("path", { d: pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${sx(p, i).toFixed(1)},${sy(p.y).toFixed(1)}`).join(' '), fill: "none", stroke: stroke, "stroke-width": "2", "stroke-linejoin": "round" }), pts.length <= 120 && pts.map((p, i) => ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("circle", { cx: sx(p, i), cy: sy(p.y), r: "3", fill: stroke, stroke: "transparent", "stroke-width": "12", onMouseMove: (e) => showTip(e, [fmtX(p.x), `${yName}: ${p.y.toLocaleString()}`]), onMouseLeave: hideTip })))] })), type === 'scatter' && pts.map((p, i) => ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("circle", { cx: sx(p, i), cy: sy(p.y), r: "4", fill: stroke, "fill-opacity": "0.75", stroke: "transparent", "stroke-width": "10", onMouseMove: (e) => showTip(e, [fmtX(p.x), `${yName}: ${p.y.toLocaleString()}`]), onMouseLeave: hideTip }))), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("line", { x1: M.left, x2: W - M.right, y1: zeroY, y2: zeroY, stroke: ink, "stroke-opacity": "0.45", "stroke-width": "1" })] }), tip && ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { class: "bq-chart-tip", style: { left: `${tip.x}px`, top: `${tip.y}px` }, children: tip.lines.map(l => (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { children: l })) }))] }));
+                        : xTickVals.map(v => ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("text", { x: sxNum(v), y: H - M.bottom + 16, "text-anchor": "middle", class: "bq-chart-tick", fill: ink, children: fmtX(v) }))), group.series.map((s, si) => {
+                        const color = colorOf(s.name, si);
+                        if (isCat && type === 'bar') {
+                            return cats.map((c, ci) => {
+                                const v = s.values[ci];
+                                if (v === null) {
+                                    return null;
+                                }
+                                const groupLeft = sxCat(ci) - (slot * nSeries) / 2;
+                                const x = groupLeft + si * slot + (slot - barW) / 2;
+                                const y = sy(v);
+                                const top = Math.min(y, zeroY);
+                                const h = Math.max(1, Math.abs(zeroY - y));
+                                return ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("rect", { x: x, y: top, width: barW, height: h, rx: Math.min(3, barW / 2), fill: color, onMouseMove: (e) => showTip(e, tipLines(s.name, c, v)), onMouseLeave: hideTip }));
+                            });
+                        }
+                        // Screen-space points for the series (category kinds place points at band centers).
+                        const spts = isCat
+                            ? cats.map((c, ci) => ({ label: c, px: sxCat(ci), v: s.values[ci] }))
+                                .filter(p => p.v !== null)
+                                .map(p => ({ label: p.label, px: p.px, py: sy(p.v), v: p.v }))
+                            : s.points.map(p => ({ label: p.x, px: sxNum(p.x), py: sy(p.y), v: p.y }));
+                        if (type === 'line') {
+                            return ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("g", { children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("path", { d: spts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.px.toFixed(1)},${p.py.toFixed(1)}`).join(' '), fill: "none", stroke: color, "stroke-width": "2", "stroke-linejoin": "round" }), spts.length <= 120 && spts.map(p => ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("circle", { cx: p.px, cy: p.py, r: "3", fill: color, stroke: "transparent", "stroke-width": "12", onMouseMove: (e) => showTip(e, tipLines(s.name, p.label, p.v)), onMouseLeave: hideTip })))] }));
+                        }
+                        if (type === 'scatter') {
+                            return spts.map(p => ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("circle", { cx: p.px, cy: p.py, r: "4", fill: color, "fill-opacity": "0.75", stroke: "transparent", "stroke-width": "10", onMouseMove: (e) => showTip(e, tipLines(s.name, p.label, p.v)), onMouseLeave: hideTip })));
+                        }
+                        // bar over a numeric/time axis: thin per-point bars
+                        return spts.map(p => {
+                            const top = Math.min(p.py, zeroY);
+                            const h = Math.max(1, Math.abs(zeroY - p.py));
+                            return ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("rect", { x: p.px - 2, y: top, width: 4, height: h, rx: 2, fill: color, onMouseMove: (e) => showTip(e, tipLines(s.name, p.label, p.v)), onMouseLeave: hideTip }));
+                        });
+                    }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("line", { x1: M.left, x2: W - M.right, y1: zeroY, y2: zeroY, stroke: ink, "stroke-opacity": "0.45", "stroke-width": "1" })] }), tip && ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { class: "bq-chart-tip", style: { left: `${tip.x}px`, top: `${tip.y}px` }, children: tip.lines.map(l => (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { children: l })) }))] }));
 }
 
 
@@ -1130,6 +1185,9 @@ function ChartSvg({ type, series, yName, color }) {
 
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   MAX_SERIES: () => (/* binding */ MAX_SERIES),
+/* harmony export */   OTHER_SERIES: () => (/* binding */ OTHER_SERIES),
+/* harmony export */   buildChartGroups: () => (/* binding */ buildChartGroups),
 /* harmony export */   buildChartSeries: () => (/* binding */ buildChartSeries),
 /* harmony export */   compactNumber: () => (/* binding */ compactNumber),
 /* harmony export */   dimensionColumns: () => (/* binding */ dimensionColumns),
@@ -1185,73 +1243,26 @@ function parseY(raw) {
     const n = Number(raw);
     return isFinite(n) ? n : null;
 }
+/** Series cap when coloring by a column; the tail folds into OTHER_SERIES. */
+const MAX_SERIES = 6;
+const OTHER_SERIES = 'Other';
+const newAcc = (y) => ({ sum: y, n: 1, min: y, max: y });
+const addAcc = (a, y) => { a.sum += y; a.n++; a.min = Math.min(a.min, y); a.max = Math.max(a.max, y); };
+const mergeAcc = (a, b) => { a.sum += b.sum; a.n += b.n; a.min = Math.min(a.min, b.min); a.max = Math.max(a.max, b.max); };
 /**
- * Builds a drawable series from wire-format rows.
- *  - `yCol === null` → y is a row count (agg ignored).
- *  - Categorical x → one point per category (`agg` of y, or count), sorted by y descending,
- *    capped at `maxCategories` (sets `truncated`).
- *  - Numeric/temporal x → one point per row, sorted by x ascending (agg not applicable).
+ * Builds one or more drawable series. `colorCol === null` → a single series (name '').
+ * With a color column, rows split into one series per value; the largest MAX_SERIES stay,
+ * the rest are folded into "Other" (aggregated together, so avg stays correct).
  */
-function buildChartSeries(rows, fields, xCol, yCol, agg = 'sum', maxCategories = 30) {
+function buildChartGroups(rows, fields, xCol, yCol, agg = 'sum', colorCol = null, maxCategories = 30) {
     const xType = xCol.type.toUpperCase();
     const kind = isTemporalType(xType) ? 'time' : isNumericType(xType) ? 'linear' : 'category';
     let skipped = 0;
-    if (kind === 'category') {
-        // Track enough per category to answer any of the aggregations.
-        const acc = new Map();
-        for (const row of rows) {
-            const x = parseX((0,_cellFormatters__WEBPACK_IMPORTED_MODULE_0__.extractRowValue)(row, fields, xCol.path), xCol);
-            if (x === null) {
-                skipped++;
-                continue;
-            }
-            let y = 1;
-            if (yCol) {
-                const parsed = parseY((0,_cellFormatters__WEBPACK_IMPORTED_MODULE_0__.extractRowValue)(row, fields, yCol.path));
-                if (parsed === null) {
-                    skipped++;
-                    continue;
-                }
-                y = parsed;
-            }
-            const key = String(x);
-            const a = acc.get(key);
-            if (a) {
-                a.sum += y;
-                a.n++;
-                a.min = Math.min(a.min, y);
-                a.max = Math.max(a.max, y);
-            }
-            else {
-                acc.set(key, { sum: y, n: 1, min: y, max: y });
-            }
-        }
-        const finalize = (a) => {
-            if (!yCol) {
-                return a.n;
-            } // count of rows
-            switch (agg) {
-                case 'avg': return a.sum / a.n;
-                case 'min': return a.min;
-                case 'max': return a.max;
-                default: return a.sum;
-            }
-        };
-        const sorted = [...acc.entries()]
-            .map(([x, a]) => ({ x, y: finalize(a) }))
-            .sort((a, b) => b.y - a.y);
-        const truncated = sorted.length > maxCategories;
-        return {
-            kind,
-            points: sorted.slice(0, maxCategories).map(({ x, y }) => ({ x, y })),
-            truncated,
-            skipped,
-        };
-    }
-    const points = [];
+    // Row → (x, y, seriesKey) triples.
+    const triples = [];
     for (const row of rows) {
         const x = parseX((0,_cellFormatters__WEBPACK_IMPORTED_MODULE_0__.extractRowValue)(row, fields, xCol.path), xCol);
-        if (x === null || typeof x !== 'number') {
+        if (x === null || (kind !== 'category' && typeof x !== 'number')) {
             skipped++;
             continue;
         }
@@ -1264,10 +1275,110 @@ function buildChartSeries(rows, fields, xCol, yCol, agg = 'sum', maxCategories =
             }
             y = parsed;
         }
-        points.push({ x, y });
+        let s = '';
+        if (colorCol) {
+            const raw = (0,_cellFormatters__WEBPACK_IMPORTED_MODULE_0__.extractRowValue)(row, fields, colorCol.path);
+            s = raw === null || raw === undefined ? 'NULL' : String(raw);
+        }
+        triples.push({ x, y, s });
     }
-    points.sort((a, b) => a.x - b.x);
-    return { kind, points, truncated: false, skipped };
+    // Pick the series to keep: largest total magnitude (or row count for counts).
+    const seriesTotals = new Map();
+    for (const t of triples) {
+        seriesTotals.set(t.s, (seriesTotals.get(t.s) ?? 0) + (yCol ? Math.abs(t.y) : 1));
+    }
+    const rankedSeries = [...seriesTotals.entries()].sort((a, b) => b[1] - a[1]).map(([s]) => s);
+    const seriesFolded = !!colorCol && rankedSeries.length > MAX_SERIES;
+    const kept = new Set(rankedSeries.slice(0, MAX_SERIES));
+    const seriesKey = (s) => (kept.has(s) ? s : OTHER_SERIES);
+    const seriesNames = rankedSeries.slice(0, MAX_SERIES).concat(seriesFolded ? [OTHER_SERIES] : []);
+    const finalize = (a) => {
+        if (!yCol) {
+            return a.n;
+        }
+        switch (agg) {
+            case 'avg': return a.sum / a.n;
+            case 'min': return a.min;
+            case 'max': return a.max;
+            default: return a.sum;
+        }
+    };
+    if (kind === 'category') {
+        // cat → series → acc, plus combined per-cat totals for ordering/capping.
+        const byCat = new Map();
+        const catTotal = new Map();
+        for (const t of triples) {
+            const cat = String(t.x);
+            const s = seriesKey(t.s);
+            let perSeries = byCat.get(cat);
+            if (!perSeries) {
+                perSeries = new Map();
+                byCat.set(cat, perSeries);
+            }
+            const a = perSeries.get(s);
+            if (a) {
+                addAcc(a, t.y);
+            }
+            else {
+                perSeries.set(s, newAcc(t.y));
+            }
+            const ct = catTotal.get(cat);
+            if (ct) {
+                addAcc(ct, t.y);
+            }
+            else {
+                catTotal.set(cat, newAcc(t.y));
+            }
+        }
+        const orderedCats = [...catTotal.entries()]
+            .sort((a, b) => finalize(b[1]) - finalize(a[1]))
+            .map(([c]) => c);
+        const truncated = orderedCats.length > maxCategories;
+        const categories = orderedCats.slice(0, maxCategories);
+        const series = seriesNames.map(name => ({
+            name,
+            values: categories.map(cat => {
+                const a = byCat.get(cat)?.get(name);
+                return a ? finalize(a) : null;
+            }),
+            points: [],
+        }));
+        return { kind, categories, series, truncated, seriesFolded, skipped };
+    }
+    // Linear / time: per-series raw points. "Other" merges the tail's points.
+    const bySeries = new Map();
+    for (const t of triples) {
+        const s = seriesKey(t.s);
+        const arr = bySeries.get(s);
+        const pt = { x: t.x, y: t.y };
+        if (arr) {
+            arr.push(pt);
+        }
+        else {
+            bySeries.set(s, [pt]);
+        }
+    }
+    const series = seriesNames
+        .filter(name => bySeries.has(name))
+        .map(name => ({
+        name,
+        values: [],
+        points: bySeries.get(name).sort((a, b) => a.x - b.x),
+    }));
+    return { kind, categories: null, series, truncated: false, seriesFolded, skipped };
+}
+/**
+ * Single-series convenience wrapper over buildChartGroups (no color column).
+ * Categorical x → one point per category (`agg` of y, or count), y-descending, capped.
+ * Numeric/temporal x → one point per row, x-ascending.
+ */
+function buildChartSeries(rows, fields, xCol, yCol, agg = 'sum', maxCategories = 30) {
+    const g = buildChartGroups(rows, fields, xCol, yCol, agg, null, maxCategories);
+    if (g.kind === 'category') {
+        const points = (g.categories ?? []).map((c, i) => ({ x: c, y: g.series[0]?.values[i] ?? 0 }));
+        return { kind: g.kind, points, truncated: g.truncated, skipped: g.skipped };
+    }
+    return { kind: g.kind, points: g.series[0]?.points ?? [], truncated: false, skipped: g.skipped };
 }
 /** Nice-number axis ticks covering [min, max] (inclusive-ish), ~`count` steps. */
 function niceTicks(min, max, count = 5) {

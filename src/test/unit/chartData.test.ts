@@ -1,5 +1,5 @@
 import * as assert from 'assert';
-import { buildChartSeries, compactNumber, dimensionColumns, formatTimeTick, niceTicks, numericColumns } from '../../tableResultsPanel/grid/chartData';
+import { buildChartGroups, buildChartSeries, compactNumber, dimensionColumns, formatTimeTick, MAX_SERIES, niceTicks, numericColumns, OTHER_SERIES } from '../../tableResultsPanel/grid/chartData';
 import type { FlatColumn } from '../../tableResultsPanel/grid/cellFormatters';
 import type { BqField } from '../../tableResultsPanel/grid/types';
 
@@ -133,5 +133,66 @@ suite('chartData — aggregations', () => {
     test('count ignores agg', () => {
         const s = buildChartSeries(rows as any, fields, country, null, 'avg');
         assert.deepStrictEqual(s.points.map(p => [p.x, p.y]), [['FR', 2], ['DE', 1]]);
+    });
+});
+
+suite('chartData — multi-series (color by column)', () => {
+    const mkcol = (name: string, type: string): any => ({ key: name, label: name, type, mode: 'NULLABLE', path: [name] });
+    const mfields: any[] = [
+        { name: 'country', type: 'STRING' },
+        { name: 'amount', type: 'FLOAT64' },
+        { name: 'channel', type: 'STRING' },
+    ];
+    const mrow = (c: string | null, a: string, ch: string | null) => ({ f: [{ v: c }, { v: a }, { v: ch }] });
+    const mcountry = mkcol('country', 'STRING');
+    const mamount = mkcol('amount', 'FLOAT64');
+    const mchannel = mkcol('channel', 'STRING');
+
+    test('splits into one series per color value, aligned to shared categories', () => {
+        const rows = [
+            mrow('FR', '10', 'web'), mrow('FR', '5', 'app'),
+            mrow('DE', '20', 'web'), mrow('DE', '1', 'app'),
+        ];
+        const g = buildChartGroups(rows as any, mfields, mcountry, mamount, 'sum', mchannel);
+        assert.deepStrictEqual(g.categories, ['DE', 'FR']); // by combined total desc
+        assert.deepStrictEqual(g.series.map(s => s.name), ['web', 'app']); // by series total desc
+        const web = g.series[0];
+        assert.deepStrictEqual(web.values, [20, 10]);
+        assert.strictEqual(g.seriesFolded, false);
+    });
+
+    test('null in the color column becomes a NULL series', () => {
+        const rows = [mrow('FR', '1', null), mrow('FR', '2', 'web')];
+        const g = buildChartGroups(rows as any, mfields, mcountry, mamount, 'sum', mchannel);
+        assert.ok(g.series.some(s => s.name === 'NULL'));
+    });
+
+    test('more than MAX_SERIES values fold into Other, avg stays correct', () => {
+        const rows: any[] = [];
+        for (let i = 0; i < 8; i++) { rows.push(mrow('FR', String(100 - i * 10), `ch${i}`)); }
+        // ch6/ch7 fold into Other: values 40 and 30 → avg 35
+        const g = buildChartGroups(rows, mfields, mcountry, mamount, 'avg', mchannel);
+        assert.strictEqual(g.seriesFolded, true);
+        assert.strictEqual(g.series.length, MAX_SERIES + 1);
+        const other = g.series.find(s => s.name === OTHER_SERIES)!;
+        assert.deepStrictEqual(other.values, [35]);
+    });
+
+    test('missing category/series combination stays null (gap, not zero)', () => {
+        const rows = [mrow('FR', '10', 'web'), mrow('DE', '20', 'app')];
+        const g = buildChartGroups(rows as any, mfields, mcountry, mamount, 'sum', mchannel);
+        const web = g.series.find(s => s.name === 'web')!;
+        const deIdx = g.categories!.indexOf('DE');
+        assert.strictEqual(web.values[deIdx], null);
+    });
+
+    test('linear x: per-series sorted point lists', () => {
+        const rows = [
+            mrow('a', '3', 'web'), mrow('b', '1', 'web'), mrow('c', '2', 'app'),
+        ];
+        const g = buildChartGroups(rows as any, mfields, mamount, mamount, 'sum', mchannel);
+        assert.strictEqual(g.kind, 'linear');
+        const web = g.series.find(s => s.name === 'web')!;
+        assert.deepStrictEqual(web.points.map(p => p.x), [1, 3]);
     });
 });

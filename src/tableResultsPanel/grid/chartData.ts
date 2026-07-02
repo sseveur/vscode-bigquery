@@ -68,12 +68,146 @@ function parseY(raw: unknown): number | null {
 /** Aggregation applied per category when a Y measure is chosen. */
 export type AggKind = 'sum' | 'avg' | 'min' | 'max';
 
+/** Series cap when coloring by a column; the tail folds into OTHER_SERIES. */
+export const MAX_SERIES = 6;
+export const OTHER_SERIES = 'Other';
+
+export interface ChartGroup {
+    kind: 'category' | 'linear' | 'time';
+    /** Shared x categories (category kind only), sorted by combined y descending. */
+    categories: string[] | null;
+    series: Array<{
+        name: string;
+        /** Category kind: y per category (aligned with `categories`, null = no data).
+         *  Linear/time: ignored. */
+        values: Array<number | null>;
+        /** Linear/time kind: per-row points sorted by x. Category kind: empty. */
+        points: ChartPoint[];
+    }>;
+    truncated: boolean;
+    /** True when more than MAX_SERIES color values were folded into "Other". */
+    seriesFolded: boolean;
+    skipped: number;
+}
+
+interface Acc { sum: number; n: number; min: number; max: number }
+const newAcc = (y: number): Acc => ({ sum: y, n: 1, min: y, max: y });
+const addAcc = (a: Acc, y: number) => { a.sum += y; a.n++; a.min = Math.min(a.min, y); a.max = Math.max(a.max, y); };
+const mergeAcc = (a: Acc, b: Acc) => { a.sum += b.sum; a.n += b.n; a.min = Math.min(a.min, b.min); a.max = Math.max(a.max, b.max); };
+
 /**
- * Builds a drawable series from wire-format rows.
- *  - `yCol === null` → y is a row count (agg ignored).
- *  - Categorical x → one point per category (`agg` of y, or count), sorted by y descending,
- *    capped at `maxCategories` (sets `truncated`).
- *  - Numeric/temporal x → one point per row, sorted by x ascending (agg not applicable).
+ * Builds one or more drawable series. `colorCol === null` → a single series (name '').
+ * With a color column, rows split into one series per value; the largest MAX_SERIES stay,
+ * the rest are folded into "Other" (aggregated together, so avg stays correct).
+ */
+export function buildChartGroups(
+    rows: Array<{ f: Array<{ v: unknown }> }>,
+    fields: BqField[],
+    xCol: FlatColumn,
+    yCol: FlatColumn | null,
+    agg: AggKind = 'sum',
+    colorCol: FlatColumn | null = null,
+    maxCategories = 30
+): ChartGroup {
+    const xType = xCol.type.toUpperCase();
+    const kind: ChartGroup['kind'] =
+        isTemporalType(xType) ? 'time' : isNumericType(xType) ? 'linear' : 'category';
+
+    let skipped = 0;
+
+    // Row → (x, y, seriesKey) triples.
+    const triples: Array<{ x: string | number; y: number; s: string }> = [];
+    for (const row of rows) {
+        const x = parseX(extractRowValue(row, fields, xCol.path), xCol);
+        if (x === null || (kind !== 'category' && typeof x !== 'number')) { skipped++; continue; }
+        let y = 1;
+        if (yCol) {
+            const parsed = parseY(extractRowValue(row, fields, yCol.path));
+            if (parsed === null) { skipped++; continue; }
+            y = parsed;
+        }
+        let s = '';
+        if (colorCol) {
+            const raw = extractRowValue(row, fields, colorCol.path);
+            s = raw === null || raw === undefined ? 'NULL' : String(raw);
+        }
+        triples.push({ x, y, s });
+    }
+
+    // Pick the series to keep: largest total magnitude (or row count for counts).
+    const seriesTotals = new Map<string, number>();
+    for (const t of triples) {
+        seriesTotals.set(t.s, (seriesTotals.get(t.s) ?? 0) + (yCol ? Math.abs(t.y) : 1));
+    }
+    const rankedSeries = [...seriesTotals.entries()].sort((a, b) => b[1] - a[1]).map(([s]) => s);
+    const seriesFolded = !!colorCol && rankedSeries.length > MAX_SERIES;
+    const kept = new Set(rankedSeries.slice(0, MAX_SERIES));
+    const seriesKey = (s: string) => (kept.has(s) ? s : OTHER_SERIES);
+    const seriesNames = rankedSeries.slice(0, MAX_SERIES).concat(seriesFolded ? [OTHER_SERIES] : []);
+
+    const finalize = (a: Acc): number => {
+        if (!yCol) { return a.n; }
+        switch (agg) {
+            case 'avg': return a.sum / a.n;
+            case 'min': return a.min;
+            case 'max': return a.max;
+            default: return a.sum;
+        }
+    };
+
+    if (kind === 'category') {
+        // cat → series → acc, plus combined per-cat totals for ordering/capping.
+        const byCat = new Map<string, Map<string, Acc>>();
+        const catTotal = new Map<string, Acc>();
+        for (const t of triples) {
+            const cat = String(t.x);
+            const s = seriesKey(t.s);
+            let perSeries = byCat.get(cat);
+            if (!perSeries) { perSeries = new Map(); byCat.set(cat, perSeries); }
+            const a = perSeries.get(s);
+            if (a) { addAcc(a, t.y); } else { perSeries.set(s, newAcc(t.y)); }
+            const ct = catTotal.get(cat);
+            if (ct) { addAcc(ct, t.y); } else { catTotal.set(cat, newAcc(t.y)); }
+        }
+        const orderedCats = [...catTotal.entries()]
+            .sort((a, b) => finalize(b[1]) - finalize(a[1]))
+            .map(([c]) => c);
+        const truncated = orderedCats.length > maxCategories;
+        const categories = orderedCats.slice(0, maxCategories);
+
+        const series = seriesNames.map(name => ({
+            name,
+            values: categories.map(cat => {
+                const a = byCat.get(cat)?.get(name);
+                return a ? finalize(a) : null;
+            }),
+            points: [] as ChartPoint[],
+        }));
+        return { kind, categories, series, truncated, seriesFolded, skipped };
+    }
+
+    // Linear / time: per-series raw points. "Other" merges the tail's points.
+    const bySeries = new Map<string, ChartPoint[]>();
+    for (const t of triples) {
+        const s = seriesKey(t.s);
+        const arr = bySeries.get(s);
+        const pt = { x: t.x as number, y: t.y };
+        if (arr) { arr.push(pt); } else { bySeries.set(s, [pt]); }
+    }
+    const series = seriesNames
+        .filter(name => bySeries.has(name))
+        .map(name => ({
+            name,
+            values: [] as Array<number | null>,
+            points: bySeries.get(name)!.sort((a, b) => (a.x as number) - (b.x as number)),
+        }));
+    return { kind, categories: null, series, truncated: false, seriesFolded, skipped };
+}
+
+/**
+ * Single-series convenience wrapper over buildChartGroups (no color column).
+ * Categorical x → one point per category (`agg` of y, or count), y-descending, capped.
+ * Numeric/temporal x → one point per row, x-ascending.
  */
 export function buildChartSeries(
     rows: Array<{ f: Array<{ v: unknown }> }>,
@@ -83,69 +217,12 @@ export function buildChartSeries(
     agg: AggKind = 'sum',
     maxCategories = 30
 ): ChartSeries {
-    const xType = xCol.type.toUpperCase();
-    const kind: ChartSeries['kind'] =
-        isTemporalType(xType) ? 'time' : isNumericType(xType) ? 'linear' : 'category';
-
-    let skipped = 0;
-
-    if (kind === 'category') {
-        // Track enough per category to answer any of the aggregations.
-        const acc = new Map<string, { sum: number; n: number; min: number; max: number }>();
-        for (const row of rows) {
-            const x = parseX(extractRowValue(row, fields, xCol.path), xCol);
-            if (x === null) { skipped++; continue; }
-            let y = 1;
-            if (yCol) {
-                const parsed = parseY(extractRowValue(row, fields, yCol.path));
-                if (parsed === null) { skipped++; continue; }
-                y = parsed;
-            }
-            const key = String(x);
-            const a = acc.get(key);
-            if (a) {
-                a.sum += y; a.n++;
-                a.min = Math.min(a.min, y);
-                a.max = Math.max(a.max, y);
-            } else {
-                acc.set(key, { sum: y, n: 1, min: y, max: y });
-            }
-        }
-        const finalize = (a: { sum: number; n: number; min: number; max: number }): number => {
-            if (!yCol) { return a.n; }                      // count of rows
-            switch (agg) {
-                case 'avg': return a.sum / a.n;
-                case 'min': return a.min;
-                case 'max': return a.max;
-                default: return a.sum;
-            }
-        };
-        const sorted = [...acc.entries()]
-            .map(([x, a]) => ({ x, y: finalize(a) }))
-            .sort((a, b) => b.y - a.y);
-        const truncated = sorted.length > maxCategories;
-        return {
-            kind,
-            points: sorted.slice(0, maxCategories).map(({ x, y }) => ({ x, y })),
-            truncated,
-            skipped,
-        };
+    const g = buildChartGroups(rows, fields, xCol, yCol, agg, null, maxCategories);
+    if (g.kind === 'category') {
+        const points = (g.categories ?? []).map((c, i) => ({ x: c, y: g.series[0]?.values[i] ?? 0 }));
+        return { kind: g.kind, points, truncated: g.truncated, skipped: g.skipped };
     }
-
-    const points: ChartPoint[] = [];
-    for (const row of rows) {
-        const x = parseX(extractRowValue(row, fields, xCol.path), xCol);
-        if (x === null || typeof x !== 'number') { skipped++; continue; }
-        let y = 1;
-        if (yCol) {
-            const parsed = parseY(extractRowValue(row, fields, yCol.path));
-            if (parsed === null) { skipped++; continue; }
-            y = parsed;
-        }
-        points.push({ x, y });
-    }
-    points.sort((a, b) => (a.x as number) - (b.x as number));
-    return { kind, points, truncated: false, skipped };
+    return { kind: g.kind, points: g.series[0]?.points ?? [], truncated: false, skipped: g.skipped };
 }
 
 /** Nice-number axis ticks covering [min, max] (inclusive-ish), ~`count` steps. */

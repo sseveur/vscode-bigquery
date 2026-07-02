@@ -811,7 +811,7 @@ __webpack_require__.r(__webpack_exports__);
 
 
 
-/** VS Code's theme-adaptive chart palette — hue picked by the user, values stay themed. */
+/** VS Code's theme-adaptive chart palette. Fixed order for series identity — never cycled. */
 const HUES = [
     { id: 'blue', label: 'Blue', css: 'var(--vscode-charts-blue, #4fc1ff)' },
     { id: 'purple', label: 'Purple', css: 'var(--vscode-charts-purple, #c586c0)' },
@@ -820,22 +820,27 @@ const HUES = [
     { id: 'yellow', label: 'Yellow', css: 'var(--vscode-charts-yellow, #cca700)' },
     { id: 'red', label: 'Red', css: 'var(--vscode-charts-red, #f14c4c)' },
 ];
+/** "Other" is a fold-bucket, not an entity — neutral, outside the identity palette. */
+const OTHER_COLOR = 'var(--vscode-descriptionForeground, #8a8a8a)';
 /** Rows charted at most — fetched once through the grid's own pager. */
 const CHART_ROW_CAP = 1000;
 /**
- * Compact chart pane inside the results grid. Single measure, single hue
- * (--vscode-charts-blue adapts to the active theme in light and dark); axes and grid stay
- * recessive; values surface via per-mark tooltips.
+ * Compact chart pane inside the results grid. Single hue when one series; coloring by a
+ * column splits into up to MAX_SERIES entities (fixed hue order) + a neutral "Other",
+ * with a legend. Axes/grid stay recessive; values surface via an instant hover tooltip.
  */
 function ChartPane({ schema, columns, totalRows, initialRows, fetchRows }) {
     const dims = (0,preact_hooks__WEBPACK_IMPORTED_MODULE_1__.useMemo)(() => (0,_chartData__WEBPACK_IMPORTED_MODULE_2__.dimensionColumns)(columns), [columns]);
     const measures = (0,preact_hooks__WEBPACK_IMPORTED_MODULE_1__.useMemo)(() => (0,_chartData__WEBPACK_IMPORTED_MODULE_2__.numericColumns)(columns), [columns]);
+    const categoricals = (0,preact_hooks__WEBPACK_IMPORTED_MODULE_1__.useMemo)(() => dims.filter(c => !(0,_chartData__WEBPACK_IMPORTED_MODULE_2__.isNumericType)(c.type) && !(0,_chartData__WEBPACK_IMPORTED_MODULE_2__.isTemporalType)(c.type)), [dims]);
     const [type, setType] = (0,preact_hooks__WEBPACK_IMPORTED_MODULE_1__.useState)('bar');
     const [xKey, setXKey] = (0,preact_hooks__WEBPACK_IMPORTED_MODULE_1__.useState)(dims[0]?.key ?? '');
     // '' = count of rows
     const [yKey, setYKey] = (0,preact_hooks__WEBPACK_IMPORTED_MODULE_1__.useState)(measures[0]?.key ?? '');
     const [agg, setAgg] = (0,preact_hooks__WEBPACK_IMPORTED_MODULE_1__.useState)('sum');
     const [hue, setHue] = (0,preact_hooks__WEBPACK_IMPORTED_MODULE_1__.useState)('blue');
+    // '' = no series split
+    const [colorKey, setColorKey] = (0,preact_hooks__WEBPACK_IMPORTED_MODULE_1__.useState)('');
     // Chart data window: what the grid already loaded, topped up to the cap once.
     const [rows, setRows] = (0,preact_hooks__WEBPACK_IMPORTED_MODULE_1__.useState)(initialRows);
     const [loading, setLoading] = (0,preact_hooks__WEBPACK_IMPORTED_MODULE_1__.useState)(false);
@@ -853,31 +858,40 @@ function ChartPane({ schema, columns, totalRows, initialRows, fetchRows }) {
     }, []);
     const xCol = dims.find(c => c.key === xKey) ?? null;
     const yCol = measures.find(c => c.key === yKey) ?? null;
+    const colorCol = categoricals.find(c => c.key === colorKey) ?? null;
     // Aggregation only applies when categories are being grouped with a real measure.
     const isCategoryX = !!xCol && !(0,_chartData__WEBPACK_IMPORTED_MODULE_2__.isNumericType)(xCol.type) && !(0,_chartData__WEBPACK_IMPORTED_MODULE_2__.isTemporalType)(xCol.type);
     const aggApplies = isCategoryX && !!yCol;
-    const series = (0,preact_hooks__WEBPACK_IMPORTED_MODULE_1__.useMemo)(() => {
+    const group = (0,preact_hooks__WEBPACK_IMPORTED_MODULE_1__.useMemo)(() => {
         if (!xCol || rows.length === 0) {
             return null;
         }
-        return (0,_chartData__WEBPACK_IMPORTED_MODULE_2__.buildChartSeries)(rows, schema, xCol, yCol, agg);
-    }, [rows, schema, xCol, yCol, agg]);
+        return (0,_chartData__WEBPACK_IMPORTED_MODULE_2__.buildChartGroups)(rows, schema, xCol, yCol, agg, colorCol);
+    }, [rows, schema, xCol, yCol, agg, colorCol]);
+    const multi = !!colorCol && !!group && group.series.length > 1;
+    const seriesColor = (name, idx) => !multi ? (HUES.find(h => h.id === hue)?.css ?? HUES[0].css)
+        : name === _chartData__WEBPACK_IMPORTED_MODULE_2__.OTHER_SERIES ? OTHER_COLOR
+            : HUES[idx % HUES.length].css;
     const notes = [];
     if (totalRows > CHART_ROW_CAP) {
         notes.push(`charting first ${CHART_ROW_CAP.toLocaleString()} of ${totalRows.toLocaleString()} rows`);
     }
-    if (series?.truncated) {
+    if (group?.truncated) {
         notes.push('top 30 categories shown');
     }
-    if (series && series.skipped > 0) {
-        notes.push(`${series.skipped.toLocaleString()} row${series.skipped === 1 ? '' : 's'} skipped (null/non-numeric)`);
+    if (group?.seriesFolded) {
+        notes.push('smaller series folded into Other');
     }
-    return ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { class: "bq-chart", children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { class: "bq-chart-controls", children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("select", { class: "bq-pg-size", value: type, onChange: (e) => setType(e.currentTarget.value), title: "Chart type", children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "bar", children: "Bar" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "line", children: "Line" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "scatter", children: "Scatter" })] }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { class: "bq-chart-label", children: "X" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("select", { class: "bq-pg-size", value: xKey, onChange: (e) => setXKey(e.currentTarget.value), title: "X axis column", children: dims.map(c => (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: c.key, children: c.label })) }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { class: "bq-chart-label", children: "Y" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("select", { class: "bq-pg-size", value: yKey, onChange: (e) => setYKey(e.currentTarget.value), title: "Y axis measure", children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "", children: "Count of rows" }), measures.map(c => (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: c.key, children: c.label }))] }), aggApplies && ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("select", { class: "bq-pg-size", value: agg, onChange: (e) => setAgg(e.currentTarget.value), title: "Aggregation per category", children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "sum", children: "Sum" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "avg", children: "Avg" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "min", children: "Min" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "max", children: "Max" })] })), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { class: "bq-chart-swatch", style: { background: HUES.find(h => h.id === hue)?.css } }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("select", { class: "bq-pg-size", value: hue, onChange: (e) => setHue(e.currentTarget.value), title: "Chart color (theme palette)", children: HUES.map(h => (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: h.id, children: h.label })) }), notes.length > 0 && (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { class: "bq-chart-note", children: notes.join(' · ') })] }), loading && (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { class: "bq-notice", children: "Loading rows for chart\u2026" }), !xCol && (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { class: "bq-empty", children: "No chartable column." }), xCol && series && series.points.length === 0 && !loading && ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { class: "bq-empty", children: "No plottable values for this X/Y choice." })), xCol && series && series.points.length > 0 && ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(ChartSvg, { type: type, series: series, yName: yCol ? (aggApplies ? `${agg}(${yCol.label})` : yCol.label) : 'count', color: HUES.find(h => h.id === hue)?.css ?? HUES[0].css }))] }));
+    if (group && group.skipped > 0) {
+        notes.push(`${group.skipped.toLocaleString()} row${group.skipped === 1 ? '' : 's'} skipped (null/non-numeric)`);
+    }
+    const hasData = !!group && group.series.some(s => s.points.length > 0 || s.values.some(v => v !== null));
+    return ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { class: "bq-chart", children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { class: "bq-chart-controls", children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("select", { class: "bq-pg-size", value: type, onChange: (e) => setType(e.currentTarget.value), title: "Chart type", children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "bar", children: "Bar" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "line", children: "Line" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "scatter", children: "Scatter" })] }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { class: "bq-chart-label", children: "X" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("select", { class: "bq-pg-size", value: xKey, onChange: (e) => setXKey(e.currentTarget.value), title: "X axis column", children: dims.map(c => (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: c.key, children: c.label })) }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { class: "bq-chart-label", children: "Y" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("select", { class: "bq-pg-size", value: yKey, onChange: (e) => setYKey(e.currentTarget.value), title: "Y axis measure", children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "", children: "Count of rows" }), measures.map(c => (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: c.key, children: c.label }))] }), aggApplies && ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("select", { class: "bq-pg-size", value: agg, onChange: (e) => setAgg(e.currentTarget.value), title: "Aggregation per category", children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "sum", children: "Sum" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "avg", children: "Avg" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "min", children: "Min" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "max", children: "Max" })] })), categoricals.length > 0 && ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)(preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.Fragment, { children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { class: "bq-chart-label", children: "Color by" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("select", { class: "bq-pg-size", value: colorKey, onChange: (e) => setColorKey(e.currentTarget.value), title: "Split into one series per value", children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: "", children: "None" }), categoricals.map(c => (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: c.key, children: c.label }))] })] })), !multi && ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)(preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.Fragment, { children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { class: "bq-chart-swatch", style: { background: HUES.find(h => h.id === hue)?.css } }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("select", { class: "bq-pg-size", value: hue, onChange: (e) => setHue(e.currentTarget.value), title: "Chart color (theme palette)", children: HUES.map(h => (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("option", { value: h.id, children: h.label })) })] })), notes.length > 0 && (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { class: "bq-chart-note", children: notes.join(' · ') })] }), multi && group && ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { class: "bq-chart-legend", children: group.series.map((s, i) => ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("span", { class: "bq-chart-legend-item", children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { class: "bq-chart-swatch", style: { background: seriesColor(s.name, i) } }), s.name.length > 24 ? s.name.slice(0, 23) + '…' : s.name] }))) })), loading && (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { class: "bq-notice", children: "Loading rows for chart\u2026" }), !xCol && (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { class: "bq-empty", children: "No chartable column." }), xCol && group && !hasData && !loading && ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { class: "bq-empty", children: "No plottable values for this X/Y choice." })), xCol && group && hasData && ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(ChartSvg, { type: type, group: group, yName: yCol ? (aggApplies ? `${agg}(${yCol.label})` : yCol.label) : 'count', colorOf: seriesColor, showSeriesName: multi }))] }));
 }
 const W = 920;
-const H = 360;
+const H = 300;
 const M = { top: 14, right: 16, bottom: 42, left: 56 };
-function ChartSvg({ type, series, yName, color }) {
+function ChartSvg({ type, group, yName, colorOf, showSeriesName }) {
     // Custom hover tooltip — instant, unlike native SVG <title> (fixed OS delay).
     const [tip, setTip] = (0,preact_hooks__WEBPACK_IMPORTED_MODULE_1__.useState)(null);
     const showTip = (e, lines) => {
@@ -891,52 +905,93 @@ function ChartSvg({ type, series, yName, color }) {
     const hideTip = () => setTip(null);
     const iw = W - M.left - M.right;
     const ih = H - M.top - M.bottom;
-    const pts = series.points;
-    const ys = pts.map(p => p.y);
-    const yMin = Math.min(0, ...ys);
-    const yMax = Math.max(0, ...ys);
+    const isCat = group.kind === 'category';
+    const cats = group.categories ?? [];
+    // Y domain across every series.
+    const allYs = [];
+    for (const s of group.series) {
+        for (const v of s.values) {
+            if (v !== null) {
+                allYs.push(v);
+            }
+        }
+        for (const p of s.points) {
+            allYs.push(p.y);
+        }
+    }
+    const yMin = Math.min(0, ...allYs);
+    const yMax = Math.max(0, ...allYs);
     const yTicks = (0,_chartData__WEBPACK_IMPORTED_MODULE_2__.niceTicks)(yMin, yMax, 5);
     const yLo = yTicks.length ? Math.min(yTicks[0], yMin) : yMin;
     const yHi = yTicks.length ? Math.max(yTicks[yTicks.length - 1], yMax) : yMax;
     const sy = (v) => M.top + ih - ((v - yLo) / (yHi - yLo || 1)) * ih;
     // X scale.
-    const isCat = series.kind === 'category' || type === 'bar';
-    let sx;
-    let band = 0;
-    let xNums = [];
-    if (isCat) {
-        band = iw / pts.length;
-        sx = (_p, i) => M.left + i * band + band / 2;
-    }
-    else {
-        xNums = pts.map(p => p.x);
-        const xLo = Math.min(...xNums);
-        const xHi = Math.max(...xNums);
-        sx = (p) => M.left + ((p.x - xLo) / (xHi - xLo || 1)) * iw;
-    }
-    const stroke = color;
+    const allXs = isCat ? [] : group.series.flatMap(s => s.points.map(p => p.x));
+    const xLo = isCat ? 0 : Math.min(...allXs);
+    const xHi = isCat ? 0 : Math.max(...allXs);
+    const band = isCat ? iw / Math.max(1, cats.length) : 0;
+    const sxCat = (i) => M.left + i * band + band / 2;
+    const sxNum = (x) => M.left + ((x - xLo) / (xHi - xLo || 1)) * iw;
     const ink = 'var(--vscode-foreground)';
-    const grid = 'var(--vscode-editorWidget-border, rgba(128,128,128,.25))';
-    // Category tick labels: show at most ~12, evenly skipped.
-    const catSkip = isCat ? Math.max(1, Math.ceil(pts.length / 12)) : 1;
-    const spanMs = !isCat && series.kind === 'time' ? Math.max(...xNums) - Math.min(...xNums) : 0;
-    const xTickVals = !isCat ? (0,_chartData__WEBPACK_IMPORTED_MODULE_2__.niceTicks)(Math.min(...xNums), Math.max(...xNums), 5) : [];
-    const fmtX = (v) => series.kind === 'time' ? (0,_chartData__WEBPACK_IMPORTED_MODULE_2__.formatTimeTick)(v, spanMs)
+    const gridLn = 'var(--vscode-editorWidget-border, rgba(128,128,128,.25))';
+    const catSkip = isCat ? Math.max(1, Math.ceil(cats.length / 12)) : 1;
+    const spanMs = !isCat && group.kind === 'time' ? xHi - xLo : 0;
+    const xTickVals = !isCat && allXs.length ? (0,_chartData__WEBPACK_IMPORTED_MODULE_2__.niceTicks)(xLo, xHi, 5) : [];
+    const fmtX = (v) => group.kind === 'time' ? (0,_chartData__WEBPACK_IMPORTED_MODULE_2__.formatTimeTick)(v, spanMs)
         : typeof v === 'number' ? (0,_chartData__WEBPACK_IMPORTED_MODULE_2__.compactNumber)(v)
             : String(v).length > 14 ? String(v).slice(0, 13) + '…' : String(v);
-    const barW = Math.max(2, Math.min(28, band - 2)); // ≥2px surface gap between bars
+    const nSeries = Math.max(1, group.series.length);
+    // Grouped bars: split the category band into per-series slots (2px surface gaps).
+    const slot = isCat ? Math.max(3, (band - 4) / nSeries) : 8;
+    const barW = Math.max(2, Math.min(24, slot - 2));
     const zeroY = sy(Math.max(0, yLo));
-    return ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { class: "bq-chart-scroll", children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("svg", { viewBox: `0 0 ${W} ${H}`, class: "bq-chart-svg", role: "img", "aria-label": `${type} chart of ${yName}`, children: [yTicks.map(t => ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("g", { children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("line", { x1: M.left, x2: W - M.right, y1: sy(t), y2: sy(t), stroke: grid, "stroke-width": "1" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("text", { x: M.left - 8, y: sy(t) + 3.5, "text-anchor": "end", class: "bq-chart-tick", fill: ink, children: (0,_chartData__WEBPACK_IMPORTED_MODULE_2__.compactNumber)(t) })] }))), isCat
-                        ? pts.map((p, i) => (i % catSkip === 0
-                            ? (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("text", { x: sx(p, i), y: H - M.bottom + 16, "text-anchor": "middle", class: "bq-chart-tick", fill: ink, children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("title", { children: String(p.x) }), fmtX(p.x)] })
+    const tipLines = (sName, x, y) => {
+        const l = [String(typeof x === 'number' ? fmtX(x) : x)];
+        if (showSeriesName) {
+            l.push(sName);
+        }
+        l.push(`${yName}: ${y.toLocaleString()}`);
+        return l;
+    };
+    return ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { class: "bq-chart-scroll", children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("svg", { viewBox: `0 0 ${W} ${H}`, class: "bq-chart-svg", role: "img", "aria-label": `${type} chart of ${yName}`, children: [yTicks.map(t => ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("g", { children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("line", { x1: M.left, x2: W - M.right, y1: sy(t), y2: sy(t), stroke: gridLn, "stroke-width": "1" }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("text", { x: M.left - 8, y: sy(t) + 3.5, "text-anchor": "end", class: "bq-chart-tick", fill: ink, children: (0,_chartData__WEBPACK_IMPORTED_MODULE_2__.compactNumber)(t) })] }))), isCat
+                        ? cats.map((c, i) => (i % catSkip === 0
+                            ? (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("text", { x: sxCat(i), y: H - M.bottom + 16, "text-anchor": "middle", class: "bq-chart-tick", fill: ink, children: fmtX(c) })
                             : null))
-                        : xTickVals.map(v => ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("text", { x: sx({ x: v }, 0), y: H - M.bottom + 16, "text-anchor": "middle", class: "bq-chart-tick", fill: ink, children: fmtX(v) }))), type === 'bar' && pts.map((p, i) => {
-                        const y = sy(p.y);
-                        const top = Math.min(y, zeroY);
-                        const h = Math.max(1, Math.abs(zeroY - y));
-                        const lines = [String(p.x), `${yName}: ${p.y.toLocaleString()}`];
-                        return ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("rect", { x: sx(p, i) - barW / 2, y: top, width: barW, height: h, rx: Math.min(3, barW / 2), fill: stroke, onMouseMove: (e) => showTip(e, lines), onMouseLeave: hideTip }));
-                    }), type === 'line' && ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)(preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.Fragment, { children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("path", { d: pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${sx(p, i).toFixed(1)},${sy(p.y).toFixed(1)}`).join(' '), fill: "none", stroke: stroke, "stroke-width": "2", "stroke-linejoin": "round" }), pts.length <= 120 && pts.map((p, i) => ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("circle", { cx: sx(p, i), cy: sy(p.y), r: "3", fill: stroke, stroke: "transparent", "stroke-width": "12", onMouseMove: (e) => showTip(e, [fmtX(p.x), `${yName}: ${p.y.toLocaleString()}`]), onMouseLeave: hideTip })))] })), type === 'scatter' && pts.map((p, i) => ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("circle", { cx: sx(p, i), cy: sy(p.y), r: "4", fill: stroke, "fill-opacity": "0.75", stroke: "transparent", "stroke-width": "10", onMouseMove: (e) => showTip(e, [fmtX(p.x), `${yName}: ${p.y.toLocaleString()}`]), onMouseLeave: hideTip }))), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("line", { x1: M.left, x2: W - M.right, y1: zeroY, y2: zeroY, stroke: ink, "stroke-opacity": "0.45", "stroke-width": "1" })] }), tip && ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { class: "bq-chart-tip", style: { left: `${tip.x}px`, top: `${tip.y}px` }, children: tip.lines.map(l => (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { children: l })) }))] }));
+                        : xTickVals.map(v => ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("text", { x: sxNum(v), y: H - M.bottom + 16, "text-anchor": "middle", class: "bq-chart-tick", fill: ink, children: fmtX(v) }))), group.series.map((s, si) => {
+                        const color = colorOf(s.name, si);
+                        if (isCat && type === 'bar') {
+                            return cats.map((c, ci) => {
+                                const v = s.values[ci];
+                                if (v === null) {
+                                    return null;
+                                }
+                                const groupLeft = sxCat(ci) - (slot * nSeries) / 2;
+                                const x = groupLeft + si * slot + (slot - barW) / 2;
+                                const y = sy(v);
+                                const top = Math.min(y, zeroY);
+                                const h = Math.max(1, Math.abs(zeroY - y));
+                                return ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("rect", { x: x, y: top, width: barW, height: h, rx: Math.min(3, barW / 2), fill: color, onMouseMove: (e) => showTip(e, tipLines(s.name, c, v)), onMouseLeave: hideTip }));
+                            });
+                        }
+                        // Screen-space points for the series (category kinds place points at band centers).
+                        const spts = isCat
+                            ? cats.map((c, ci) => ({ label: c, px: sxCat(ci), v: s.values[ci] }))
+                                .filter(p => p.v !== null)
+                                .map(p => ({ label: p.label, px: p.px, py: sy(p.v), v: p.v }))
+                            : s.points.map(p => ({ label: p.x, px: sxNum(p.x), py: sy(p.y), v: p.y }));
+                        if (type === 'line') {
+                            return ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("g", { children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("path", { d: spts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.px.toFixed(1)},${p.py.toFixed(1)}`).join(' '), fill: "none", stroke: color, "stroke-width": "2", "stroke-linejoin": "round" }), spts.length <= 120 && spts.map(p => ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("circle", { cx: p.px, cy: p.py, r: "3", fill: color, stroke: "transparent", "stroke-width": "12", onMouseMove: (e) => showTip(e, tipLines(s.name, p.label, p.v)), onMouseLeave: hideTip })))] }));
+                        }
+                        if (type === 'scatter') {
+                            return spts.map(p => ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("circle", { cx: p.px, cy: p.py, r: "4", fill: color, "fill-opacity": "0.75", stroke: "transparent", "stroke-width": "10", onMouseMove: (e) => showTip(e, tipLines(s.name, p.label, p.v)), onMouseLeave: hideTip })));
+                        }
+                        // bar over a numeric/time axis: thin per-point bars
+                        return spts.map(p => {
+                            const top = Math.min(p.py, zeroY);
+                            const h = Math.max(1, Math.abs(zeroY - p.py));
+                            return ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("rect", { x: p.px - 2, y: top, width: 4, height: h, rx: 2, fill: color, onMouseMove: (e) => showTip(e, tipLines(s.name, p.label, p.v)), onMouseLeave: hideTip }));
+                        });
+                    }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("line", { x1: M.left, x2: W - M.right, y1: zeroY, y2: zeroY, stroke: ink, "stroke-opacity": "0.45", "stroke-width": "1" })] }), tip && ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { class: "bq-chart-tip", style: { left: `${tip.x}px`, top: `${tip.y}px` }, children: tip.lines.map(l => (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { children: l })) }))] }));
 }
 
 
@@ -946,6 +1001,9 @@ function ChartSvg({ type, series, yName, color }) {
 
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   MAX_SERIES: () => (/* binding */ MAX_SERIES),
+/* harmony export */   OTHER_SERIES: () => (/* binding */ OTHER_SERIES),
+/* harmony export */   buildChartGroups: () => (/* binding */ buildChartGroups),
 /* harmony export */   buildChartSeries: () => (/* binding */ buildChartSeries),
 /* harmony export */   compactNumber: () => (/* binding */ compactNumber),
 /* harmony export */   dimensionColumns: () => (/* binding */ dimensionColumns),
@@ -1001,73 +1059,26 @@ function parseY(raw) {
     const n = Number(raw);
     return isFinite(n) ? n : null;
 }
+/** Series cap when coloring by a column; the tail folds into OTHER_SERIES. */
+const MAX_SERIES = 6;
+const OTHER_SERIES = 'Other';
+const newAcc = (y) => ({ sum: y, n: 1, min: y, max: y });
+const addAcc = (a, y) => { a.sum += y; a.n++; a.min = Math.min(a.min, y); a.max = Math.max(a.max, y); };
+const mergeAcc = (a, b) => { a.sum += b.sum; a.n += b.n; a.min = Math.min(a.min, b.min); a.max = Math.max(a.max, b.max); };
 /**
- * Builds a drawable series from wire-format rows.
- *  - `yCol === null` → y is a row count (agg ignored).
- *  - Categorical x → one point per category (`agg` of y, or count), sorted by y descending,
- *    capped at `maxCategories` (sets `truncated`).
- *  - Numeric/temporal x → one point per row, sorted by x ascending (agg not applicable).
+ * Builds one or more drawable series. `colorCol === null` → a single series (name '').
+ * With a color column, rows split into one series per value; the largest MAX_SERIES stay,
+ * the rest are folded into "Other" (aggregated together, so avg stays correct).
  */
-function buildChartSeries(rows, fields, xCol, yCol, agg = 'sum', maxCategories = 30) {
+function buildChartGroups(rows, fields, xCol, yCol, agg = 'sum', colorCol = null, maxCategories = 30) {
     const xType = xCol.type.toUpperCase();
     const kind = isTemporalType(xType) ? 'time' : isNumericType(xType) ? 'linear' : 'category';
     let skipped = 0;
-    if (kind === 'category') {
-        // Track enough per category to answer any of the aggregations.
-        const acc = new Map();
-        for (const row of rows) {
-            const x = parseX((0,_cellFormatters__WEBPACK_IMPORTED_MODULE_0__.extractRowValue)(row, fields, xCol.path), xCol);
-            if (x === null) {
-                skipped++;
-                continue;
-            }
-            let y = 1;
-            if (yCol) {
-                const parsed = parseY((0,_cellFormatters__WEBPACK_IMPORTED_MODULE_0__.extractRowValue)(row, fields, yCol.path));
-                if (parsed === null) {
-                    skipped++;
-                    continue;
-                }
-                y = parsed;
-            }
-            const key = String(x);
-            const a = acc.get(key);
-            if (a) {
-                a.sum += y;
-                a.n++;
-                a.min = Math.min(a.min, y);
-                a.max = Math.max(a.max, y);
-            }
-            else {
-                acc.set(key, { sum: y, n: 1, min: y, max: y });
-            }
-        }
-        const finalize = (a) => {
-            if (!yCol) {
-                return a.n;
-            } // count of rows
-            switch (agg) {
-                case 'avg': return a.sum / a.n;
-                case 'min': return a.min;
-                case 'max': return a.max;
-                default: return a.sum;
-            }
-        };
-        const sorted = [...acc.entries()]
-            .map(([x, a]) => ({ x, y: finalize(a) }))
-            .sort((a, b) => b.y - a.y);
-        const truncated = sorted.length > maxCategories;
-        return {
-            kind,
-            points: sorted.slice(0, maxCategories).map(({ x, y }) => ({ x, y })),
-            truncated,
-            skipped,
-        };
-    }
-    const points = [];
+    // Row → (x, y, seriesKey) triples.
+    const triples = [];
     for (const row of rows) {
         const x = parseX((0,_cellFormatters__WEBPACK_IMPORTED_MODULE_0__.extractRowValue)(row, fields, xCol.path), xCol);
-        if (x === null || typeof x !== 'number') {
+        if (x === null || (kind !== 'category' && typeof x !== 'number')) {
             skipped++;
             continue;
         }
@@ -1080,10 +1091,110 @@ function buildChartSeries(rows, fields, xCol, yCol, agg = 'sum', maxCategories =
             }
             y = parsed;
         }
-        points.push({ x, y });
+        let s = '';
+        if (colorCol) {
+            const raw = (0,_cellFormatters__WEBPACK_IMPORTED_MODULE_0__.extractRowValue)(row, fields, colorCol.path);
+            s = raw === null || raw === undefined ? 'NULL' : String(raw);
+        }
+        triples.push({ x, y, s });
     }
-    points.sort((a, b) => a.x - b.x);
-    return { kind, points, truncated: false, skipped };
+    // Pick the series to keep: largest total magnitude (or row count for counts).
+    const seriesTotals = new Map();
+    for (const t of triples) {
+        seriesTotals.set(t.s, (seriesTotals.get(t.s) ?? 0) + (yCol ? Math.abs(t.y) : 1));
+    }
+    const rankedSeries = [...seriesTotals.entries()].sort((a, b) => b[1] - a[1]).map(([s]) => s);
+    const seriesFolded = !!colorCol && rankedSeries.length > MAX_SERIES;
+    const kept = new Set(rankedSeries.slice(0, MAX_SERIES));
+    const seriesKey = (s) => (kept.has(s) ? s : OTHER_SERIES);
+    const seriesNames = rankedSeries.slice(0, MAX_SERIES).concat(seriesFolded ? [OTHER_SERIES] : []);
+    const finalize = (a) => {
+        if (!yCol) {
+            return a.n;
+        }
+        switch (agg) {
+            case 'avg': return a.sum / a.n;
+            case 'min': return a.min;
+            case 'max': return a.max;
+            default: return a.sum;
+        }
+    };
+    if (kind === 'category') {
+        // cat → series → acc, plus combined per-cat totals for ordering/capping.
+        const byCat = new Map();
+        const catTotal = new Map();
+        for (const t of triples) {
+            const cat = String(t.x);
+            const s = seriesKey(t.s);
+            let perSeries = byCat.get(cat);
+            if (!perSeries) {
+                perSeries = new Map();
+                byCat.set(cat, perSeries);
+            }
+            const a = perSeries.get(s);
+            if (a) {
+                addAcc(a, t.y);
+            }
+            else {
+                perSeries.set(s, newAcc(t.y));
+            }
+            const ct = catTotal.get(cat);
+            if (ct) {
+                addAcc(ct, t.y);
+            }
+            else {
+                catTotal.set(cat, newAcc(t.y));
+            }
+        }
+        const orderedCats = [...catTotal.entries()]
+            .sort((a, b) => finalize(b[1]) - finalize(a[1]))
+            .map(([c]) => c);
+        const truncated = orderedCats.length > maxCategories;
+        const categories = orderedCats.slice(0, maxCategories);
+        const series = seriesNames.map(name => ({
+            name,
+            values: categories.map(cat => {
+                const a = byCat.get(cat)?.get(name);
+                return a ? finalize(a) : null;
+            }),
+            points: [],
+        }));
+        return { kind, categories, series, truncated, seriesFolded, skipped };
+    }
+    // Linear / time: per-series raw points. "Other" merges the tail's points.
+    const bySeries = new Map();
+    for (const t of triples) {
+        const s = seriesKey(t.s);
+        const arr = bySeries.get(s);
+        const pt = { x: t.x, y: t.y };
+        if (arr) {
+            arr.push(pt);
+        }
+        else {
+            bySeries.set(s, [pt]);
+        }
+    }
+    const series = seriesNames
+        .filter(name => bySeries.has(name))
+        .map(name => ({
+        name,
+        values: [],
+        points: bySeries.get(name).sort((a, b) => a.x - b.x),
+    }));
+    return { kind, categories: null, series, truncated: false, seriesFolded, skipped };
+}
+/**
+ * Single-series convenience wrapper over buildChartGroups (no color column).
+ * Categorical x → one point per category (`agg` of y, or count), y-descending, capped.
+ * Numeric/temporal x → one point per row, x-ascending.
+ */
+function buildChartSeries(rows, fields, xCol, yCol, agg = 'sum', maxCategories = 30) {
+    const g = buildChartGroups(rows, fields, xCol, yCol, agg, null, maxCategories);
+    if (g.kind === 'category') {
+        const points = (g.categories ?? []).map((c, i) => ({ x: c, y: g.series[0]?.values[i] ?? 0 }));
+        return { kind: g.kind, points, truncated: g.truncated, skipped: g.skipped };
+    }
+    return { kind: g.kind, points: g.series[0]?.points ?? [], truncated: false, skipped: g.skipped };
 }
 /** Nice-number axis ticks covering [min, max] (inclusive-ish), ~`count` steps. */
 function niceTicks(min, max, count = 5) {
@@ -1141,7 +1252,7 @@ function formatTimeTick(ms, spanMs) {
 /* 9 */
 /***/ ((module) => {
 
-module.exports = ":root {\n    --bq-border: var(--vscode-panel-border, rgba(255,255,255,0.08));\n    --bq-border-soft: color-mix(in srgb, var(--vscode-panel-border, #3e3e3e) 50%, transparent);\n    --bq-accent: var(--vscode-focusBorder, #007acc);\n    --bq-hover: var(--vscode-list-hoverBackground, rgba(255,255,255,0.04));\n    --bq-stripe: color-mix(in srgb, var(--vscode-editor-background, #1e1e1e) 92%, var(--vscode-foreground, white) 8%);\n    --bq-muted: color-mix(in srgb, var(--vscode-foreground, #ccc) 55%, transparent);\n    --bq-radius: 4px;\n}\n\nbody { margin: 0; padding: 0; font-family: var(--vscode-font-family, sans-serif); font-size: var(--vscode-font-size, 13px); color: var(--vscode-foreground); background: var(--vscode-editor-background); }\n\n.bq-root { display: flex; flex-direction: column; height: 100vh; }\n/* DML-only result: just the summary banner, no table — don't stretch to fill the panel. */\n.bq-root.bq-root-dml-only { height: auto; }\n\n.bq-ctx-menu {\n    position: fixed;\n    z-index: 20;\n    min-width: 180px;\n    background: var(--vscode-menu-background, var(--vscode-editor-background));\n    color: var(--vscode-menu-foreground, var(--vscode-foreground));\n    border: 1px solid var(--vscode-menu-border, var(--bq-border));\n    border-radius: 4px;\n    box-shadow: 0 6px 18px rgba(0,0,0,0.35);\n    padding: 4px;\n    font-size: 0.88em;\n    user-select: none;\n}\n.bq-ctx-head {\n    padding: 4px 10px 6px;\n    font-size: 0.78em;\n    color: color-mix(in srgb, var(--vscode-foreground) 55%, transparent);\n    border-bottom: 1px solid var(--bq-border);\n    margin-bottom: 4px;\n    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;\n}\n.bq-ctx-sep {\n    height: 1px;\n    background: var(--bq-border);\n    margin: 4px 0;\n}\n.bq-ctx-item {\n    display: block;\n    width: 100%;\n    text-align: left;\n    padding: 5px 10px;\n    background: transparent;\n    color: inherit;\n    border: none;\n    border-radius: 3px;\n    cursor: pointer;\n    font: inherit;\n}\n.bq-ctx-item:hover {\n    background: var(--vscode-menu-selectionBackground, var(--vscode-list-hoverBackground));\n    color: var(--vscode-menu-selectionForeground, var(--vscode-list-hoverForeground, inherit));\n}\n\n.bq-dml-summary {\n    display: flex;\n    align-items: center;\n    gap: 10px;\n    padding: 8px 12px;\n    border-bottom: 1px solid var(--bq-border);\n    background: color-mix(in srgb, var(--vscode-charts-green, #4ec9b0) 12%, var(--vscode-editor-background) 88%);\n    font-size: 0.88em;\n}\n.bq-dml-type {\n    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;\n    font-weight: 600;\n    padding: 2px 8px;\n    border-radius: 3px;\n    background: color-mix(in srgb, var(--vscode-charts-green, #4ec9b0) 25%, transparent);\n    color: color-mix(in srgb, var(--vscode-foreground) 70%, var(--vscode-charts-green, #4ec9b0) 30%);\n    letter-spacing: 0.02em;\n    font-size: 0.82em;\n}\n.bq-dml-counts {\n    color: var(--vscode-foreground);\n}\n\n.bq-controls {\n    display: flex;\n    align-items: center;\n    gap: 6px;\n    padding: 8px 12px;\n    border-bottom: 1px solid var(--bq-border);\n    background: var(--vscode-editor-background);\n    font-size: 0.9em;\n    flex-wrap: wrap;\n    position: sticky;\n    top: 0;\n    z-index: 3;\n    backdrop-filter: blur(6px);\n}\n\n.bq-pg-btn {\n    background: transparent;\n    color: inherit;\n    border: 1px solid var(--bq-border);\n    padding: 3px 9px;\n    cursor: pointer;\n    border-radius: var(--bq-radius);\n    font: inherit;\n    transition: background 0.12s, border-color 0.12s, color 0.12s;\n    line-height: 1.2;\n}\n.bq-pg-btn:hover:not(:disabled) { background: var(--bq-hover); border-color: var(--bq-accent); }\n.bq-pg-btn:active:not(:disabled) { transform: translateY(1px); }\n.bq-pg-btn:disabled { opacity: 0.35; cursor: default; }\n\n.bq-pg-label { color: var(--bq-muted); margin-left: 2px; }\n.bq-pg-input {\n    background: var(--vscode-input-background, transparent);\n    color: inherit;\n    border: 1px solid var(--bq-border);\n    padding: 3px 6px;\n    border-radius: var(--bq-radius);\n    width: 58px;\n    text-align: center;\n    font: inherit;\n    transition: border-color 0.12s;\n}\n.bq-pg-input:focus { outline: none; border-color: var(--bq-accent); }\n.bq-pg-of { color: var(--bq-muted); }\n.bq-pg-info { padding: 0 8px; color: var(--bq-muted); font-size: 0.9em; }\n.bq-pg-size {\n    background: transparent;\n    color: inherit;\n    border: 1px solid var(--bq-border);\n    padding: 3px 6px;\n    border-radius: var(--bq-radius);\n    font: inherit;\n    cursor: pointer;\n}\n.bq-pg-size:hover { border-color: var(--bq-accent); }\n\n.bq-export { display: flex; gap: 4px; margin-left: auto; padding-left: 12px; border-left: 1px solid var(--bq-border-soft); }\n\n.bq-notice { padding: 8px 12px; color: var(--bq-muted); font-style: italic; font-size: 0.9em; }\n.bq-empty { padding: 16px; color: var(--bq-muted); font-size: 0.9em; text-align: center; }\n\n.bq-error, .bq-error-panel {\n    padding: 10px 14px;\n    background: var(--vscode-inputValidation-errorBackground, rgba(255,0,0,0.1));\n    border: 1px solid var(--vscode-inputValidation-errorBorder, rgba(255,0,0,0.5));\n    color: var(--vscode-inputValidation-errorForeground, inherit);\n    margin: 8px 12px;\n    border-radius: var(--bq-radius);\n}\n.bq-error-title { font-weight: 600; margin-bottom: 4px; }\n.bq-error-reason { color: var(--bq-muted); margin-top: 4px; font-size: 0.9em; }\n\n.bq-scroll {\n    flex: 1;\n    overflow: auto;\n    background: var(--vscode-editor-background);\n}\n\n.bq-grid {\n    border-collapse: separate;\n    border-spacing: 0;\n    width: max-content;\n    min-width: 100%;\n    font-family: var(--vscode-editor-font-family, ui-monospace, SFMono-Regular, Menlo, monospace);\n    font-size: 0.88em;\n    line-height: 1.45;\n    /* The overlay horizontal scrollbar floats over the container's bottom edge — keep the\n       last row clear of it. */\n    margin-bottom: 12px;\n}\n\n.bq-grid thead th {\n    position: sticky;\n    top: 0;\n    z-index: 2;\n    background: var(--vscode-editor-background);\n    border-bottom: 1px solid var(--bq-accent);\n    font-weight: 600;\n    padding: 8px 14px;\n    text-align: left;\n    cursor: pointer;\n    user-select: none;\n    font-family: var(--vscode-font-family, sans-serif);\n    font-size: 0.9em;\n    letter-spacing: 0.01em;\n    white-space: nowrap;\n    transition: background 0.12s;\n}\n.bq-grid thead th::after {\n    content: '';\n    position: absolute;\n    right: 0; top: 25%; bottom: 25%;\n    width: 1px;\n    background: var(--bq-border-soft);\n}\n.bq-grid thead th:last-child::after { display: none; }\n.bq-grid thead th:hover { background: var(--bq-hover); }\n.bq-grid thead th .bq-col-type {\n    display: inline-block;\n    margin-left: 6px;\n    padding: 1px 5px;\n    border: 1px solid var(--bq-border-soft);\n    border-radius: 3px;\n    font-size: 0.75em;\n    color: var(--bq-muted);\n    font-weight: 500;\n    letter-spacing: 0.04em;\n    text-transform: lowercase;\n    vertical-align: middle;\n}\n.bq-grid thead th .bq-sort {\n    color: var(--bq-accent);\n    font-size: 0.8em;\n    margin-left: 4px;\n}\n\n.bq-grid tbody td {\n    padding: 5px 14px;\n    border-bottom: 1px solid var(--bq-border-soft);\n    white-space: nowrap;\n    vertical-align: top;\n}\n\n.bq-grid tbody tr:nth-child(even) td { background: var(--bq-stripe); }\n.bq-grid tbody tr:hover td {\n    background: var(--bq-hover);\n}\n\n.bq-grid td.bq-rownum {\n    position: sticky;\n    left: 0;\n    z-index: 1;\n    background: var(--vscode-editor-background);\n    color: var(--bq-muted);\n    text-align: right;\n    font-size: 0.78em;\n    padding: 5px 6px 5px 8px;\n    user-select: none;\n    border-right: 1px solid var(--bq-border-soft);\n    min-width: 0;\n    width: 1%;\n    white-space: nowrap;\n}\n.bq-grid tbody tr:nth-child(even) td.bq-rownum { background: var(--bq-stripe); }\n.bq-grid tbody tr:hover td.bq-rownum { background: var(--bq-hover); color: var(--bq-accent); }\n\n.bq-grid thead th.bq-rownum {\n    position: sticky;\n    left: 0;\n    z-index: 3;\n    background: var(--vscode-editor-background);\n    cursor: default;\n    padding: 8px 6px 8px 8px;\n    width: 1%;\n    text-align: right;\n    color: var(--bq-muted);\n}\n\n.bq-grid td.bq-numeric { text-align: right; font-variant-numeric: tabular-nums; }\n.bq-grid td.bq-cell-max { max-width: 800px; overflow: hidden; text-overflow: ellipsis; }\n\n.bq-grid tbody tr { position: relative; }\n.bq-grid tbody tr:hover td:not(.bq-rownum):first-of-type { box-shadow: inset 2px 0 0 var(--bq-accent); }\n\n.bq-grid tbody td:not(.bq-rownum) { cursor: cell; }\n.bq-grid tbody td:not(.bq-rownum):active { background: color-mix(in srgb, var(--bq-accent) 15%, var(--vscode-editor-background)) !important; }\n\n.bq-toast {\n    position: fixed;\n    bottom: 18px;\n    left: 50%;\n    transform: translateX(-50%) translateY(20px);\n    padding: 6px 14px;\n    background: var(--vscode-notifications-background, #252526);\n    color: var(--vscode-notifications-foreground, inherit);\n    border: 1px solid var(--bq-accent);\n    border-radius: 20px;\n    font-size: 0.85em;\n    box-shadow: 0 4px 14px rgba(0,0,0,0.4);\n    opacity: 0;\n    pointer-events: none;\n    transition: opacity 0.18s, transform 0.18s;\n    z-index: 10;\n}\n.bq-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }\n\n/* Density */\n.bq-grid tbody td { padding: var(--bq-cell-pad-y, 5px) 14px; font-size: var(--bq-cell-font, 0.88em); }\n\n/* Tabs */\n.bq-tabs { display: flex; gap: 2px; padding-right: 8px; border-right: 1px solid var(--bq-border-soft); margin-right: 4px; }\n.bq-tab {\n    background: transparent; color: inherit; border: none;\n    padding: 4px 10px; cursor: pointer; border-radius: var(--bq-radius);\n    font: inherit; font-weight: 500;\n    transition: background 0.12s, color 0.12s;\n    border-bottom: 2px solid transparent;\n}\n.bq-tab:hover { background: var(--bq-hover); }\n.bq-tab.active { color: var(--bq-accent); border-bottom-color: var(--bq-accent); border-radius: 0; }\n.bq-count { display: inline-block; margin-left: 4px; padding: 0 5px; font-size: 0.78em; color: var(--bq-muted); background: var(--bq-hover); border-radius: 8px; font-weight: 400; }\n\n/* Find */\n.bq-find { position: relative; display: inline-flex; align-items: center; }\n.bq-find-input {\n    background: var(--vscode-input-background, transparent);\n    color: inherit;\n    border: 1px solid var(--bq-border);\n    padding: 3px 26px 3px 8px;\n    border-radius: var(--bq-radius);\n    font: inherit;\n    width: 120px;\n    transition: border-color 0.12s, width 0.18s;\n}\n.bq-find-input:focus { outline: none; border-color: var(--bq-accent); width: 180px; }\n.bq-find-count { position: absolute; right: 6px; font-size: 0.75em; color: var(--bq-muted); pointer-events: none; }\n\n/* Density toggle */\n.bq-density { display: inline-flex; border: 1px solid var(--bq-border); border-radius: var(--bq-radius); overflow: hidden; }\n.bq-density-btn {\n    background: transparent; color: inherit; border: none;\n    padding: 3px 8px; cursor: pointer; font: inherit;\n    border-right: 1px solid var(--bq-border-soft);\n    transition: background 0.12s, color 0.12s;\n    line-height: 1.2;\n}\n.bq-density-btn:last-child { border-right: none; }\n.bq-density-btn:hover { background: var(--bq-hover); }\n.bq-density-btn.active { background: var(--bq-accent); color: var(--vscode-button-foreground, white); }\n\n/* Selected */\n.bq-grid tbody tr.bq-selected td { background: color-mix(in srgb, var(--bq-accent) 18%, var(--vscode-editor-background)) !important; }\n.bq-grid tbody tr.bq-selected td.bq-rownum { color: var(--bq-accent); font-weight: 600; }\n.bq-sel-count { padding: 0 6px; font-size: 0.82em; color: var(--bq-accent); font-weight: 600; }\n\n/* Header name + resize */\n.bq-grid thead th { position: relative; padding-right: 10px; }\n.bq-col-name { margin-right: 4px; }\n.bq-resize {\n    position: absolute;\n    top: 0; bottom: 0; right: -3px;\n    width: 6px;\n    cursor: col-resize;\n    z-index: 2;\n}\n.bq-resize:hover { background: var(--bq-accent); }\n.bq-sort-rank { font-size: 0.7em; opacity: 0.8; margin-left: 1px; }\n\n/* Find highlight */\nmark.bq-mark { background: color-mix(in srgb, var(--bq-accent) 35%, transparent); color: inherit; padding: 0 1px; border-radius: 2px; }\n\n/* Layout with drawer */\n.bq-layout { flex: 1; display: flex; min-height: 0; overflow: hidden; }\n.bq-layout .bq-scroll { flex: 1; min-width: 0; }\n\n.bq-drawer {\n    width: 380px;\n    min-width: 240px;\n    max-width: 60vw;\n    border-left: 1px solid var(--bq-border);\n    display: flex;\n    flex-direction: column;\n    background: var(--vscode-editor-background);\n    resize: horizontal;\n    overflow: hidden;\n}\n.bq-drawer-head { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-bottom: 1px solid var(--bq-border); }\n.bq-drawer-title { display: flex; gap: 8px; align-items: center; font-weight: 600; font-size: 0.9em; min-width: 0; }\n.bq-drawer-title > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }\n.bq-drawer-actions { display: flex; gap: 4px; }\n.bq-drawer-body {\n    flex: 1;\n    overflow: auto;\n    margin: 0;\n    padding: 12px;\n    font-family: var(--vscode-editor-font-family, ui-monospace, SFMono-Regular, Menlo, monospace);\n    font-size: 0.85em;\n    line-height: 1.45;\n    white-space: pre-wrap;\n    word-break: break-word;\n    color: var(--vscode-editor-foreground, inherit);\n}\n\n/* Type syntax colors — subtle, theme-aware.\n   Each var can be overridden by the extension via vscode-bigquery.gridColors.\n   Defaults cascade: user override → VS Code chart var → hardcoded fallback. */\n:root {\n    --bq-color-number: var(--vscode-charts-blue, #4fc1ff);\n    --bq-color-boolean: var(--vscode-charts-purple, #c586c0);\n    --bq-color-timestamp: var(--vscode-charts-orange, #ce9178);\n    --bq-color-struct: color-mix(in srgb, var(--vscode-foreground) 70%, var(--vscode-charts-green, #4ec9b0) 30%);\n    --bq-color-bytes: color-mix(in srgb, var(--vscode-foreground) 65%, var(--vscode-charts-yellow, #dcdcaa) 35%);\n    --bq-color-string: inherit;\n    --bq-color-null: var(--vscode-inputValidation-warningBorder, #c5a300);\n}\n\n.bq-grid td.bq-numeric,\n.bq-grid td.bq-t-int64,\n.bq-grid td.bq-t-integer,\n.bq-grid td.bq-t-float,\n.bq-grid td.bq-t-float64,\n.bq-grid td.bq-t-numeric,\n.bq-grid td.bq-t-bignumeric { color: var(--bq-color-number); }\n\n.bq-grid td.bq-t-bool,\n.bq-grid td.bq-t-boolean { color: var(--bq-color-boolean); font-weight: 500; }\n\n.bq-grid td.bq-t-timestamp,\n.bq-grid td.bq-t-date,\n.bq-grid td.bq-t-datetime,\n.bq-grid td.bq-t-time { color: var(--bq-color-timestamp); }\n\n.bq-grid td.bq-t-json,\n.bq-grid td.bq-t-record,\n.bq-grid td.bq-t-struct { color: var(--bq-color-struct); }\n\n.bq-grid td.bq-t-bytes,\n.bq-grid td.bq-t-geography { color: var(--bq-color-bytes); }\n\n.bq-grid td.bq-t-string { color: var(--bq-color-string); }\n\n.bq-grid td.bq-null { color: var(--bq-color-null) !important; }\n\n/* Schema grid tweaks */\n.bq-schema-grid td, .bq-schema-grid th { font-family: var(--vscode-font-family, sans-serif); }\n.bq-muted { color: var(--bq-muted); }\n\n.bq-null {\n    color: var(--vscode-inputValidation-warningBorder, #c5a300);\n    font-style: italic;\n    opacity: 0.75;\n    font-size: 0.82em;\n    letter-spacing: 0.05em;\n}\n\n/* ---- Chart pane ---- */\n.bq-chart { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: auto; }\n.bq-chart-controls { display: flex; align-items: center; gap: 6px; padding: 6px 8px; flex-wrap: wrap; }\n.bq-chart-label { opacity: .7; font-size: .85em; }\n.bq-chart-note { opacity: .6; font-size: .8em; margin-left: 8px; }\n.bq-chart-scroll { flex: 1; min-height: 0; padding: 4px 8px 10px; }\n.bq-chart-svg { width: 100%; height: auto; max-height: 420px; display: block; }\n.bq-chart-tick { font-size: 10px; opacity: .65; font-family: var(--vscode-editor-font-family, monospace); }\n.bq-chart-swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; margin-left: 6px; }\n.bq-chart-scroll { position: relative; }\n.bq-chart-tip {\n    position: absolute;\n    z-index: 10;\n    pointer-events: none;\n    padding: 4px 8px;\n    font-size: 11px;\n    font-family: var(--vscode-editor-font-family, monospace);\n    background: var(--vscode-editorHoverWidget-background, #252526);\n    color: var(--vscode-editorHoverWidget-foreground, var(--vscode-foreground));\n    border: 1px solid var(--vscode-editorHoverWidget-border, rgba(128,128,128,.35));\n    border-radius: 3px;\n    white-space: nowrap;\n    box-shadow: 0 2px 8px rgba(0,0,0,.25);\n}\n";
+module.exports = ":root {\n    --bq-border: var(--vscode-panel-border, rgba(255,255,255,0.08));\n    --bq-border-soft: color-mix(in srgb, var(--vscode-panel-border, #3e3e3e) 50%, transparent);\n    --bq-accent: var(--vscode-focusBorder, #007acc);\n    --bq-hover: var(--vscode-list-hoverBackground, rgba(255,255,255,0.04));\n    --bq-stripe: color-mix(in srgb, var(--vscode-editor-background, #1e1e1e) 92%, var(--vscode-foreground, white) 8%);\n    --bq-muted: color-mix(in srgb, var(--vscode-foreground, #ccc) 55%, transparent);\n    --bq-radius: 4px;\n}\n\nbody { margin: 0; padding: 0; font-family: var(--vscode-font-family, sans-serif); font-size: var(--vscode-font-size, 13px); color: var(--vscode-foreground); background: var(--vscode-editor-background); }\n\n.bq-root { display: flex; flex-direction: column; height: 100vh; }\n/* DML-only result: just the summary banner, no table — don't stretch to fill the panel. */\n.bq-root.bq-root-dml-only { height: auto; }\n\n.bq-ctx-menu {\n    position: fixed;\n    z-index: 20;\n    min-width: 180px;\n    background: var(--vscode-menu-background, var(--vscode-editor-background));\n    color: var(--vscode-menu-foreground, var(--vscode-foreground));\n    border: 1px solid var(--vscode-menu-border, var(--bq-border));\n    border-radius: 4px;\n    box-shadow: 0 6px 18px rgba(0,0,0,0.35);\n    padding: 4px;\n    font-size: 0.88em;\n    user-select: none;\n}\n.bq-ctx-head {\n    padding: 4px 10px 6px;\n    font-size: 0.78em;\n    color: color-mix(in srgb, var(--vscode-foreground) 55%, transparent);\n    border-bottom: 1px solid var(--bq-border);\n    margin-bottom: 4px;\n    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;\n}\n.bq-ctx-sep {\n    height: 1px;\n    background: var(--bq-border);\n    margin: 4px 0;\n}\n.bq-ctx-item {\n    display: block;\n    width: 100%;\n    text-align: left;\n    padding: 5px 10px;\n    background: transparent;\n    color: inherit;\n    border: none;\n    border-radius: 3px;\n    cursor: pointer;\n    font: inherit;\n}\n.bq-ctx-item:hover {\n    background: var(--vscode-menu-selectionBackground, var(--vscode-list-hoverBackground));\n    color: var(--vscode-menu-selectionForeground, var(--vscode-list-hoverForeground, inherit));\n}\n\n.bq-dml-summary {\n    display: flex;\n    align-items: center;\n    gap: 10px;\n    padding: 8px 12px;\n    border-bottom: 1px solid var(--bq-border);\n    background: color-mix(in srgb, var(--vscode-charts-green, #4ec9b0) 12%, var(--vscode-editor-background) 88%);\n    font-size: 0.88em;\n}\n.bq-dml-type {\n    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;\n    font-weight: 600;\n    padding: 2px 8px;\n    border-radius: 3px;\n    background: color-mix(in srgb, var(--vscode-charts-green, #4ec9b0) 25%, transparent);\n    color: color-mix(in srgb, var(--vscode-foreground) 70%, var(--vscode-charts-green, #4ec9b0) 30%);\n    letter-spacing: 0.02em;\n    font-size: 0.82em;\n}\n.bq-dml-counts {\n    color: var(--vscode-foreground);\n}\n\n.bq-controls {\n    display: flex;\n    align-items: center;\n    gap: 6px;\n    padding: 8px 12px;\n    border-bottom: 1px solid var(--bq-border);\n    background: var(--vscode-editor-background);\n    font-size: 0.9em;\n    flex-wrap: wrap;\n    position: sticky;\n    top: 0;\n    z-index: 3;\n    backdrop-filter: blur(6px);\n}\n\n.bq-pg-btn {\n    background: transparent;\n    color: inherit;\n    border: 1px solid var(--bq-border);\n    padding: 3px 9px;\n    cursor: pointer;\n    border-radius: var(--bq-radius);\n    font: inherit;\n    transition: background 0.12s, border-color 0.12s, color 0.12s;\n    line-height: 1.2;\n}\n.bq-pg-btn:hover:not(:disabled) { background: var(--bq-hover); border-color: var(--bq-accent); }\n.bq-pg-btn:active:not(:disabled) { transform: translateY(1px); }\n.bq-pg-btn:disabled { opacity: 0.35; cursor: default; }\n\n.bq-pg-label { color: var(--bq-muted); margin-left: 2px; }\n.bq-pg-input {\n    background: var(--vscode-input-background, transparent);\n    color: inherit;\n    border: 1px solid var(--bq-border);\n    padding: 3px 6px;\n    border-radius: var(--bq-radius);\n    width: 58px;\n    text-align: center;\n    font: inherit;\n    transition: border-color 0.12s;\n}\n.bq-pg-input:focus { outline: none; border-color: var(--bq-accent); }\n.bq-pg-of { color: var(--bq-muted); }\n.bq-pg-info { padding: 0 8px; color: var(--bq-muted); font-size: 0.9em; }\n.bq-pg-size {\n    background: transparent;\n    color: inherit;\n    border: 1px solid var(--bq-border);\n    padding: 3px 6px;\n    border-radius: var(--bq-radius);\n    font: inherit;\n    cursor: pointer;\n}\n.bq-pg-size:hover { border-color: var(--bq-accent); }\n\n.bq-export { display: flex; gap: 4px; margin-left: auto; padding-left: 12px; border-left: 1px solid var(--bq-border-soft); }\n\n.bq-notice { padding: 8px 12px; color: var(--bq-muted); font-style: italic; font-size: 0.9em; }\n.bq-empty { padding: 16px; color: var(--bq-muted); font-size: 0.9em; text-align: center; }\n\n.bq-error, .bq-error-panel {\n    padding: 10px 14px;\n    background: var(--vscode-inputValidation-errorBackground, rgba(255,0,0,0.1));\n    border: 1px solid var(--vscode-inputValidation-errorBorder, rgba(255,0,0,0.5));\n    color: var(--vscode-inputValidation-errorForeground, inherit);\n    margin: 8px 12px;\n    border-radius: var(--bq-radius);\n}\n.bq-error-title { font-weight: 600; margin-bottom: 4px; }\n.bq-error-reason { color: var(--bq-muted); margin-top: 4px; font-size: 0.9em; }\n\n.bq-scroll {\n    flex: 1;\n    overflow: auto;\n    background: var(--vscode-editor-background);\n}\n\n.bq-grid {\n    border-collapse: separate;\n    border-spacing: 0;\n    width: max-content;\n    min-width: 100%;\n    font-family: var(--vscode-editor-font-family, ui-monospace, SFMono-Regular, Menlo, monospace);\n    font-size: 0.88em;\n    line-height: 1.45;\n    /* The overlay horizontal scrollbar floats over the container's bottom edge — keep the\n       last row clear of it. */\n    margin-bottom: 12px;\n}\n\n.bq-grid thead th {\n    position: sticky;\n    top: 0;\n    z-index: 2;\n    background: var(--vscode-editor-background);\n    border-bottom: 1px solid var(--bq-accent);\n    font-weight: 600;\n    padding: 8px 14px;\n    text-align: left;\n    cursor: pointer;\n    user-select: none;\n    font-family: var(--vscode-font-family, sans-serif);\n    font-size: 0.9em;\n    letter-spacing: 0.01em;\n    white-space: nowrap;\n    transition: background 0.12s;\n}\n.bq-grid thead th::after {\n    content: '';\n    position: absolute;\n    right: 0; top: 25%; bottom: 25%;\n    width: 1px;\n    background: var(--bq-border-soft);\n}\n.bq-grid thead th:last-child::after { display: none; }\n.bq-grid thead th:hover { background: var(--bq-hover); }\n.bq-grid thead th .bq-col-type {\n    display: inline-block;\n    margin-left: 6px;\n    padding: 1px 5px;\n    border: 1px solid var(--bq-border-soft);\n    border-radius: 3px;\n    font-size: 0.75em;\n    color: var(--bq-muted);\n    font-weight: 500;\n    letter-spacing: 0.04em;\n    text-transform: lowercase;\n    vertical-align: middle;\n}\n.bq-grid thead th .bq-sort {\n    color: var(--bq-accent);\n    font-size: 0.8em;\n    margin-left: 4px;\n}\n\n.bq-grid tbody td {\n    padding: 5px 14px;\n    border-bottom: 1px solid var(--bq-border-soft);\n    white-space: nowrap;\n    vertical-align: top;\n}\n\n.bq-grid tbody tr:nth-child(even) td { background: var(--bq-stripe); }\n.bq-grid tbody tr:hover td {\n    background: var(--bq-hover);\n}\n\n.bq-grid td.bq-rownum {\n    position: sticky;\n    left: 0;\n    z-index: 1;\n    background: var(--vscode-editor-background);\n    color: var(--bq-muted);\n    text-align: right;\n    font-size: 0.78em;\n    padding: 5px 6px 5px 8px;\n    user-select: none;\n    border-right: 1px solid var(--bq-border-soft);\n    min-width: 0;\n    width: 1%;\n    white-space: nowrap;\n}\n.bq-grid tbody tr:nth-child(even) td.bq-rownum { background: var(--bq-stripe); }\n.bq-grid tbody tr:hover td.bq-rownum { background: var(--bq-hover); color: var(--bq-accent); }\n\n.bq-grid thead th.bq-rownum {\n    position: sticky;\n    left: 0;\n    z-index: 3;\n    background: var(--vscode-editor-background);\n    cursor: default;\n    padding: 8px 6px 8px 8px;\n    width: 1%;\n    text-align: right;\n    color: var(--bq-muted);\n}\n\n.bq-grid td.bq-numeric { text-align: right; font-variant-numeric: tabular-nums; }\n.bq-grid td.bq-cell-max { max-width: 800px; overflow: hidden; text-overflow: ellipsis; }\n\n.bq-grid tbody tr { position: relative; }\n.bq-grid tbody tr:hover td:not(.bq-rownum):first-of-type { box-shadow: inset 2px 0 0 var(--bq-accent); }\n\n.bq-grid tbody td:not(.bq-rownum) { cursor: cell; }\n.bq-grid tbody td:not(.bq-rownum):active { background: color-mix(in srgb, var(--bq-accent) 15%, var(--vscode-editor-background)) !important; }\n\n.bq-toast {\n    position: fixed;\n    bottom: 18px;\n    left: 50%;\n    transform: translateX(-50%) translateY(20px);\n    padding: 6px 14px;\n    background: var(--vscode-notifications-background, #252526);\n    color: var(--vscode-notifications-foreground, inherit);\n    border: 1px solid var(--bq-accent);\n    border-radius: 20px;\n    font-size: 0.85em;\n    box-shadow: 0 4px 14px rgba(0,0,0,0.4);\n    opacity: 0;\n    pointer-events: none;\n    transition: opacity 0.18s, transform 0.18s;\n    z-index: 10;\n}\n.bq-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }\n\n/* Density */\n.bq-grid tbody td { padding: var(--bq-cell-pad-y, 5px) 14px; font-size: var(--bq-cell-font, 0.88em); }\n\n/* Tabs */\n.bq-tabs { display: flex; gap: 2px; padding-right: 8px; border-right: 1px solid var(--bq-border-soft); margin-right: 4px; }\n.bq-tab {\n    background: transparent; color: inherit; border: none;\n    padding: 4px 10px; cursor: pointer; border-radius: var(--bq-radius);\n    font: inherit; font-weight: 500;\n    transition: background 0.12s, color 0.12s;\n    border-bottom: 2px solid transparent;\n}\n.bq-tab:hover { background: var(--bq-hover); }\n.bq-tab.active { color: var(--bq-accent); border-bottom-color: var(--bq-accent); border-radius: 0; }\n.bq-count { display: inline-block; margin-left: 4px; padding: 0 5px; font-size: 0.78em; color: var(--bq-muted); background: var(--bq-hover); border-radius: 8px; font-weight: 400; }\n\n/* Find */\n.bq-find { position: relative; display: inline-flex; align-items: center; }\n.bq-find-input {\n    background: var(--vscode-input-background, transparent);\n    color: inherit;\n    border: 1px solid var(--bq-border);\n    padding: 3px 26px 3px 8px;\n    border-radius: var(--bq-radius);\n    font: inherit;\n    width: 120px;\n    transition: border-color 0.12s, width 0.18s;\n}\n.bq-find-input:focus { outline: none; border-color: var(--bq-accent); width: 180px; }\n.bq-find-count { position: absolute; right: 6px; font-size: 0.75em; color: var(--bq-muted); pointer-events: none; }\n\n/* Density toggle */\n.bq-density { display: inline-flex; border: 1px solid var(--bq-border); border-radius: var(--bq-radius); overflow: hidden; }\n.bq-density-btn {\n    background: transparent; color: inherit; border: none;\n    padding: 3px 8px; cursor: pointer; font: inherit;\n    border-right: 1px solid var(--bq-border-soft);\n    transition: background 0.12s, color 0.12s;\n    line-height: 1.2;\n}\n.bq-density-btn:last-child { border-right: none; }\n.bq-density-btn:hover { background: var(--bq-hover); }\n.bq-density-btn.active { background: var(--bq-accent); color: var(--vscode-button-foreground, white); }\n\n/* Selected */\n.bq-grid tbody tr.bq-selected td { background: color-mix(in srgb, var(--bq-accent) 18%, var(--vscode-editor-background)) !important; }\n.bq-grid tbody tr.bq-selected td.bq-rownum { color: var(--bq-accent); font-weight: 600; }\n.bq-sel-count { padding: 0 6px; font-size: 0.82em; color: var(--bq-accent); font-weight: 600; }\n\n/* Header name + resize */\n.bq-grid thead th { position: relative; padding-right: 10px; }\n.bq-col-name { margin-right: 4px; }\n.bq-resize {\n    position: absolute;\n    top: 0; bottom: 0; right: -3px;\n    width: 6px;\n    cursor: col-resize;\n    z-index: 2;\n}\n.bq-resize:hover { background: var(--bq-accent); }\n.bq-sort-rank { font-size: 0.7em; opacity: 0.8; margin-left: 1px; }\n\n/* Find highlight */\nmark.bq-mark { background: color-mix(in srgb, var(--bq-accent) 35%, transparent); color: inherit; padding: 0 1px; border-radius: 2px; }\n\n/* Layout with drawer */\n.bq-layout { flex: 1; display: flex; min-height: 0; overflow: hidden; }\n.bq-layout .bq-scroll { flex: 1; min-width: 0; }\n\n.bq-drawer {\n    width: 380px;\n    min-width: 240px;\n    max-width: 60vw;\n    border-left: 1px solid var(--bq-border);\n    display: flex;\n    flex-direction: column;\n    background: var(--vscode-editor-background);\n    resize: horizontal;\n    overflow: hidden;\n}\n.bq-drawer-head { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-bottom: 1px solid var(--bq-border); }\n.bq-drawer-title { display: flex; gap: 8px; align-items: center; font-weight: 600; font-size: 0.9em; min-width: 0; }\n.bq-drawer-title > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }\n.bq-drawer-actions { display: flex; gap: 4px; }\n.bq-drawer-body {\n    flex: 1;\n    overflow: auto;\n    margin: 0;\n    padding: 12px;\n    font-family: var(--vscode-editor-font-family, ui-monospace, SFMono-Regular, Menlo, monospace);\n    font-size: 0.85em;\n    line-height: 1.45;\n    white-space: pre-wrap;\n    word-break: break-word;\n    color: var(--vscode-editor-foreground, inherit);\n}\n\n/* Type syntax colors — subtle, theme-aware.\n   Each var can be overridden by the extension via vscode-bigquery.gridColors.\n   Defaults cascade: user override → VS Code chart var → hardcoded fallback. */\n:root {\n    --bq-color-number: var(--vscode-charts-blue, #4fc1ff);\n    --bq-color-boolean: var(--vscode-charts-purple, #c586c0);\n    --bq-color-timestamp: var(--vscode-charts-orange, #ce9178);\n    --bq-color-struct: color-mix(in srgb, var(--vscode-foreground) 70%, var(--vscode-charts-green, #4ec9b0) 30%);\n    --bq-color-bytes: color-mix(in srgb, var(--vscode-foreground) 65%, var(--vscode-charts-yellow, #dcdcaa) 35%);\n    --bq-color-string: inherit;\n    --bq-color-null: var(--vscode-inputValidation-warningBorder, #c5a300);\n}\n\n.bq-grid td.bq-numeric,\n.bq-grid td.bq-t-int64,\n.bq-grid td.bq-t-integer,\n.bq-grid td.bq-t-float,\n.bq-grid td.bq-t-float64,\n.bq-grid td.bq-t-numeric,\n.bq-grid td.bq-t-bignumeric { color: var(--bq-color-number); }\n\n.bq-grid td.bq-t-bool,\n.bq-grid td.bq-t-boolean { color: var(--bq-color-boolean); font-weight: 500; }\n\n.bq-grid td.bq-t-timestamp,\n.bq-grid td.bq-t-date,\n.bq-grid td.bq-t-datetime,\n.bq-grid td.bq-t-time { color: var(--bq-color-timestamp); }\n\n.bq-grid td.bq-t-json,\n.bq-grid td.bq-t-record,\n.bq-grid td.bq-t-struct { color: var(--bq-color-struct); }\n\n.bq-grid td.bq-t-bytes,\n.bq-grid td.bq-t-geography { color: var(--bq-color-bytes); }\n\n.bq-grid td.bq-t-string { color: var(--bq-color-string); }\n\n.bq-grid td.bq-null { color: var(--bq-color-null) !important; }\n\n/* Schema grid tweaks */\n.bq-schema-grid td, .bq-schema-grid th { font-family: var(--vscode-font-family, sans-serif); }\n.bq-muted { color: var(--bq-muted); }\n\n.bq-null {\n    color: var(--vscode-inputValidation-warningBorder, #c5a300);\n    font-style: italic;\n    opacity: 0.75;\n    font-size: 0.82em;\n    letter-spacing: 0.05em;\n}\n\n/* ---- Chart pane ---- */\n.bq-chart { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: auto; }\n.bq-chart-controls { display: flex; align-items: center; gap: 6px; padding: 6px 8px; flex-wrap: wrap; position: sticky; top: 0; z-index: 5; background: var(--vscode-editor-background); }\n.bq-chart-label { opacity: .7; font-size: .85em; }\n.bq-chart-note { opacity: .6; font-size: .8em; margin-left: 8px; }\n.bq-chart-scroll { flex: 1; min-height: 0; padding: 4px 8px 10px; }\n.bq-chart-svg { width: 100%; height: auto; max-height: 300px; display: block; }\n.bq-chart-tick { font-size: 10px; opacity: .65; font-family: var(--vscode-editor-font-family, monospace); }\n.bq-chart-swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; margin-left: 6px; }\n.bq-chart-scroll { position: relative; }\n.bq-chart-tip {\n    position: absolute;\n    z-index: 10;\n    pointer-events: none;\n    padding: 4px 8px;\n    font-size: 11px;\n    font-family: var(--vscode-editor-font-family, monospace);\n    background: var(--vscode-editorHoverWidget-background, #252526);\n    color: var(--vscode-editorHoverWidget-foreground, var(--vscode-foreground));\n    border: 1px solid var(--vscode-editorHoverWidget-border, rgba(128,128,128,.35));\n    border-radius: 3px;\n    white-space: nowrap;\n    box-shadow: 0 2px 8px rgba(0,0,0,.25);\n}\n.bq-chart-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 2px 10px 4px; }\n.bq-chart-legend-item { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; opacity: .85; }\n";
 
 /***/ })
 /******/ ]);
