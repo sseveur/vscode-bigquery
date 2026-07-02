@@ -1,5 +1,9 @@
 import * as vscode from 'vscode';
-import { BigQueryClient, selectFinalResultChildJob } from '../services/bigqueryClient';
+import { BigQueryClient, selectFinalDmlChildJob, selectFinalResultChildJob } from '../services/bigqueryClient';
+import { DownloadCsv } from '../tableResultsPanel/downloadCsv';
+import { DownloadJsonl } from '../tableResultsPanel/downloadJsonl';
+import { SendToPubsub } from '../tableResultsPanel/sendToPubsub';
+import { CopyToClipboard } from '../tableResultsPanel/copyToClipboard';
 import { Authentication } from '../services/authentication';
 import { QueryHistoryService } from '../services/queryHistoryService';
 import { NOTEBOOK_TYPE, CELL_LANGUAGE } from './bqSqlNotebookSerializer';
@@ -49,17 +53,35 @@ export class BqSqlNotebookController implements vscode.Disposable {
         this.messaging = vscode.notebooks.createRendererMessaging(RENDERER_ID);
         this.messagingListener = this.messaging.onDidReceiveMessage(async (e) => {
             const m: any = e.message;
-            if (!m || m.type !== 'bq-fetch-page' || !m.job?.projectId) { return; }
-            try {
-                // Use the project from the job reference (already known) and a cached client — no
-                // gcloud lookup or client rebuild per page, so paging matches the webview's latency.
-                const rows = await this.clientFor(m.job.projectId).getQueryPageWire(m.job, m.startIndex, m.pageSize);
-                await this.messaging.postMessage({ type: 'bq-page', requestId: m.requestId, rows }, e.editor);
-            } catch (err: any) {
-                await this.messaging.postMessage(
-                    { type: 'bq-page', requestId: m.requestId, error: extractBigQueryErrorMessage(err) },
-                    e.editor
-                );
+            if (!m || !m.job?.projectId) { return; }
+            if (m.type === 'bq-fetch-page') {
+                try {
+                    // Use the project from the job reference (already known) and a cached client — no
+                    // gcloud lookup or client rebuild per page, so paging matches the webview's latency.
+                    const rows = await this.clientFor(m.job.projectId).getQueryPageWire(m.job, m.startIndex, m.pageSize);
+                    await this.messaging.postMessage({ type: 'bq-page', requestId: m.requestId, rows }, e.editor);
+                } catch (err: any) {
+                    await this.messaging.postMessage(
+                        { type: 'bq-page', requestId: m.requestId, error: extractBigQueryErrorMessage(err) },
+                        e.editor
+                    );
+                }
+                return;
+            }
+            if (m.type === 'bq-export') {
+                // In-grid export buttons: run the same export helpers as the cell status bar —
+                // dialogs/fs/Pub/Sub/clipboard live extension-side and show their own notifications.
+                try {
+                    const client = this.clientFor(m.job.projectId);
+                    switch (m.command) {
+                        case 'download_csv': await DownloadCsv.download(client, m.job); break;
+                        case 'download_jsonl': await DownloadJsonl.download(client, m.job); break;
+                        case 'send_pubsub': await SendToPubsub.sendJobResult(client, m.job); break;
+                        case 'copy_to_clipboard': await CopyToClipboard.copy(client, m.job); break;
+                    }
+                } catch (err: any) {
+                    vscode.window.showErrorMessage(`Export failed: ${extractBigQueryErrorMessage(err)}`);
+                }
             }
         });
     }
@@ -147,11 +169,31 @@ export class BqSqlNotebookController implements vscode.Disposable {
                     jobId: metadata?.jobReference?.jobId as string,
                     location: metadata?.jobReference?.location as string
                 };
+                // Completion barrier on the parent: the child-job list is only complete once the
+                // script is DONE (getQueryResults polls; returns no rows for a script parent).
+                await job.getQueryResults({ maxResults: 0 }).catch(() => { /* children fetch below still tries */ });
                 const children = await bqClient.getChildJobs(parentRef).catch(() => [] as any[]);
-                const finalChild = selectFinalResultChildJob(children);
+                // Prefer the child with a real result set; fall back to the last DML child so
+                // affected-row counts still render. A script with neither (pure DECLARE/DDL)
+                // gets a text summary instead of an empty, columnless grid (#8).
+                const finalChild = selectFinalResultChildJob(children) ?? selectFinalDmlChildJob(children);
                 if (finalChild) {
                     resultJob = finalChild;
                     resultMetadata = finalChild.metadata ?? (await finalChild.getMetadata())[0];
+                } else {
+                    await this.renderScriptSummary(execution, children, metadata, startTime);
+                    if (this.historyService) {
+                        await this.historyService.addEntry({
+                            query: queryText,
+                            timestamp: startTime,
+                            bytesProcessed: parseInt(metadata?.statistics?.totalBytesProcessed ?? '0', 10),
+                            durationMs: Date.now() - startTime,
+                            projectId: projectId || 'unknown',
+                            status: 'success'
+                        });
+                    }
+                    execution.end(true, Date.now());
+                    return;
                 }
             }
 
@@ -272,6 +314,58 @@ export class BqSqlNotebookController implements vscode.Disposable {
             execution.end(false, Date.now());
         }
     }
+
+    /**
+     * Renders a plain-text summary for a SCRIPT whose children produced neither a result set nor
+     * DML stats (pure DECLARE / SET / DDL) — statement count, types in execution order, bytes and
+     * duration — instead of the empty, columnless grid the generic path would show (#8).
+     */
+    private async renderScriptSummary(
+        execution: vscode.NotebookCellExecution,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        children: any[],
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        parentMetadata: any,
+        startTime: number
+    ): Promise<void> {
+        // Child ids end in a numeric statement index — sort ascending for execution order.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const suffix = (j: any) => {
+            const id: string = j?.id ?? '';
+            return Number(id.substring(id.lastIndexOf('_') + 1)) || 0;
+        };
+        const types = children
+            .slice()
+            .sort((a, b) => suffix(a) - suffix(b))
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            .map((c: any) => c?.metadata?.statistics?.query?.statementType)
+            .filter((t): t is string => typeof t === 'string' && t.length > 0);
+
+        const bytes = parseInt(parentMetadata?.statistics?.totalBytesProcessed ?? '0', 10);
+        const durationMs = Date.now() - startTime;
+        // Control-statement-only scripts (DECLARE/SET) spawn no child jobs at all — don't
+        // report a misleading "0 statements" in that case.
+        const count = children.length;
+        const lines = [
+            count > 0
+                ? `Script completed — ${count} statement${count === 1 ? '' : 's'}, no result set.`
+                : 'Script completed — no result set.',
+            types.length > 0 ? `Statements: ${types.join(', ')}` : '',
+            `${formatByteSize(bytes)} processed · ${durationMs.toLocaleString()} ms`,
+        ].filter(l => l.length > 0);
+
+        await execution.replaceOutput(
+            new vscode.NotebookCellOutput([vscode.NotebookCellOutputItem.text(lines.join('\n'))])
+        );
+    }
+}
+
+function formatByteSize(bytes: number): string {
+    if (!bytes || bytes <= 0) { return '0 B'; }
+    const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+    const i = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)));
+    const value = bytes / Math.pow(1024, i);
+    return `${i === 0 ? value : value.toFixed(2)} ${units[i]}`;
 }
 
 /**

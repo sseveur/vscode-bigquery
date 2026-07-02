@@ -14,6 +14,11 @@ interface Props {
     title?: string;
     dmlStats?: DmlStats;
     statementType?: string;
+    /** Handler for the export buttons (CSV/JSONL/Pub/Sub/Copy-all). Defaults to posting through
+     *  the webview API (results panel). Notebook hosts pass their own handler that routes over
+     *  renderer messaging instead — acquireVsCodeApi doesn't exist there. Pass null to hide the
+     *  buttons (no export channel available). Clipboard selection copy is unaffected. */
+    onExport?: ((command: string, ref: ExportRef) => void) | null;
 }
 
 type SortItem = { colKey: string; dir: 1 | -1 };
@@ -111,7 +116,7 @@ function tryParseJson(s: string): any {
     return undefined;
 }
 
-export function BqTable({ fetchRows, exportRef, schema, totalRows, initialRows, title, dmlStats, statementType }: Props) {
+export function BqTable({ fetchRows, exportRef, schema, totalRows, initialRows, title, dmlStats, statementType, onExport = postExport }: Props) {
     const columns = useMemo<FlatColumn[]>(() => flattenSchema(schema), [schema]);
     const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
     const [pageIndex, setPageIndex] = useState<number>(0);
@@ -312,6 +317,21 @@ export function BqTable({ fetchRows, exportRef, schema, totalRows, initialRows, 
     if (dmlStats?.deletedRowCount && dmlStats.deletedRowCount !== '0') { dmlParts.push(`${Number(dmlStats.deletedRowCount).toLocaleString()} deleted`); }
     const showDml = dmlParts.length > 0 || (statementType && ['INSERT', 'UPDATE', 'DELETE', 'MERGE'].includes(statementType));
 
+    // A DML result with no rows to page through IS the banner — an empty table with a schema
+    // header, pagination and find box under it reads as "results missing" rather than "N rows
+    // affected". Render just the summary.
+    if (showDml && totalRows === 0) {
+        return (
+            <div class="bq-root bq-root-dml-only" style={cssVars}>
+                {title && <div class="bq-title">{title}</div>}
+                <div class="bq-dml-summary">
+                    <span class="bq-dml-type">{statementType || 'DML'}</span>
+                    <span class="bq-dml-counts">{dmlParts.length ? dmlParts.join(' · ') : '0 rows affected'}</span>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div class="bq-root" style={cssVars}>
             {title && <div class="bq-title">{title}</div>}
@@ -383,10 +403,12 @@ export function BqTable({ fetchRows, exportRef, schema, totalRows, initialRows, 
                             <button class="bq-pg-btn" onClick={() => copySelected('json')} title="Copy selected rows as JSON">JSON</button>
                             <button class="bq-pg-btn" onClick={() => setSelected(new Set())} title="Clear selection">✕</button>
                         </>}
-                        <button class="bq-pg-btn" onClick={() => postExport('download_csv', exportRef)} title="Download all as CSV">CSV</button>
-                        <button class="bq-pg-btn" onClick={() => postExport('download_jsonl', exportRef)} title="Download all as JSONL">JSONL</button>
-                        <button class="bq-pg-btn" onClick={() => postExport('send_pubsub', exportRef)} title="Send to Pub/Sub">Pub/Sub</button>
-                        <button class="bq-pg-btn" onClick={() => postExport('copy_to_clipboard', exportRef)} title="Copy all as Markdown">Copy</button>
+                        {onExport && <>
+                            <button class="bq-pg-btn" onClick={() => onExport('download_csv', exportRef)} title="Download all as CSV">CSV</button>
+                            <button class="bq-pg-btn" onClick={() => onExport('download_jsonl', exportRef)} title="Download all as JSONL">JSONL</button>
+                            <button class="bq-pg-btn" onClick={() => onExport('send_pubsub', exportRef)} title="Send to Pub/Sub">Pub/Sub</button>
+                            <button class="bq-pg-btn" onClick={() => onExport('copy_to_clipboard', exportRef)} title="Copy all as Markdown">Copy</button>
+                        </>}
                     </div>
                 </>}
             </div>

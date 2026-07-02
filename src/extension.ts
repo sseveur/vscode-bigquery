@@ -26,19 +26,6 @@ import { QueryHistoryTreeDataProvider } from './activitybar/queryHistoryTreeData
 import { BqSqlNotebookSerializer, NOTEBOOK_TYPE } from './notebook/bqSqlNotebookSerializer';
 import { BqSqlNotebookController } from './notebook/bqSqlNotebookController';
 import { CellRegistry, runCellRegistryMigration } from './notebook/bqSqlNotebookCellRegistry';
-import {
-	BqSqlNotebookStatusBarProvider,
-	COMMAND_CELL_DOWNLOAD_CSV,
-	COMMAND_CELL_DOWNLOAD_JSONL,
-	COMMAND_CELL_SEND_PUBSUB,
-	COMMAND_CELL_COPY_MARKDOWN
-} from './notebook/bqSqlNotebookStatusBar';
-import {
-	cellDownloadCsv,
-	cellDownloadJsonl,
-	cellSendPubsub,
-	cellCopyMarkdown
-} from './notebook/bqSqlNotebookCommands';
 import { registerNotebookPersistence } from './notebook/bqSqlNotebookPersistence';
 
 export const bigqueryWebviewViewProvider = new WebviewViewProvider();
@@ -452,20 +439,6 @@ export function activate(context: ExtensionContext) {
 	);
 	const notebookController = new BqSqlNotebookController(cellRegistry, queryHistoryService);
 	context.subscriptions.push(notebookController);
-
-	context.subscriptions.push(
-		vscode.notebooks.registerNotebookCellStatusBarItemProvider(
-			NOTEBOOK_TYPE,
-			new BqSqlNotebookStatusBarProvider(cellRegistry)
-		)
-	);
-
-	context.subscriptions.push(
-		vscode.commands.registerCommand(COMMAND_CELL_DOWNLOAD_CSV, cellDownloadCsv(cellRegistry)),
-		vscode.commands.registerCommand(COMMAND_CELL_DOWNLOAD_JSONL, cellDownloadJsonl(cellRegistry)),
-		vscode.commands.registerCommand(COMMAND_CELL_SEND_PUBSUB, cellSendPubsub(cellRegistry)),
-		vscode.commands.registerCommand(COMMAND_CELL_COPY_MARKDOWN, cellCopyMarkdown(cellRegistry))
-	);
 
 	registerNotebookPersistence(context, cellRegistry);
 

@@ -54,7 +54,9 @@ function injectStyles(): void {
     // scrollable fixed height within the cell instead.
     const scoped = (gridCssText as unknown as string)
         .replace(/(^|\n)[ \t]*body[ \t]*\{[^}]*\}/g, '$1')
-        + '\n.bq-nb-grid .bq-root { height: 460px; }\n';
+        // Size to content up to a cap: short results don't reserve dead space, long pages
+        // scroll inside .bq-scroll (flex chain has min-height:0 + overflow:auto).
+        + '\n.bq-nb-grid .bq-root { height: auto; max-height: 460px; }\n';
     const style = document.createElement('style');
     style.id = 'bq-grid-v2-styles';
     style.textContent = scoped;
@@ -73,7 +75,14 @@ function formatBytes(bytes: number): string {
 /** Asks the extension host for a page beyond the loaded window (load-more). */
 type PageRequester = (job: JobReference, startIndex: number, pageSize: number) => Promise<Array<{ f: Array<{ v: any }> }>>;
 
-function NotebookGrid({ payload, requestPage }: { payload: CellPayload; requestPage: PageRequester | null }) {
+/** Fire-and-forget export request routed to the extension host (dialogs/fs live there). */
+type ExportRequester = (command: string, job: JobReference) => void;
+
+function NotebookGrid({ payload, requestPage, requestExport }: {
+    payload: CellPayload;
+    requestPage: PageRequester | null;
+    requestExport: ExportRequester | null;
+}) {
     const allRows = payload.rows || [];
     const loaded = allRows.length;
     const realTotal = payload.totalRows || loaded;
@@ -93,6 +102,11 @@ function NotebookGrid({ payload, requestPage }: { payload: CellPayload; requestP
     };
 
     const exportRef: ExportRef = payload.jobReference ? { jobReference: payload.jobReference } : {};
+    // Grid export buttons post over renderer messaging; without messaging or a job there is no
+    // export channel, so the buttons hide (null) rather than sit dead.
+    const onExport = requestExport && payload.jobReference
+        ? (command: string) => requestExport(command, payload.jobReference!)
+        : null;
     const truncated = realTotal > loaded && !canFetchMore;
     // Per-type cell colors from the vscode-bigquery.gridColors setting, scoped to this grid. Applied
     // via setProperty (not a style string) so CSS custom properties are set reliably.
@@ -104,8 +118,9 @@ function NotebookGrid({ payload, requestPage }: { payload: CellPayload; requestP
     return (
         <div class="bq-nb-grid" ref={applyColors}>
             <div class="bq-nb-stats" style="opacity:.7;font-size:11px;margin:4px 2px;font-family:var(--vscode-editor-font-family,monospace);">
-                {realTotal.toLocaleString()} rows
-                {' · '}{formatBytes(payload.bytesProcessed)} processed
+                {/* "0 rows" is noise on a DML result — the banner carries the affected counts. */}
+                {payload.dmlStats && realTotal === 0 ? '' : `${realTotal.toLocaleString()} rows · `}
+                {formatBytes(payload.bytesProcessed)} processed
                 {' · '}{payload.durationMs.toLocaleString()} ms
                 {truncated ? ` · showing first ${loaded.toLocaleString()} of ${realTotal.toLocaleString()}` : ''}
             </div>
@@ -117,6 +132,7 @@ function NotebookGrid({ payload, requestPage }: { payload: CellPayload; requestP
                 initialRows={allRows}
                 dmlStats={payload.dmlStats}
                 statementType={payload.statementType}
+                onExport={onExport}
             />
         </div>
     );
@@ -152,6 +168,12 @@ export function activate(context: RendererContext) {
         })
         : null;
 
+    // Fire-and-forget: the extension host runs the export (save dialog, Pub/Sub, clipboard)
+    // and surfaces its own progress/error notifications — nothing to await here.
+    const requestExport: ExportRequester | null = canMessage
+        ? (command, job) => context.postMessage!({ type: 'bq-export', command, job })
+        : null;
+
     return {
         renderOutputItem(outputItem: OutputItem, element: HTMLElement) {
             injectStyles();
@@ -162,7 +184,7 @@ export function activate(context: RendererContext) {
                 element.textContent = `Failed to parse results: ${String(e)}`;
                 return;
             }
-            render(<NotebookGrid payload={payload} requestPage={requestPage} />, element);
+            render(<NotebookGrid payload={payload} requestPage={requestPage} requestExport={requestExport} />, element);
         },
         disposeOutputItem(_id?: string) {
             // Preact reconciles on the next renderOutputItem call; VS Code discards the element

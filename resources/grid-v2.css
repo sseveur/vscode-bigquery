@@ -11,6 +11,8 @@
 body { margin: 0; padding: 0; font-family: var(--vscode-font-family, sans-serif); font-size: var(--vscode-font-size, 13px); color: var(--vscode-foreground); background: var(--vscode-editor-background); }
 
 .bq-root { display: flex; flex-direction: column; height: 100vh; }
+/* DML-only result: just the summary banner, no table — don't stretch to fill the panel. */
+.bq-root.bq-root-dml-only { height: auto; }
 
 .bq-ctx-menu {
     position: fixed;
@@ -164,6 +166,9 @@ body { margin: 0; padding: 0; font-family: var(--vscode-font-family, sans-serif)
     font-family: var(--vscode-editor-font-family, ui-monospace, SFMono-Regular, Menlo, monospace);
     font-size: 0.88em;
     line-height: 1.45;
+    /* The overlay horizontal scrollbar floats over the container's bottom edge — keep the
+       last row clear of it. */
+    margin-bottom: 12px;
 }
 
 .bq-grid thead th {

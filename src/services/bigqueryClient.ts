@@ -298,8 +298,11 @@ WHERE table_name = @tableName AND is_hidden = 'NO'
 	 * its own materialized result table.
 	 */
 	public async getChildJobs(parentJobRef: JobReference): Promise<Job[]> {
+		// projection 'full' is required: the default jobs.list projection strips
+		// statistics.query.statementType and configuration.query.destinationTable from the
+		// listed children, which blinds selectFinalResultChildJob / selectFinalDmlChildJob.
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const opts: any = { parentJobId: parentJobRef.jobId, projectId: parentJobRef.projectId };
+		const opts: any = { parentJobId: parentJobRef.jobId, projectId: parentJobRef.projectId, projection: 'full' };
 		if (parentJobRef.location) { opts.location = parentJobRef.location; }
 		const [jobs] = await this.bqclient.getJobs(opts);
 		return jobs as Job[];
@@ -381,24 +384,51 @@ WHERE table_name = @tableName AND is_hidden = 'NO'
  * Returns `null` when no child carries a result set.
  */
 export function selectFinalResultChildJob(children: Job[]): Job | null {
+	for (const child of sortChildJobsNewestFirst(children)) {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const c: any = child;
+		const dt = c?.metadata?.configuration?.query?.destinationTable;
+		// Live jobs.list shapes (projection=full): a SELECT child carries the anonymous result
+		// table as destinationTable but NO statistics.query.schema — so a schema requirement can
+		// never match a real result child. DDL children (CREATE/DROP/CTAS) conversely DO carry a
+		// destination table (and often a schema), but /queries on them yields no readable rows —
+		// exclude them via ddlTargetTable. Rows + schema are fetched from /queries afterwards.
+		const isDdl = !!c?.metadata?.statistics?.query?.ddlTargetTable;
+		if (!isDdl && dt?.projectId && dt?.datasetId && dt?.tableId) {
+			return child;
+		}
+	}
+
+	return null;
+}
+
+/**
+ * Picks the newest child job of a SCRIPT that ran a DML statement (has `dmlStats` /
+ * `numDmlAffectedRows`). Fallback when `selectFinalResultChildJob` finds no result set — a
+ * script whose last visible effect is an INSERT/UPDATE/DELETE/MERGE has no destination-table
+ * schema, but its affected-row counts are still worth rendering. Returns `null` when no child
+ * carries DML statistics.
+ */
+export function selectFinalDmlChildJob(children: Job[]): Job | null {
+	for (const child of sortChildJobsNewestFirst(children)) {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const stats = (child as any)?.metadata?.statistics?.query;
+		if (stats?.dmlStats || stats?.numDmlAffectedRows) {
+			return child;
+		}
+	}
+
+	return null;
+}
+
+/** BigQuery child-job ids end in a numeric statement index — sort newest (last statement) first. */
+function sortChildJobsNewestFirst(children: Job[]): Job[] {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const sortable = (children as any[]).slice().sort((a, b) => {
+	return (children as any[]).slice().sort((a, b) => {
 		const aId: string = a?.id ?? '';
 		const bId: string = b?.id ?? '';
 		const aN = Number(aId.substring(aId.lastIndexOf('_') + 1)) || 0;
 		const bN = Number(bId.substring(bId.lastIndexOf('_') + 1)) || 0;
 		return bN - aN;
 	});
-
-	for (const child of sortable) {
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const c: any = child;
-		const dt = c?.metadata?.configuration?.query?.destinationTable;
-		const fields = c?.metadata?.statistics?.query?.schema?.fields;
-		if (dt?.projectId && dt?.datasetId && dt?.tableId && Array.isArray(fields) && fields.length > 0) {
-			return child;
-		}
-	}
-
-	return null;
 }
