@@ -5,6 +5,20 @@ All notable changes to the BigQuery Studio extension will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.9.0] - 2026-07-04
+
+### Added
+
+- **Column filter in the results grid** - A "Columns…" box narrows a wide result to just the columns whose name matches — in both the Results and Schema tabs, nested paths (`address.city`) included. The row-level Find then searches only the visible columns, so the two compose. A badge shows how many of the total columns match; clearing the box restores all of them. Works in the results panel and notebook cells alike; no queries, no cost — purely on the already-loaded schema.
+
+### Changed
+
+- **Two-row grid toolbar** - The toolbar now splits into two rows: the view tabs (Results / Schema / Chart) on top, and the grid tools (column filter, pagination, page size, Find, density, exports) below — a clearer divide between "which view" and "grid controls". Both rows stay pinned together while scrolling.
+
+### Fixed
+
+- **Column header no longer scrolls out of view** - The results grid's column header row now stays pinned beneath the toolbar as you scroll, instead of disappearing behind it.
+
 ## [2.8.0] - 2026-07-03
 
 ### Added
