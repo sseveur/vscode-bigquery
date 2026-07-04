@@ -127,7 +127,16 @@ export function BqTable({ fetchRows, exportRef, schema, totalRows, initialRows, 
     const [sorts, setSorts] = useState<SortItem[]>([]);
     const [density, setDensity] = useState<Density>('cozy');
     const [find, setFind] = useState<string>('');
+    const [colFilter, setColFilter] = useState<string>('');
     const [tab, setTab] = useState<Tab>('results');
+
+    // Narrows which columns render (results grid + schema tab). Matches on the
+    // flattened label so nested paths like `address.city` are searchable.
+    const visibleColumns = useMemo<FlatColumn[]>(() => {
+        const q = colFilter.trim().toLowerCase();
+        if (!q) { return columns; }
+        return columns.filter(c => c.label.toLowerCase().includes(q));
+    }, [columns, colFilter]);
     const [drawer, setDrawer] = useState<{ col: FlatColumn; value: any } | null>(null);
     const [colWidths, setColWidths] = useState<Record<string, number>>({});
     const [selected, setSelected] = useState<Set<number>>(new Set());
@@ -174,7 +183,7 @@ export function BqTable({ fetchRows, exportRef, schema, totalRows, initialRows, 
         if (!find.trim()) { return base; }
         const needle = find.toLowerCase();
         return base.filter(i => {
-            for (const c of columns) {
+            for (const c of visibleColumns) {
                 const v = extracted[i][c.key];
                 if (v === null || v === undefined) { continue; }
                 const s = typeof v === 'object' ? JSON.stringify(v) : String(v);
@@ -182,7 +191,7 @@ export function BqTable({ fetchRows, exportRef, schema, totalRows, initialRows, 
             }
             return false;
         });
-    }, [extracted, columns, find]);
+    }, [extracted, visibleColumns, find]);
 
     const sortedIndices = useMemo(() => {
         if (sorts.length === 0) { return filteredIndices; }
@@ -342,83 +351,103 @@ export function BqTable({ fetchRows, exportRef, schema, totalRows, initialRows, 
                     <span class="bq-dml-counts">{dmlParts.length ? dmlParts.join(' · ') : '0 rows affected'}</span>
                 </div>
             )}
-            <div class="bq-controls">
+            <div class="bq-toolbar">
+            <div class="bq-controls bq-controls-tabs">
                 <div class="bq-tabs">
                     <button class={`bq-tab ${tab === 'results' ? 'active' : ''}`} onClick={() => setTab('results')}>Results</button>
                     <button class={`bq-tab ${tab === 'schema' ? 'active' : ''}`} onClick={() => setTab('schema')}>Schema <span class="bq-count">{columns.length}</span></button>
                     <button class={`bq-tab ${tab === 'chart' ? 'active' : ''}`} onClick={() => setTab('chart')}>Chart</button>
                 </div>
-                {tab === 'results' && <>
-                    <button class="bq-pg-btn" disabled={pageIndex === 0 || loading} onClick={() => setPageIndex(0)} title="First page">&laquo;</button>
-                    <button class="bq-pg-btn" disabled={pageIndex === 0 || loading} onClick={() => setPageIndex(p => Math.max(0, p - 1))} title="Previous page">&lsaquo;</button>
-                    <span class="bq-pg-label">Page</span>
-                    <input
-                        class="bq-pg-input"
-                        type="number"
-                        min={1}
-                        max={totalPages}
-                        value={pageIndex + 1}
-                        onChange={(e: any) => {
-                            const n = parseInt(e.currentTarget.value, 10);
-                            if (!isNaN(n)) { setPageIndex(Math.max(0, Math.min(totalPages - 1, n - 1))); }
-                        }}
-                    />
-                    <span class="bq-pg-of">of {totalPages.toLocaleString()}</span>
-                    <button class="bq-pg-btn" disabled={pageIndex >= totalPages - 1 || loading} onClick={() => setPageIndex(p => Math.min(totalPages - 1, p + 1))} title="Next page">&rsaquo;</button>
-                    <button class="bq-pg-btn" disabled={pageIndex >= totalPages - 1 || loading} onClick={() => setPageIndex(totalPages - 1)} title="Last page">&raquo;</button>
-                    <span class="bq-pg-info">{startRow.toLocaleString()}-{endRow.toLocaleString()} / {totalRows.toLocaleString()}</span>
-                    <select
-                        class="bq-pg-size"
-                        value={pageSize}
-                        onChange={(e: any) => { setPageSize(parseInt(e.currentTarget.value, 10)); setPageIndex(0); }}
-                        title="Rows per page"
-                    >
-                        <option value={25}>25</option>
-                        <option value={50}>50</option>
-                        <option value={100}>100</option>
-                        <option value={250}>250</option>
-                        <option value={1000}>1000</option>
-                    </select>
-                    <div class="bq-find">
+            </div>
+            {(tab === 'results' || (tab === 'schema' && columns.length > 1)) && (
+                <div class="bq-controls bq-controls-2">
+                    {columns.length > 1 && (
+                        <div class="bq-colfilter" title="Show only columns whose name matches">
+                            <input
+                                class="bq-colfilter-input"
+                                type="search"
+                                placeholder="Columns…"
+                                value={colFilter}
+                                onInput={(e: any) => setColFilter(e.currentTarget.value)}
+                            />
+                            {colFilter && <span class="bq-colfilter-count">{visibleColumns.length}/{columns.length}</span>}
+                        </div>
+                    )}
+                    {tab === 'results' && <>
+                        <button class="bq-pg-btn" disabled={pageIndex === 0 || loading} onClick={() => setPageIndex(0)} title="First page">&laquo;</button>
+                        <button class="bq-pg-btn" disabled={pageIndex === 0 || loading} onClick={() => setPageIndex(p => Math.max(0, p - 1))} title="Previous page">&lsaquo;</button>
+                        <span class="bq-pg-label">Page</span>
                         <input
-                            class="bq-find-input"
-                            type="search"
-                            placeholder="Find…"
-                            value={find}
-                            onInput={(e: any) => setFind(e.currentTarget.value)}
-                            title="Filter current page"
+                            class="bq-pg-input"
+                            type="number"
+                            min={1}
+                            max={totalPages}
+                            value={pageIndex + 1}
+                            onChange={(e: any) => {
+                                const n = parseInt(e.currentTarget.value, 10);
+                                if (!isNaN(n)) { setPageIndex(Math.max(0, Math.min(totalPages - 1, n - 1))); }
+                            }}
                         />
-                        {find && <span class="bq-find-count">{filteredIndices.length}</span>}
-                    </div>
-                    <div class="bq-density" title="Row density">
-                        {(['compact', 'cozy', 'comfy'] as Density[]).map(d => (
-                            <button class={`bq-density-btn ${density === d ? 'active' : ''}`} onClick={() => setDensity(d)} title={d}>
-                                {d === 'compact' ? '≡' : d === 'cozy' ? '☰' : '⋯'}
-                            </button>
-                        ))}
-                    </div>
-                    <div class="bq-export">
-                        {selected.size > 0 && <>
-                            <span class="bq-sel-count">{selected.size} sel</span>
-                            <button class="bq-pg-btn" onClick={() => copySelected('tsv')} title="Copy selected rows as TSV">TSV</button>
-                            <button class="bq-pg-btn" onClick={() => copySelected('md')} title="Copy selected rows as Markdown">MD</button>
-                            <button class="bq-pg-btn" onClick={() => copySelected('json')} title="Copy selected rows as JSON">JSON</button>
-                            <button class="bq-pg-btn" onClick={() => setSelected(new Set())} title="Clear selection">✕</button>
-                        </>}
-                        {onExport && <>
-                            <button class="bq-pg-btn" onClick={() => onExport('download_csv', exportRef)} title="Download all as CSV">CSV</button>
-                            <button class="bq-pg-btn" onClick={() => onExport('download_jsonl', exportRef)} title="Download all as JSONL">JSONL</button>
-                            <button class="bq-pg-btn" onClick={() => onExport('send_pubsub', exportRef)} title="Send to Pub/Sub">Pub/Sub</button>
-                            <button class="bq-pg-btn" onClick={() => onExport('copy_to_clipboard', exportRef)} title="Copy all as Markdown">Copy</button>
-                        </>}
-                    </div>
-                </>}
+                        <span class="bq-pg-of">of {totalPages.toLocaleString()}</span>
+                        <button class="bq-pg-btn" disabled={pageIndex >= totalPages - 1 || loading} onClick={() => setPageIndex(p => Math.min(totalPages - 1, p + 1))} title="Next page">&rsaquo;</button>
+                        <button class="bq-pg-btn" disabled={pageIndex >= totalPages - 1 || loading} onClick={() => setPageIndex(totalPages - 1)} title="Last page">&raquo;</button>
+                        <span class="bq-pg-info">{startRow.toLocaleString()}-{endRow.toLocaleString()} / {totalRows.toLocaleString()}</span>
+                        <select
+                            class="bq-pg-size"
+                            value={pageSize}
+                            onChange={(e: any) => { setPageSize(parseInt(e.currentTarget.value, 10)); setPageIndex(0); }}
+                            title="Rows per page"
+                        >
+                            <option value={25}>25</option>
+                            <option value={50}>50</option>
+                            <option value={100}>100</option>
+                            <option value={250}>250</option>
+                            <option value={1000}>1000</option>
+                        </select>
+                        <div class="bq-find">
+                            <input
+                                class="bq-find-input"
+                                type="search"
+                                placeholder="Find…"
+                                value={find}
+                                onInput={(e: any) => setFind(e.currentTarget.value)}
+                                title="Filter current page"
+                            />
+                            {find && <span class="bq-find-count">{filteredIndices.length}</span>}
+                        </div>
+                        <div class="bq-density" title="Row density">
+                            {(['compact', 'cozy', 'comfy'] as Density[]).map(d => (
+                                <button class={`bq-density-btn ${density === d ? 'active' : ''}`} onClick={() => setDensity(d)} title={d}>
+                                    {d === 'compact' ? '≡' : d === 'cozy' ? '☰' : '⋯'}
+                                </button>
+                            ))}
+                        </div>
+                    </>}
+                    {tab === 'results' && (
+                        <div class="bq-export">
+                            {selected.size > 0 && <>
+                                <span class="bq-sel-count">{selected.size} sel</span>
+                                <button class="bq-pg-btn" onClick={() => copySelected('tsv')} title="Copy selected rows as TSV">TSV</button>
+                                <button class="bq-pg-btn" onClick={() => copySelected('md')} title="Copy selected rows as Markdown">MD</button>
+                                <button class="bq-pg-btn" onClick={() => copySelected('json')} title="Copy selected rows as JSON">JSON</button>
+                                <button class="bq-pg-btn" onClick={() => setSelected(new Set())} title="Clear selection">✕</button>
+                            </>}
+                            {onExport && <>
+                                <button class="bq-pg-btn" onClick={() => onExport('download_csv', exportRef)} title="Download all as CSV">CSV</button>
+                                <button class="bq-pg-btn" onClick={() => onExport('download_jsonl', exportRef)} title="Download all as JSONL">JSONL</button>
+                                <button class="bq-pg-btn" onClick={() => onExport('send_pubsub', exportRef)} title="Send to Pub/Sub">Pub/Sub</button>
+                                <button class="bq-pg-btn" onClick={() => onExport('copy_to_clipboard', exportRef)} title="Copy all as Markdown">Copy</button>
+                            </>}
+                        </div>
+                    )}
+                </div>
+            )}
             </div>
             {loading && <div class="bq-notice">Loading rows&hellip;</div>}
             {err && <div class="bq-error">{err}</div>}
 
             {tab === 'schema' ? (
-                <SchemaPane columns={columns} />
+                <SchemaPane columns={visibleColumns} allColumns={columns} />
             ) : tab === 'chart' ? (
                 <ChartPane
                     schema={schema}
@@ -429,12 +458,15 @@ export function BqTable({ fetchRows, exportRef, schema, totalRows, initialRows, 
                 />
             ) : (
                 <div class={`bq-layout ${drawer ? 'with-drawer' : ''}`}>
+                    {visibleColumns.length === 0 ? (
+                    <div class="bq-notice">No columns match the filter.</div>
+                    ) : (
                     <div class="bq-scroll">
                         <table class="bq-grid">
                             <thead>
                                 <tr>
                                     <th class="bq-rownum" title="Row">#</th>
-                                    {columns.map(col => {
+                                    {visibleColumns.map(col => {
                                         const info = sortInfo(col);
                                         const style = colWidths[col.key] ? { width: colWidths[col.key] + 'px', minWidth: colWidths[col.key] + 'px' } : undefined;
                                         return (
@@ -456,7 +488,7 @@ export function BqTable({ fetchRows, exportRef, schema, totalRows, initialRows, 
                                 {sortedIndices.map((i, displayIdx) => (
                                     <tr class={selected.has(i) ? 'bq-selected' : ''} onClick={(e: MouseEvent) => onRowClick(i, e)} onContextMenu={(e: MouseEvent) => onRowContextMenu(i, undefined, e)}>
                                         <td class="bq-rownum" onContextMenu={(e: MouseEvent) => onRowContextMenu(i, undefined, e)}>{startRow + displayIdx}</td>
-                                        {columns.map(col => {
+                                        {visibleColumns.map(col => {
                                             const v = extracted[i][col.key];
                                             const { html, isNull } = renderCellValue(v, col);
                                             const classes = [
@@ -487,6 +519,7 @@ export function BqTable({ fetchRows, exportRef, schema, totalRows, initialRows, 
                             </tbody>
                         </table>
                     </div>
+                    )}
                     {drawer && <CellDrawer col={drawer.col} value={drawer.value} onClose={() => setDrawer(null)} />}
                 </div>
             )}
@@ -525,7 +558,10 @@ export function BqTable({ fetchRows, exportRef, schema, totalRows, initialRows, 
     );
 }
 
-function SchemaPane({ columns }: { columns: FlatColumn[] }) {
+function SchemaPane({ columns, allColumns }: { columns: FlatColumn[]; allColumns: FlatColumn[] }) {
+    if (columns.length === 0) {
+        return <div class="bq-notice">No columns match the filter.</div>;
+    }
     return (
         <div class="bq-scroll">
             <table class="bq-grid bq-schema-grid">
@@ -538,9 +574,9 @@ function SchemaPane({ columns }: { columns: FlatColumn[] }) {
                     </tr>
                 </thead>
                 <tbody>
-                    {columns.map((c, i) => (
+                    {columns.map(c => (
                         <tr>
-                            <td class="bq-rownum">{i + 1}</td>
+                            <td class="bq-rownum">{allColumns.indexOf(c) + 1}</td>
                             <td>{c.label}</td>
                             <td><span class="bq-col-type">{c.mode === 'REPEATED' ? c.type + '[]' : c.type}</span></td>
                             <td class="bq-muted">{c.mode}</td>

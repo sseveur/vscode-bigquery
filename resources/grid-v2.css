@@ -80,20 +80,25 @@ body { margin: 0; padding: 0; font-family: var(--vscode-font-family, sans-serif)
     color: var(--vscode-foreground);
 }
 
+.bq-toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    background: var(--vscode-editor-background);
+    backdrop-filter: blur(6px);
+}
 .bq-controls {
     display: flex;
     align-items: center;
     gap: 6px;
     padding: 8px 12px;
     border-bottom: 1px solid var(--bq-border);
-    background: var(--vscode-editor-background);
     font-size: 0.9em;
     flex-wrap: wrap;
-    position: sticky;
-    top: 0;
-    z-index: 3;
-    backdrop-filter: blur(6px);
 }
+/* Tabs row sits above the grid-tools row; a lighter rule divides the two. */
+.bq-controls-tabs { border-bottom-color: var(--bq-border-soft); padding-bottom: 6px; }
+.bq-controls-2 { padding-top: 6px; }
 
 .bq-pg-btn {
     background: transparent;
@@ -316,6 +321,22 @@ body { margin: 0; padding: 0; font-family: var(--vscode-font-family, sans-serif)
 }
 .bq-find-input:focus { outline: none; border-color: var(--bq-accent); width: 180px; }
 .bq-find-count { position: absolute; right: 6px; font-size: 0.75em; color: var(--bq-muted); pointer-events: none; }
+
+/* Column filter (narrows which columns render) */
+.bq-controls-2 .bq-export { padding-left: 0; border-left: none; }
+.bq-colfilter { position: relative; display: inline-flex; align-items: center; }
+.bq-colfilter-input {
+    background: var(--vscode-input-background, transparent);
+    color: inherit;
+    border: 1px solid var(--bq-border);
+    padding: 3px 44px 3px 8px;
+    border-radius: var(--bq-radius);
+    font: inherit;
+    width: 110px;
+    transition: border-color 0.12s, width 0.18s;
+}
+.bq-colfilter-input:focus { outline: none; border-color: var(--bq-accent); width: 160px; }
+.bq-colfilter-count { position: absolute; right: 6px; font-size: 0.75em; color: var(--bq-muted); pointer-events: none; }
 
 /* Density toggle */
 .bq-density { display: inline-flex; border: 1px solid var(--bq-border); border-radius: var(--bq-radius); overflow: hidden; }

@@ -83,6 +83,7 @@ export class ResultsGridRender {
                 <meta charset="UTF-8">
                 <meta http-equiv="Content-Security-Policy" content="${csp}">
                 <link rel="stylesheet" href="${gridCss}">
+                <style nonce="${nonce}">html, body, #q1 { height: 100%; overflow: hidden; }</style>
                 ${colorOverrides ? `<style nonce="${nonce}">${colorOverrides}</style>` : ''}
             </head>
             <body>
