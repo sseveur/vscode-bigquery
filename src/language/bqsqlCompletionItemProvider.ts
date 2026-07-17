@@ -10,6 +10,15 @@ import { extractTableReferences } from '../services/sqlTableExtractor';
 
 export class BqsqlCompletionItemProvider implements CompletionItemProvider<CompletionItem> {
 
+    private keywordCase: 'upper' | 'lower' | 'preserve' = 'upper';
+    private functionCase: 'upper' | 'lower' | 'preserve' = 'preserve';
+
+    private applyCase(label: string, mode: 'upper' | 'lower' | 'preserve'): string {
+        if (mode === 'upper') { return label.toUpperCase(); }
+        if (mode === 'lower') { return label.toLowerCase(); }
+        return label;
+    }
+
     provideCompletionItems(document: TextDocument, position: Position, token: CancellationToken, context: CompletionContext): vscode.CompletionList<vscode.CompletionItem> | vscode.CompletionItem[] | null | undefined {
 
         if (!isBigQueryLanguage(document.languageId)) { return null; }
@@ -93,6 +102,10 @@ export class BqsqlCompletionItemProvider implements CompletionItemProvider<Compl
     }
 
     getBaseCompletionList(): CompletionList<CompletionItem> {
+
+        const config = vscode.workspace.getConfiguration('vscode-bigquery');
+        this.keywordCase = config.get<'upper' | 'lower' | 'preserve'>('completionKeywordCase', 'upper');
+        this.functionCase = config.get<'upper' | 'lower' | 'preserve'>('completionFunctionCase', 'preserve');
 
         return new CompletionList<CompletionItem>(
             [
@@ -526,21 +539,23 @@ export class BqsqlCompletionItemProvider implements CompletionItemProvider<Compl
 
     getCompletionItem(label: string, kind?: CompletionItemKind): CompletionItem {
 
-        let completionItem = new CompletionItem(label, kind);
+        const cased = this.applyCase(label, this.functionCase);
+        let completionItem = new CompletionItem(cased, kind);
 
         const anchor = label.toLocaleLowerCase().replace('.', '');
         completionItem.documentation = new vscode.MarkdownString('Bigquery official [documentation](https://cloud.google.com/bigquery/docs/reference/standard-sql/functions-and-operators#'.concat(anchor.concat(')')));
-        const alias = label.toLocaleLowerCase().replace('.', '_');
-        completionItem.insertText = new vscode.SnippetString(`${label}($1)`);
+        completionItem.insertText = new vscode.SnippetString(`${cased}($1)`);
         // Use "1_" prefix to make functions lower priority than columns (which use "0_")
+        // Sort on the original label so ordering is stable regardless of case setting
         completionItem.sortText = "1_" + label;
 
         return completionItem;
     }
 
     getKeywordCompletionItem(label: string): CompletionItem {
-        let completionItem = new CompletionItem(label, CompletionItemKind.Keyword);
-        completionItem.insertText = `${label} `;
+        const cased = this.applyCase(label, this.keywordCase);
+        let completionItem = new CompletionItem(cased, CompletionItemKind.Keyword);
+        completionItem.insertText = `${cased} `;
         // Use "2_" prefix to make keywords lowest priority (after columns "0_" and functions "1_")
         completionItem.sortText = "2_" + label;
         return completionItem;

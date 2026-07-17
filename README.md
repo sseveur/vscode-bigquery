@@ -116,6 +116,7 @@ The extension provides:
 - Syntax highlighting for SQL keywords (SELECT, FROM, WHERE, JOIN, CASE, WHEN, etc.)
 - Block comment support (`/* */`) with syntax highlighting and folding
 - Intellisense/autocomplete for SQL keywords and BigQuery functions
+- Configurable completion case (`completionKeywordCase` / `completionFunctionCase`) - insert `select` lowercase instead of `SELECT` to match your writing style
 - Grammar injection for `.sql` files (syntax highlighting works automatically)
 
 #### Smart Column Autocomplete
@@ -377,6 +378,8 @@ Configuration options:
 | `formatFunctionCase` | upper, lower, preserve | preserve | Case for function names (COUNT, SUM) |
 | `formatIdentifierCase` | upper, lower, preserve | preserve | Case for identifiers (tables, columns) |
 | `formatDataTypeCase` | upper, lower, preserve | preserve | Case for data types (INT64, STRING) |
+| `completionKeywordCase` | upper, lower, preserve | upper | Case for inserted keyword completions (SELECT, FROM) |
+| `completionFunctionCase` | upper, lower, preserve | preserve | Case for inserted function completions (COUNT, SUM) |
 | `formatIndentStyle` | standard, tabularLeft, tabularRight | standard | SQL indentation style |
 | `formatLeadingCommas` | true, false | true | Use leading comma style |
 | `formatExpressionWidth` | 1-200 | 50 | Max expression width before line breaks |
@@ -530,6 +533,8 @@ Setting: `vscode-bigquery.associateSqlFiles`
 | `vscode-bigquery.formatFunctionCase` | string | `preserve` | Function case: upper, lower, preserve |
 | `vscode-bigquery.formatIdentifierCase` | string | `preserve` | Identifier case: upper, lower, preserve |
 | `vscode-bigquery.formatDataTypeCase` | string | `preserve` | Data type case: upper, lower, preserve |
+| `vscode-bigquery.completionKeywordCase` | string | `upper` | Inserted keyword completion case: upper, lower, preserve |
+| `vscode-bigquery.completionFunctionCase` | string | `preserve` | Inserted function completion case: upper, lower, preserve |
 | `vscode-bigquery.formatIndentStyle` | string | `standard` | Indent style: standard, tabularLeft, tabularRight |
 | `vscode-bigquery.formatLeadingCommas` | boolean | `true` | Use leading comma style |
 | `vscode-bigquery.formatLogicalOperatorNewline` | string | `before` | AND/OR newline: before, after |
