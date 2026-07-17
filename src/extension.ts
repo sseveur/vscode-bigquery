@@ -11,6 +11,7 @@ import { BqsqlInlayHintsProvider } from './language/bqsqlInlayHintsProvider';
 import { BqsqlHoverProvider } from './language/bqsqlHoverProvider';
 import { BqsqlFoldingRangeProvider } from './language/bqsqlFoldingRangeProvider';
 import { BqsqlCtePreviewCodeLensProvider } from './language/bqsqlCtePreviewCodeLensProvider';
+import { BqsqlFormattingProvider } from './language/bqsqlFormattingProvider';
 import { BigqueryTableSchemaService } from './services/bigqueryTableSchemaService';
 import { BqsqlDiagnostics } from './language/bqsqlDiagnostics';
 import { QueryResultsSerializer } from './tableResultsPanel/queryResultsSerializer';
@@ -634,6 +635,22 @@ export function activate(context: ExtensionContext) {
 		vscode.languages.registerCodeLensProvider(
 			{ language: 'sql' },
 			ctePreviewCodeLensProvider
+		)
+	);
+
+	// Document formatting provider: wires the SQL formatter into VS Code's
+	// standard formatting API (Format Document, context menu, formatOnSave)
+	const formattingProvider = new BqsqlFormattingProvider();
+	context.subscriptions.push(
+		vscode.languages.registerDocumentFormattingEditProvider(
+			{ language: 'bqsql' },
+			formattingProvider
+		)
+	);
+	context.subscriptions.push(
+		vscode.languages.registerDocumentFormattingEditProvider(
+			{ language: 'sql' },
+			formattingProvider
 		)
 	);
 
