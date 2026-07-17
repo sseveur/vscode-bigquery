@@ -5,6 +5,12 @@ All notable changes to the BigQuery Studio extension will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.11.0] - 2026-07-18
+
+### Added
+
+- **Standard formatting API integration** - The SQL formatter is now registered as a VS Code document formatting provider for `bqsql` and `sql`. "Format Document" (`Shift+Alt+F`), the editor context-menu entry, and `editor.formatOnSave` now format BigQuery SQL — previously formatting was only reachable through the `BigQuery: Format SQL` command. Same formatter and settings across every route.
+
 ## [2.10.0] - 2026-07-18
 
 ### Added

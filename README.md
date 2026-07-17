@@ -364,7 +364,7 @@ Configure the cost per TB in settings via `vscode-bigquery.costPerTB`. Set to 0 
 
 ## Format SQL
 
-Format your BigQuery SQL queries with `Shift+Alt+F` or by running `BigQuery: Format SQL`.
+Format your BigQuery SQL queries with `Shift+Alt+F`, the editor's **Format Document** context-menu entry, `editor.formatOnSave`, or by running `BigQuery: Format SQL`. All routes use the same formatter and settings.
 
 <img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/format_sql_tabular.png" alt="formatted SQL — tabularLeft, leading commas, aligned ON/AND, inline GROUP BY" width="640"/>
 
