@@ -2,7 +2,7 @@
 	"name": "bigquery-studio",
 	"displayName": "BigQuery Studio",
 	"description": "Fork of bstruct/vscode-bigquery. A powerful Google BigQuery extension with offline-ready charting, query execution, data browsing, SQL intellisense, cost estimation, and data lineage visualization.",
-	"version": "2.9.0",
+	"version": "2.10.0",
 	"publisher": "s-seveur",
 	"icon": "logo.png",
 	"repository": {
@@ -347,6 +347,32 @@
 						"order": 12,
 						"title": "Format: Data Type Case",
 						"description": "How to format data types (INT64, STRING, etc.)"
+					},
+					"vscode-bigquery.completionKeywordCase": {
+						"type": "string",
+						"default": "upper",
+						"enum": [
+							"upper",
+							"lower",
+							"preserve"
+						],
+						"scope": "machine-overridable",
+						"order": 13,
+						"title": "Completion: Keyword Case",
+						"description": "Case used when inserting SQL keyword completions (SELECT, FROM, WHERE, etc.)"
+					},
+					"vscode-bigquery.completionFunctionCase": {
+						"type": "string",
+						"default": "preserve",
+						"enum": [
+							"upper",
+							"lower",
+							"preserve"
+						],
+						"scope": "machine-overridable",
+						"order": 14,
+						"title": "Completion: Function Case",
+						"description": "Case used when inserting function name completions (COUNT, SUM, etc.). 'preserve' keeps BigQuery's uppercase convention."
 					}
 				}
 			},

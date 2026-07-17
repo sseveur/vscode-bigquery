@@ -5,6 +5,12 @@ All notable changes to the BigQuery Studio extension will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.10.0] - 2026-07-18
+
+### Added
+
+- **Completion case settings** - Keyword and function completions can now be inserted in the case you prefer, instead of always uppercase. Two new settings — `completionKeywordCase` (default `upper`) and `completionFunctionCase` (default `preserve`) — accept `upper`, `lower`, or `preserve`. Set `completionKeywordCase` to `lower` and accepting `select`, `from`, `where` inserts them lowercase, matching a lowercase writing style without a reformat afterwards. Defaults keep the previous behaviour for existing users.
+
 ## [2.9.0] - 2026-07-04
 
 ### Added
