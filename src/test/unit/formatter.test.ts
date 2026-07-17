@@ -97,6 +97,24 @@ suite('bqsqlFormatter', () => {
                 assert.ok(!lines(out).some(l => /^AND\b/.test(l)), `frame AND hoisted:\n${out}`);
             });
         }
+
+        // The original #10 repro used leading commas + tabularLeft, where the leading-comma pass
+        // inserted a spurious comma before the frame AND ("365 PRECEDING, AND CURRENT ROW"),
+        // producing invalid SQL. Guard that exact combination.
+        test('leading commas + tabularLeft: no spurious comma before frame AND', () => {
+            const sql = [
+                'SELECT dp.profile_id',
+                ', SUM(dp.daily_points) OVER (',
+                'PARTITION BY dp.profile_id',
+                'ORDER BY UNIX_DATE(dp.issued_date)',
+                'RANGE BETWEEN 365 PRECEDING AND CURRENT ROW',
+                ') AS rolling_12m_points',
+                'FROM daily_points dp',
+            ].join('\n');
+            const out = formatBigQuerySQL(sql, { ...BASE, leadingCommas: true, indentStyle: 'tabularLeft' });
+            assert.ok(/365\s+PRECEDING\s+AND\s+CURRENT\s+ROW/i.test(out), `frame mangled:\n${out}`);
+            assert.ok(!/PRECEDING\s*,\s*AND/i.test(out), `spurious comma before frame AND:\n${out}`);
+        });
     });
 
     // Issue: tabular styles scattered function-call arguments — sql-formatter put AND/OR at the
