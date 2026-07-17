@@ -5,6 +5,12 @@ All notable changes to the BigQuery Studio extension will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.11.1] - 2026-07-18
+
+### Fixed
+
+- **Comments no longer dropped when opening SQL as a notebook** - A standalone comment between two statements (or before the first / after the last) was discarded when a `.sql`/`.bqsql` file was viewed as a notebook, because only statement ranges were mapped to cells. Comments are now preserved: a comment block leading into a statement stays on that statement's cell, and a trailing comment stays on the last cell.
+
 ## [2.11.0] - 2026-07-18
 
 ### Added

@@ -87,9 +87,40 @@ export function textToNotebookData(text: string): vscode.NotebookData {
         ]);
     }
 
+    // splitQueries only reports statement ranges, so a standalone comment that sits between
+    // two statements belongs to no range and was dropped when opening as a notebook (#14).
+    // Reconstruct cells from the original text instead: a statement's cell keeps any comment
+    // block that leads into it (from just after the previous statement's terminator), and any
+    // trailing comment after the last statement is appended to the last cell. Nothing is lost.
+    const values: string[] = [];
+    let prevTermEnd = 0;
+    for (let i = 0; i < queries.length; i++) {
+        const q = queries[i];
+        const leading = text.substring(prevTermEnd, q.startOffset).trim();
+        values.push(leading ? `${leading}\n${q.sql}` : q.sql);
+        prevTermEnd = terminatorEnd(text, q.endOffset);
+    }
+    const tail = text.substring(prevTermEnd).trim();
+    if (tail) {
+        values[values.length - 1] += `\n\n${tail}`;
+    }
+
     return new vscode.NotebookData(
-        queries.map(q => new vscode.NotebookCellData(vscode.NotebookCellKind.Code, q.sql, CELL_LANGUAGE))
+        values.map(v => new vscode.NotebookCellData(vscode.NotebookCellKind.Code, v, CELL_LANGUAGE))
     );
+}
+
+/**
+ * Returns the offset just past a statement's terminating `;` (skipping only whitespace after
+ * the statement's range). If no semicolon follows, returns the statement end unchanged, so the
+ * gap up to the next statement is treated as that next statement's leading comment block.
+ */
+function terminatorEnd(text: string, endOffset: number): number {
+    let j = endOffset;
+    while (j < text.length && (text[j] === ' ' || text[j] === '\t' || text[j] === '\r' || text[j] === '\n')) {
+        j++;
+    }
+    return text[j] === ';' ? j + 1 : endOffset;
 }
 
 function splitOnMarkers(text: string): string[] {
