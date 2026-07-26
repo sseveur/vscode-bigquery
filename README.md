@@ -368,7 +368,7 @@ Format your BigQuery SQL queries with `Shift+Alt+F`, the editor's **Format Docum
 
 <img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/format_sql_tabular.png" alt="formatted SQL — tabularLeft, leading commas, aligned ON/AND, inline GROUP BY" width="640"/>
 
-*Example: `tabularLeft` indent, leading commas, gutter-aligned `ON`/`AND`, inline `GROUP BY`/`ORDER BY`.*
+*Example: `tabularLeft` indent, leading commas, `ON`/`AND` indented under their clause, inline `GROUP BY`/`ORDER BY`.*
 
 Configuration options:
 

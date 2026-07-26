@@ -2,7 +2,7 @@
 	"name": "bigquery-studio",
 	"displayName": "BigQuery Studio",
 	"description": "Fork of bstruct/vscode-bigquery. A powerful Google BigQuery extension with offline-ready charting, query execution, data browsing, SQL intellisense, cost estimation, and data lineage visualization.",
-	"version": "2.11.1",
+	"version": "2.12.0",
 	"publisher": "s-seveur",
 	"icon": "logo.png",
 	"repository": {
@@ -294,7 +294,7 @@
 						"scope": "machine-overridable",
 						"order": 8,
 						"title": "Format: Logical Operator Style",
-						"description": "How AND/OR/ON are positioned relative to their parent clause. 'keywordAligned' treats them as alignment keywords, 'contentAligned' aligns them with the clause content, 'indented' (default) indents AND/OR one level under the parent keyword while ON stays at the keyword gutter."
+						"description": "How AND/OR/ON are positioned relative to their parent clause. 'keywordAligned' treats them as alignment keywords, 'contentAligned' aligns them with the clause content, 'indented' (default) indents AND/OR/ON one level under the parent keyword."
 					},
 					"vscode-bigquery.formatKeywordCase": {
 						"type": "string",

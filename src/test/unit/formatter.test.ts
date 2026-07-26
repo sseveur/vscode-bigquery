@@ -55,7 +55,8 @@ suite('bqsqlFormatter', () => {
     });
 
     // Issue #9: in tabular indent styles the CTE-body realign used to dump ON/AND at column 0.
-    suite('#9 CTE tabular realign keeps ON/AND in the gutter', () => {
+    // In 'indented' style ON/AND must sit one level DEEPER than their parent JOIN keyword.
+    suite('#9 CTE tabular realign indents ON/AND under the JOIN', () => {
         const cte = [
             'WITH joined AS (',
             'SELECT a.id, b.val FROM tbl_a a INNER JOIN tbl_b b ON a.id = b.id AND a.k = b.k',
@@ -74,6 +75,16 @@ suite('bqsqlFormatter', () => {
                 assert.ok(lines(out).some(l => /^\s+AND\b/.test(l)), `AND missing/!indented:\n${out}`);
             });
         }
+
+        test('indented: ON is indented deeper than its JOIN keyword (tabularLeft)', () => {
+            const out = formatBigQuerySQL(cte, { ...BASE, indentStyle: 'tabularLeft', logicalOperatorStyle: 'indented' });
+            const outLines = lines(out);
+            const joinLine = outLines.find(l => /^\s*INNER JOIN\b/.test(l))!;
+            const onLine = outLines.find(l => /^\s*ON\b/.test(l))!;
+            const joinCol = joinLine.match(/^\s*/)![0].length;
+            const onCol = onLine.match(/^\s*/)![0].length;
+            assert.ok(onCol > joinCol, `ON (col ${onCol}) must sit deeper than JOIN (col ${joinCol}):\n${out}`);
+        });
     });
 
     // Issue #10: window-frame "RANGE/ROWS BETWEEN … PRECEDING AND CURRENT ROW" was split so the

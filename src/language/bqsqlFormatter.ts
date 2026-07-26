@@ -375,8 +375,8 @@ function realignTabularBlock(blockLines: string[], opts: FormatOptions): string[
         }
         const om = blockLines[i].match(LOGICAL_OP_LINE);
         if (om && (dep in oldCol) && !isInsideStringOrComment(blockLines[i])) {
-            const isOn = om[2].toUpperCase() === 'ON';
-            const lead = base[dep] + (opts.logicalOperatorStyle === 'indented' && !isOn ? tab : 0);
+            // 'indented' style indents AND/OR/ON one level under their parent clause keyword (#9).
+            const lead = base[dep] + (opts.logicalOperatorStyle === 'indented' ? tab : 0);
             newCol[dep] = Math.max(newCol[dep], lead + om[2].length + 1);
         }
     }
@@ -457,8 +457,8 @@ function realignTabularBlock(blockLines: string[], opts: FormatOptions): string[
                 if (right) {
                     return ' '.repeat(Math.max(0, col - 1 - keyword.length)) + keyword + ' ' + rest;
                 }
-                const isOn = keyword.toUpperCase() === 'ON';
-                const kwCol = b + (opts.logicalOperatorStyle === 'indented' && !isOn ? tab : 0);
+                // 'indented' indents AND/OR/ON one tab under the parent clause keyword (#9).
+                const kwCol = b + (opts.logicalOperatorStyle === 'indented' ? tab : 0);
                 return ' '.repeat(kwCol) + keyword + padTo(kwCol, keyword, col) + rest;
             }
         }
