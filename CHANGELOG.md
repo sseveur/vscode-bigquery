@@ -5,6 +5,12 @@ All notable changes to the BigQuery Studio extension will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.12.0] - 2026-07-26
+
+### Changed
+
+- **`ON` now indents under its JOIN in `indented` logical-operator style** - With `formatLogicalOperatorStyle` set to `indented` (the default), the `ON` clause of a JOIN is now indented one level deeper than its JOIN keyword, matching how `AND`/`OR` already indent under their parent clause — instead of sitting at the JOIN keyword gutter. Applies to the tabular indent styles.
+
 ## [2.11.1] - 2026-07-18
 
 ### Fixed
