@@ -5,6 +5,12 @@ All notable changes to the BigQuery Studio extension will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.12.1] - 2026-08-05
+
+### Fixed
+
+- **Excluded stray root-level text files from the published package** - A few unrelated `.txt` notes sitting in the repository root were accidentally bundled into the v2.12.0 VSIX. `.vscodeignore` now excludes all root `.txt` files (keeping `LICENSE.txt`), so only intended assets ship.
+
 ## [2.12.0] - 2026-07-26
 
 ### Changed
