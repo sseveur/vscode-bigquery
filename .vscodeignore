@@ -13,6 +13,10 @@ vsc-extension-quickstart.md
 **/*.ts
 bqsql_parser/**
 
+# Root-level .txt notes/scraps must never ship; LICENSE.txt is re-included below.
+/*.txt
+!LICENSE.txt
+
 # Development files
 claude-transcript/**
 CLAUDE.md
