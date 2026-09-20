@@ -1,7 +1,10 @@
 import * as vscode from 'vscode';
 import { getExtensionUri } from '../extension';
 import { COMMAND_DOWNLOAD_CSV, COMMAND_DOWNLOAD_JSONL, COMMAND_SEND_PUBSUB, COMMAND_COPY_CLIPBOARD } from '../extensionCommands';
-import { ResultsGridRenderRequestV2 } from './resultsGridRenderRequestV2';
+import { ResultsGridRenderRequestV2, ResultsGridRenderRequestV2Type } from './resultsGridRenderRequestV2';
+
+/** Supplies a fresh OAuth token when a reloaded webview needs to refetch its rows. */
+export type TokenRefresher = () => Promise<string | null>;
 
 const GRID_COLOR_KEY_TO_VAR: Record<string, string> = {
     number: '--bq-color-number',
@@ -35,10 +38,32 @@ export function sanitizedGridColorVars(): Record<string, string> {
 
 export class ResultsGridRender {
 
+    private static tokenRefresher: TokenRefresher | undefined;
+
+    /** Set once at activation so replayed messages can carry a non-expired token. */
+    public static setTokenRefresher(refresher: TokenRefresher) {
+        ResultsGridRender.tokenRefresher = refresher;
+    }
+
     private webViewPanel: vscode.WebviewPanel;
+    private lastDataMessage: ResultsGridRenderRequestV2 | undefined;
+    private messageHandlerAttached = false;
+    private loadCompleteSeen = false;
+    private firstLoadCompleteHandler: (() => void) | undefined;
+    private loadCompleteHandler: (() => Promise<void> | void) | undefined;
 
     constructor(webViewPanel: vscode.WebviewPanel) {
         this.webViewPanel = webViewPanel;
+    }
+
+    /**
+     * Registers a handler invoked on every `load_complete` the webview sends, including the ones
+     * that follow a reload (moving the tab to another editor group or a floating window destroys
+     * and re-creates the webview). When set, it fully owns repopulating the grid.
+     */
+    public setLoadCompleteHandler(handler: () => Promise<void> | void) {
+        this.loadCompleteHandler = handler;
+        this.attachMessageHandler();
     }
 
     public static executeCommand(c: any) {
@@ -100,6 +125,66 @@ export class ResultsGridRender {
         return s;
     }
 
+    /**
+     * Single `onDidReceiveMessage` subscription for the panel's whole lifetime. Registering one per
+     * render would double-fire the export commands after a reload.
+     */
+    private attachMessageHandler() {
+        if (this.messageHandlerAttached) { return; }
+        this.messageHandlerAttached = true;
+
+        this.webViewPanel.webview.onDidReceiveMessage(async c => {
+            if ((c as any)?.command === 'load_complete') {
+                const isFirst = !this.loadCompleteSeen;
+                this.loadCompleteSeen = true;
+
+                if (isFirst && this.firstLoadCompleteHandler) {
+                    const handler = this.firstLoadCompleteHandler;
+                    this.firstLoadCompleteHandler = undefined;
+                    handler();
+                }
+
+                if (this.loadCompleteHandler) {
+                    await this.loadCompleteHandler();
+                } else if (!isFirst) {
+                    await this.replayLastMessage();
+                }
+            } else {
+                ResultsGridRender.executeCommand(c);
+            }
+        });
+    }
+
+    /**
+     * Re-sends the last data message after the webview reloaded, with a refreshed token because the
+     * grid fetches its rows straight from the BigQuery REST API.
+     */
+    public async replayLastMessage(): Promise<void> {
+        const message = this.lastDataMessage;
+        if (!message) { return; }
+
+        let token = message.token;
+        if (ResultsGridRender.tokenRefresher) {
+            try {
+                token = (await ResultsGridRender.tokenRefresher()) ?? token;
+            } catch {
+                // keep the previous token; the grid surfaces the auth error if it is stale
+            }
+        }
+
+        await this.webViewPanel.webview.postMessage({
+            requestType: ResultsGridRenderRequestV2Type.clear.toString(),
+            projectId: null,
+            token: null,
+            job: null,
+            error: null
+        } as ResultsGridRenderRequestV2);
+
+        const replayed = { ...message, token } as ResultsGridRenderRequestV2;
+        this.lastDataMessage = replayed;
+        await this.webViewPanel.webview.postMessage(replayed);
+    }
+
     public render1(): Promise<boolean> {
 
         const extensionUri = getExtensionUri();
@@ -110,14 +195,11 @@ export class ResultsGridRender {
                 reject(null);
             }, 10 * 1000);
 
-            this.webViewPanel.webview.onDidReceiveMessage(c => {
-                if ((c as any).command === 'load_complete') {
-                    clearTimeout(timer);
-                    resolve(true);
-                } else {
-                    ResultsGridRender.executeCommand(c);
-                }
-            });
+            this.firstLoadCompleteHandler = () => {
+                clearTimeout(timer);
+                resolve(true);
+            };
+            this.attachMessageHandler();
 
             this.webViewPanel.webview.html = this.buildHtml(this.webViewPanel.webview, extensionUri);
         });
@@ -127,16 +209,15 @@ export class ResultsGridRender {
 
         const extensionUri = getExtensionUri();
 
-        this.webViewPanel.webview.onDidReceiveMessage(c => {
-            if ((c as any).command !== 'load_complete') {
-                ResultsGridRender.executeCommand(c);
-            }
-        });
+        this.attachMessageHandler();
 
         this.webViewPanel.webview.html = this.buildHtml(this.webViewPanel.webview, extensionUri);
     }
 
     public postMessage(message: ResultsGridRenderRequestV2): Thenable<boolean> {
+        if (message && message.requestType !== ResultsGridRenderRequestV2Type.clear.toString()) {
+            this.lastDataMessage = message;
+        }
         return this.webViewPanel.webview.postMessage(message);
     }
 

@@ -5,6 +5,12 @@ All notable changes to the BigQuery Studio extension will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.12.2] - 2026-09-20
+
+### Fixed
+
+- **Results and table-preview panels no longer go blank when moved to another editor group or a floating window** - VS Code reloads a webview when its tab is moved, which dropped the grid's data and left an empty (dark) panel. The panel now replays its last result with a freshly refreshed token when the webview reloads, so the grid comes back. Restored panels from a previous session reload the same way.
+
 ## [2.12.1] - 2026-08-05
 
 ### Fixed

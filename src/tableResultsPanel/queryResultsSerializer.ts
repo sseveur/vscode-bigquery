@@ -21,11 +21,14 @@ export class QueryResultsSerializer implements vscode.WebviewPanelSerializer {
 
         const resultsGridRender = new ResultsGridRender(webviewPanel);
 
-        webviewPanel.webview.onDidReceiveMessage(async c => {
-            if ((c as any).command === 'load_complete') {
-                await loadComplete(resultsGridRender, state);
-            } else {
-                ResultsGridRender.executeCommand(c);
+        // Runs on the initial restore and again whenever the webview reloads (e.g. the tab is moved
+        // to another editor group or into a floating window), refetching the job with a fresh token.
+        resultsGridRender.setLoadCompleteHandler(async () => {
+            const restored = await loadComplete(resultsGridRender, state);
+            if (!restored) {
+                // No persisted job reference (or no state at all): fall back to whatever was last
+                // rendered in this session, so a reload does not leave an empty panel.
+                await resultsGridRender.replayLastMessage();
             }
         });
 
@@ -40,7 +43,8 @@ export class QueryResultsSerializer implements vscode.WebviewPanelSerializer {
     }
 }
 
-let loadComplete = async function (resultsGridRender: ResultsGridRender, state: any): Promise<void> {
+/** Returns true when the panel content was restored from the persisted job reference. */
+let loadComplete = async function (resultsGridRender: ResultsGridRender, state: any): Promise<boolean> {
 
     let _postMessageResult1 = await resultsGridRender.postMessage({
         requestType: ResultsGridRenderRequestV2Type.clear.toString(),
@@ -50,9 +54,9 @@ let loadComplete = async function (resultsGridRender: ResultsGridRender, state: 
         error: null
     } as ResultsGridRenderRequestV2);
 
-    const jobId: string | undefined = state.jobId;
-    const projectId: string | undefined = state.projectId;
-    const location: string | undefined = state.location;
+    const jobId: string | undefined = state?.jobId;
+    const projectId: string | undefined = state?.projectId;
+    const location: string | undefined = state?.location;
     // const jobIndex: number | undefined = state.jobIndex;
 
     // const queryResultsMappingItem = QueryResultsMappingService.getQueryResultsMappingItem(this.globalState, uuid);
@@ -108,6 +112,10 @@ let loadComplete = async function (resultsGridRender: ResultsGridRender, state: 
             } as ResultsGridRenderRequestV2);
 
         }
+
+        return true;
     }
+
+    return false;
 };
 

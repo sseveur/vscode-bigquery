@@ -15,6 +15,7 @@ import { BqsqlFormattingProvider } from './language/bqsqlFormattingProvider';
 import { BigqueryTableSchemaService } from './services/bigqueryTableSchemaService';
 import { BqsqlDiagnostics } from './language/bqsqlDiagnostics';
 import { QueryResultsSerializer } from './tableResultsPanel/queryResultsSerializer';
+import { ResultsGridRender } from './tableResultsPanel/resultsGridRender';
 import { QueryResultsMappingService } from './services/queryResultsMappingService';
 import { TableResultsSerializer } from './tableResultsPanel/tableResultsSerializer';
 import { ResultsRender } from './services/resultsRender';
@@ -515,6 +516,13 @@ export function activate(context: ExtensionContext) {
 			bigQueryTreeDataProvider
 		)
 	);
+
+	// A results webview that gets moved to another editor group or into a floating window is
+	// reloaded by VS Code; the replayed message needs a token that is still valid.
+	ResultsGridRender.setTokenRefresher(async () => {
+		const bqClient = await commands.getBigQueryClient();
+		return await bqClient.getToken();
+	});
 
 	//bigquery-query-results
 	context.subscriptions.push(
