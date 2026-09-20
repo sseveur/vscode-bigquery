@@ -1,5 +1,5 @@
 import * as assert from 'assert';
-import { isMultiStatementScript, isTempTableStatement } from '../../services/sqlStatementUtils';
+import { isMultiStatementScript, isSafeTableIdentifier, isTempTableStatement } from '../../services/sqlStatementUtils';
 
 suite('sqlStatementUtils', () => {
 
@@ -34,6 +34,33 @@ suite('sqlStatementUtils', () => {
 
         test('triple-quoted literal containing a semicolon', () => {
             assert.strictEqual(isMultiStatementScript('SELECT """a;b""" AS s'), false);
+        });
+    });
+
+    suite('isSafeTableIdentifier', () => {
+        test('accepts plain, dotted and backquoted names', () => {
+            assert.strictEqual(isSafeTableIdentifier('t'), true);
+            assert.strictEqual(isSafeTableIdentifier('dataset.table'), true);
+            assert.strictEqual(isSafeTableIdentifier('my-project.dataset.table'), true);
+            assert.strictEqual(isSafeTableIdentifier('`my-project`.`dataset`.`table`'), true);
+        });
+
+        test('rejects a name ending in a comment marker', () => {
+            assert.strictEqual(isSafeTableIdentifier('dataset.table--'), false);
+        });
+
+        test('rejects more than three parts', () => {
+            assert.strictEqual(isSafeTableIdentifier('a.b.c.d'), false);
+        });
+
+        test('rejects whitespace and quotes', () => {
+            assert.strictEqual(isSafeTableIdentifier('`weird name`'), false);
+            assert.strictEqual(isSafeTableIdentifier("t' OR '1"), false);
+            assert.strictEqual(isSafeTableIdentifier('t;SELECT 1'), false);
+        });
+
+        test('rejects an empty name', () => {
+            assert.strictEqual(isSafeTableIdentifier(''), false);
         });
     });
 

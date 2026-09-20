@@ -55,3 +55,14 @@ export function isMultiStatementScript(sql: string): boolean {
 export function isTempTableStatement(sql: string): boolean {
     return /^\s*CREATE\s+(?:OR\s+REPLACE\s+)?TEMP(?:ORARY)?\s+TABLE\s/i.test(sql.trim());
 }
+
+/**
+ * True when a table name captured from a `CREATE TABLE` statement is safe to interpolate into a
+ * generated preview query. Rejects anything but up to three dotted identifier parts (optionally
+ * backquoted), and in particular a name ending in `--`, which would comment out the rest of the
+ * generated query — turning `SELECT * ... LIMIT 100` into an unbounded scan.
+ */
+export function isSafeTableIdentifier(name: string): boolean {
+    if (name.includes('--')) { return false; }
+    return /^`?[\w-]+`?(?:\.`?[\w-]+`?){0,2}$/.test(name);
+}

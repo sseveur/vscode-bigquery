@@ -51,9 +51,15 @@ export class ResultsGridRender {
     private loadCompleteSeen = false;
     private firstLoadCompleteHandler: (() => void) | undefined;
     private loadCompleteHandler: (() => Promise<void> | void) | undefined;
+    private disposed = false;
 
     constructor(webViewPanel: vscode.WebviewPanel) {
         this.webViewPanel = webViewPanel;
+        // Nothing can be replayed into a closed panel, so do not keep its token around.
+        this.webViewPanel.onDidDispose(() => {
+            this.lastDataMessage = undefined;
+            this.disposed = true;
+        });
     }
 
     /**
@@ -161,7 +167,7 @@ export class ResultsGridRender {
      */
     public async replayLastMessage(): Promise<void> {
         const message = this.lastDataMessage;
-        if (!message) { return; }
+        if (!message || this.disposed) { return; }
 
         let token = message.token;
         if (ResultsGridRender.tokenRefresher) {
@@ -172,6 +178,7 @@ export class ResultsGridRender {
             }
         }
 
+        if (this.disposed) { return; }
         await this.webViewPanel.webview.postMessage({
             requestType: ResultsGridRenderRequestV2Type.clear.toString(),
             projectId: null,
@@ -215,6 +222,7 @@ export class ResultsGridRender {
     }
 
     public postMessage(message: ResultsGridRenderRequestV2): Thenable<boolean> {
+        if (this.disposed) { return Promise.resolve(false); }
         if (message && message.requestType !== ResultsGridRenderRequestV2Type.clear.toString()) {
             this.lastDataMessage = message;
         }

@@ -5,6 +5,13 @@ All notable changes to the BigQuery Studio extension will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.12.4] - 2026-09-20
+
+### Fixed
+
+- **Auto-preview rejects a table name it cannot safely inline** - The generated `SELECT * FROM <table> LIMIT 100` took the table name straight from the `CREATE TABLE` statement, so a name ending in `--` commented out the row limit and scanned the whole table. The name must now look like up to three dotted identifier parts.
+- **Cached query results are dropped when a panel closes** - The results panel kept its last payload, including the access token used to fetch rows, for as long as the extension ran. It is now cleared when the panel is disposed, and messages to a closed panel are no longer attempted.
+
 ## [2.12.3] - 2026-09-20
 
 ### Added

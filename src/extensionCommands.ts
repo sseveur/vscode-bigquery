@@ -10,7 +10,7 @@ import { ResultsGridRender } from './tableResultsPanel/resultsGridRender';
 import { v4 as uuidv4 } from 'uuid';
 import { DownloadCsv } from './tableResultsPanel/downloadCsv';
 import { QueryResultsMappingService } from './services/queryResultsMappingService';
-import { isMultiStatementScript, isTempTableStatement } from './services/sqlStatementUtils';
+import { isMultiStatementScript, isSafeTableIdentifier, isTempTableStatement } from './services/sqlStatementUtils';
 import { QueryResultsMapping } from './services/queryResultsMapping';
 // import { JobReference } from "./services/queryResultsMapping";
 // import { TableReference } from './services/tableMetadata';
@@ -413,7 +413,7 @@ const runQuery = async function (globalState: vscode.Memento, queryResultsWebvie
 		if (autoPreview && isCreateTable) {
 			const createdTable = extractCreatedTableName(queryText);
 
-			if (createdTable) {
+			if (createdTable && isSafeTableIdentifier(createdTable)) {
 				// Wait briefly for table to be available
 				await new Promise(resolve => setTimeout(resolve, 500));
 
