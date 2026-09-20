@@ -113,9 +113,18 @@ function GridApp() {
         const t = view.tables[0];
         return (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(BqTableHost, { view: t }, t.key);
     }
-    return ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { class: "bq-script", children: view.tables.map(t => ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { class: "bq-script-item", children: (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(BqTableHost, { view: t }) }, t.key))) }));
+    return (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(ScriptTabs, { tables: view.tables });
 }
-function BqTableHost({ view }) {
+/**
+ * One tab per statement of a script. Every grid stays mounted so switching back keeps its page,
+ * sort and selection; only the active one is visible.
+ */
+function ScriptTabs({ tables }) {
+    const [active, setActive] = (0,preact_hooks__WEBPACK_IMPORTED_MODULE_1__.useState)(0);
+    const current = Math.min(active, tables.length - 1);
+    return ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("div", { class: "bq-script", children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { class: "bq-tabs", role: "tablist", children: tables.map((t, i) => ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsxs)("button", { class: `bq-tab ${i === current ? 'active' : ''}`, role: "tab", "aria-selected": i === current, onClick: () => setActive(i), title: t.title, children: [(0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { class: "bq-tab-label", children: t.title || `Statement ${i + 1}` }), (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("span", { class: "bq-tab-rows", children: t.totalRows.toLocaleString() })] }, t.key))) }), tables.map((t, i) => ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("div", { class: `bq-script-item ${i === current ? '' : 'bq-script-item-hidden'}`, children: (0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(BqTableHost, { view: t, showTitle: false }) }, t.key)))] }));
+}
+function BqTableHost({ view, showTitle = true }) {
     const { source, token } = view;
     const fetchRows = (0,preact_hooks__WEBPACK_IMPORTED_MODULE_1__.useCallback)((start, size) => {
         if (source.kind === 'job') {
@@ -123,7 +132,7 @@ function BqTableHost({ view }) {
         }
         return (0,_pagination__WEBPACK_IMPORTED_MODULE_3__.fetchTablePage)(source.tableRef, token, start, size);
     }, [source, token]);
-    return ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_BqTable__WEBPACK_IMPORTED_MODULE_2__.BqTable, { fetchRows: fetchRows, exportRef: view.exportRef, schema: view.schema, totalRows: view.totalRows, initialRows: view.initialRows, title: view.title, dmlStats: view.dmlStats, statementType: view.statementType }));
+    return ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)(_BqTable__WEBPACK_IMPORTED_MODULE_2__.BqTable, { fetchRows: fetchRows, exportRef: view.exportRef, schema: view.schema, totalRows: view.totalRows, initialRows: view.initialRows, title: showTitle ? view.title : undefined, dmlStats: view.dmlStats, statementType: view.statementType }));
 }
 function jobRefFromJob(job, fallbackProjectId) {
     const ref = job.jobReference || job.metadata?.jobReference || {};
@@ -144,41 +153,24 @@ async function handleExecuteQuery(msg) {
     if (!jobRef.jobId) {
         return { kind: 'error', message: 'Missing jobId.', reason: null };
     }
-    const hasScript = (job.statistics?.scriptStatistics || job.metadata?.statistics?.scriptStatistics) != null;
-    if (hasScript) {
-        const children = await (0,_pagination__WEBPACK_IMPORTED_MODULE_3__.fetchChildJobs)(jobRef, String(token));
-        if (children.length === 0) {
-            return { kind: 'error', message: 'Script has no child jobs with results.', reason: null };
+    // The extension posts the job right after creating it, so the payload's `statistics` is
+    // whatever BigQuery knew at creation time — a multi-statement script has no `scriptStatistics`
+    // and no `numChildJobs` yet. Waiting on the job's metadata is both how we find out it finished
+    // and how we learn it is a script, without holding a `getQueryResults` request open.
+    const meta = await (0,_pagination__WEBPACK_IMPORTED_MODULE_3__.waitForJobDone)(jobRef, String(token)).catch(() => undefined);
+    const childCount = Number(meta?.statistics?.numChildJobs || 0);
+    const isScript = childCount > 0
+        || meta?.statistics?.scriptStatistics != null
+        || (job.statistics?.scriptStatistics || job.metadata?.statistics?.scriptStatistics) != null;
+    if (isScript) {
+        const scriptView = await buildScriptView(jobRef, String(token), childCount);
+        if (scriptView) {
+            return scriptView;
         }
-        const tables = [];
-        for (let i = 0; i < children.length; i++) {
-            const child = children[i];
-            try {
-                const res = await (0,_pagination__WEBPACK_IMPORTED_MODULE_3__.fetchPage)(child.jobRef, String(token), 0, _pagination__WEBPACK_IMPORTED_MODULE_3__.DEFAULT_PAGE_SIZE);
-                tables.push({
-                    key: `child-${child.jobRef.jobId}`,
-                    exportRef: { jobReference: child.jobRef },
-                    schema: (res.schema?.fields || []),
-                    totalRows: parseInt(String(res.totalRows || '0'), 10),
-                    initialRows: res.rows || [],
-                    token: String(token),
-                    source: { kind: 'job', jobRef: child.jobRef },
-                    title: `Statement ${i + 1}${child.statementType ? ` · ${child.statementType}` : ''}`,
-                    dmlStats: child.dmlStats,
-                    statementType: child.statementType,
-                });
-            }
-            catch (e) {
-                // skip failed child
-            }
-        }
-        if (tables.length === 0) {
-            return { kind: 'error', message: 'Script child jobs returned no results.', reason: null };
-        }
-        return { kind: 'tables', tables };
     }
+    // Not a script (or the script exposed nothing): the job's own result set.
     const res = await (0,_pagination__WEBPACK_IMPORTED_MODULE_3__.fetchPage)(jobRef, String(token), 0, _pagination__WEBPACK_IMPORTED_MODULE_3__.DEFAULT_PAGE_SIZE);
-    const jobStats = job.statistics?.query || job.metadata?.statistics?.query || {};
+    const jobStats = meta?.statistics?.query || job.statistics?.query || job.metadata?.statistics?.query || {};
     return {
         kind: 'tables',
         tables: [{
@@ -193,6 +185,47 @@ async function handleExecuteQuery(msg) {
                 source: { kind: 'job', jobRef },
             }],
     };
+}
+/** True for statements whose child job reports a schema but never any rows. */
+function isDdlStatement(statementType) {
+    return !!statementType
+        && (statementType.startsWith('CREATE_') || statementType.startsWith('DROP_') || statementType.startsWith('ALTER_'));
+}
+/**
+ * Builds one table per statement of a script. Returns null when the script exposed nothing, so the
+ * caller can fall back to the parent job's own result set.
+ */
+async function buildScriptView(jobRef, token, childCount) {
+    const children = await (0,_pagination__WEBPACK_IMPORTED_MODULE_3__.fetchChildJobs)(jobRef, token, childCount).catch(() => []);
+    if (children.length === 0) {
+        return null;
+    }
+    const pages = await Promise.all(children.map(child => (0,_pagination__WEBPACK_IMPORTED_MODULE_3__.fetchPage)(child.jobRef, token, 0, _pagination__WEBPACK_IMPORTED_MODULE_3__.DEFAULT_PAGE_SIZE).catch(() => undefined)));
+    const tables = [];
+    children.forEach((child, i) => {
+        const res = pages[i];
+        if (!res) {
+            return;
+        }
+        tables.push({
+            key: `child-${child.jobRef.jobId}`,
+            exportRef: { jobReference: child.jobRef },
+            schema: (res.schema?.fields || []),
+            totalRows: parseInt(String(res.totalRows || '0'), 10),
+            initialRows: res.rows || [],
+            token,
+            source: { kind: 'job', jobRef: child.jobRef },
+            title: `Statement ${i + 1}${child.statementType ? ` · ${child.statementType}` : ''}`,
+            dmlStats: child.dmlStats,
+            statementType: child.statementType,
+        });
+    });
+    // Hide the DDL steps of a script (`CREATE TEMP TABLE ...`): their child job reports the created
+    // table's schema with zero rows, which renders as a confusing empty grid. Keep everything when
+    // that would leave nothing to show.
+    const withContent = tables.filter(t => t.totalRows > 0 || !!t.dmlStats || (!isDdlStatement(t.statementType) && t.schema.length > 0));
+    const shown = withContent.length > 0 ? withContent : tables;
+    return shown.length > 0 ? { kind: 'tables', tables: shown } : null;
 }
 async function handlePreviewTable(msg) {
     const token = msg.token;
@@ -926,12 +959,24 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   DEFAULT_PAGE_SIZE: () => (/* binding */ DEFAULT_PAGE_SIZE),
 /* harmony export */   fetchChildJobs: () => (/* binding */ fetchChildJobs),
+/* harmony export */   fetchJobMetadata: () => (/* binding */ fetchJobMetadata),
 /* harmony export */   fetchPage: () => (/* binding */ fetchPage),
 /* harmony export */   fetchTableMetadata: () => (/* binding */ fetchTableMetadata),
-/* harmony export */   fetchTablePage: () => (/* binding */ fetchTablePage)
+/* harmony export */   fetchTablePage: () => (/* binding */ fetchTablePage),
+/* harmony export */   waitForJobDone: () => (/* binding */ waitForJobDone)
 /* harmony export */ });
 const PAGE_SIZE = 50;
 const BQ_BASE = 'https://bigquery.googleapis.com/bigquery/v2';
+/** Per-request server-side wait; the job keeps running when it expires and we ask again. */
+const RESULTS_WAIT_MS = 10000;
+/** Give up polling a job that never reports completion, rather than spinning forever. */
+const MAX_TOTAL_WAIT_MS = 5 * 60 * 1000;
+/** Floor between polls, so a server that answers immediately cannot spin this loop. */
+const POLL_GAP_MS = 250;
+/** jobs.list is eventually consistent; give the child jobs of a script time to show up. */
+const CHILD_LIST_WAIT_MS = 20000;
+/** How often to re-read a running job's metadata while waiting for it to finish. */
+const JOB_POLL_MS = 400;
 async function bqGet(url, token) {
     const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
     if (!res.ok) {
@@ -940,16 +985,33 @@ async function bqGet(url, token) {
     }
     return (await res.json());
 }
+/**
+ * Fetches one page of a job's results, waiting for the job to finish first. `jobs.query` style
+ * results come back with `jobComplete: false` while the job is still running — the extension posts
+ * the job right after creating it, so that is the normal case for anything but a trivial query.
+ */
 async function fetchPage(jobRef, token, startIndex, pageSize = PAGE_SIZE) {
     const params = new URLSearchParams({
         maxResults: String(pageSize),
         startIndex: String(startIndex),
+        timeoutMs: String(RESULTS_WAIT_MS),
     });
     if (jobRef.location) {
         params.set('location', jobRef.location);
     }
     const url = `${BQ_BASE}/projects/${encodeURIComponent(jobRef.projectId)}/queries/${encodeURIComponent(jobRef.jobId)}?${params.toString()}`;
-    return bqGet(url, token);
+    const deadline = Date.now() + MAX_TOTAL_WAIT_MS;
+    for (;;) {
+        const res = await bqGet(url, token);
+        if (res.jobComplete !== false) {
+            return res;
+        }
+        if (Date.now() >= deadline) {
+            throw new Error('Timed out waiting for the query job to complete.');
+        }
+        // `timeoutMs` makes the server hold the request, but guard against it returning at once.
+        await new Promise(resolve => setTimeout(resolve, POLL_GAP_MS));
+    }
 }
 async function fetchTableMetadata(tableRef, token) {
     const url = `${BQ_BASE}/projects/${encodeURIComponent(tableRef.projectId)}/datasets/${encodeURIComponent(tableRef.datasetId)}/tables/${encodeURIComponent(tableRef.tableId)}`;
@@ -963,7 +1025,37 @@ async function fetchTablePage(tableRef, token, startIndex, pageSize = PAGE_SIZE)
     const url = `${BQ_BASE}/projects/${encodeURIComponent(tableRef.projectId)}/datasets/${encodeURIComponent(tableRef.datasetId)}/tables/${encodeURIComponent(tableRef.tableId)}/data?${params.toString()}`;
     return bqGet(url, token);
 }
-async function fetchChildJobs(parent, token) {
+/**
+ * Reads a job's own metadata. Used for a script's `statistics.numChildJobs`, which tells us how
+ * many child jobs `jobs.list` should eventually return.
+ */
+async function fetchJobMetadata(jobRef, token) {
+    const params = new URLSearchParams({ projection: 'full' });
+    if (jobRef.location) {
+        params.set('location', jobRef.location);
+    }
+    const url = `${BQ_BASE}/projects/${encodeURIComponent(jobRef.projectId)}/jobs/${encodeURIComponent(jobRef.jobId)}?${params.toString()}`;
+    return bqGet(url, token);
+}
+/**
+ * Polls a job's metadata until it reports DONE. Cheaper to wait on than `getQueryResults`, which
+ * holds the request open for its full `timeoutMs`, and the metadata we get back tells us straight
+ * away whether the job is a script and how many child jobs it has.
+ */
+async function waitForJobDone(jobRef, token) {
+    const deadline = Date.now() + MAX_TOTAL_WAIT_MS;
+    for (;;) {
+        const meta = await fetchJobMetadata(jobRef, token);
+        if (meta.status?.state === 'DONE') {
+            return meta;
+        }
+        if (Date.now() >= deadline) {
+            throw new Error('Timed out waiting for the query job to complete.');
+        }
+        await new Promise(resolve => setTimeout(resolve, JOB_POLL_MS));
+    }
+}
+async function listChildJobsOnce(parent, token) {
     const params = new URLSearchParams({
         parentJobId: parent.jobId,
         projection: 'full',
@@ -974,22 +1066,54 @@ async function fetchChildJobs(parent, token) {
     }
     const url = `${BQ_BASE}/projects/${encodeURIComponent(parent.projectId)}/jobs?${params.toString()}`;
     const res = await bqGet(url, token);
-    const jobs = (res.jobs || []).filter((j) => {
+    const all = res.jobs || [];
+    const jobs = all.filter((j) => {
+        if (!j.jobReference?.jobId) {
+            return false;
+        }
+        if (j.status?.errorResult) {
+            return false;
+        }
         const t = j.statistics?.query?.statementType;
         if (!t) {
             return false;
         }
         return t === 'SELECT' || t === 'WITH' || t.startsWith('CREATE_') || t.startsWith('MERGE') || t === 'UPDATE' || t === 'INSERT' || t === 'DELETE';
     });
-    return jobs.map((j) => ({
-        jobRef: {
-            projectId: j.jobReference.projectId,
-            jobId: j.jobReference.jobId,
-            location: j.jobReference.location,
-        },
-        statementType: j.statistics?.query?.statementType,
-        dmlStats: j.statistics?.query?.dmlStats,
-    }));
+    // jobs.list returns the most recent job first; statements read better in execution order.
+    jobs.sort((a, b) => Number(a.statistics?.creationTime || 0) - Number(b.statistics?.creationTime || 0));
+    return {
+        total: all.length,
+        children: jobs.map((j) => ({
+            jobRef: {
+                projectId: j.jobReference.projectId,
+                jobId: j.jobReference.jobId,
+                location: j.jobReference.location,
+            },
+            statementType: j.statistics?.query?.statementType,
+            dmlStats: j.statistics?.query?.dmlStats,
+        })),
+    };
+}
+/**
+ * Lists a script's child jobs. `jobs.list` only becomes consistent a moment after the script
+ * finishes, so when the parent reports how many children it has (`numChildJobs`) we keep asking
+ * until that many show up — otherwise a script's later statements silently go missing.
+ */
+async function fetchChildJobs(parent, token, expectedCount) {
+    let listing = await listChildJobsOnce(parent, token);
+    if (!expectedCount || expectedCount <= listing.total) {
+        return listing.children;
+    }
+    const deadline = Date.now() + CHILD_LIST_WAIT_MS;
+    while (listing.total < expectedCount && Date.now() < deadline) {
+        await new Promise(resolve => setTimeout(resolve, POLL_GAP_MS * 2));
+        const next = await listChildJobsOnce(parent, token);
+        if (next.total > listing.total) {
+            listing = next;
+        }
+    }
+    return listing.children;
 }
 const DEFAULT_PAGE_SIZE = PAGE_SIZE;
 

@@ -5,6 +5,18 @@ All notable changes to the BigQuery Studio extension will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.12.3] - 2026-09-20
+
+### Added
+
+- **Tab switcher for multi-statement scripts** - A script's statements are now tabs across the top of the results panel, each labelled with its statement type and row count, and every grid keeps its page, sort and selection while you switch. Previously the statement grids were stacked, each a full viewport tall inside a panel that does not scroll, so only the first one could ever be seen.
+
+### Fixed
+
+- **Multi-statement scripts now show their results** - A script such as `CREATE TEMP TABLE ...` followed by two `SELECT`s left the results panel empty. The extension sends the job as soon as it is created, before BigQuery has recorded that the job is a script, so the grid asked the script's parent job for rows — a parent job has none. The grid now falls back to the script's child jobs whenever the parent returns no schema, and lists each statement's result set in execution order. Because the child-job listing is only consistent a moment after the script finishes, the grid waits for the listing to match the parent's reported child count instead of rendering whichever statements happened to be visible first. DDL steps such as the temp-table creation are left out — their child job reports the new table's schema with zero rows, which read as an empty result.
+- **Auto-preview no longer fires for temp tables or scripts** - With `autoPreviewCreatedTables` on, a `CREATE TEMP TABLE` step triggered a `SELECT * FROM <table>` in a separate job, which failed with *"must be qualified with a dataset"* (a temp table only exists inside its own script) and replaced the script's results in the panel. Auto-preview now runs only for a single, non-temporary `CREATE TABLE`.
+- **Results no longer come back empty while a query is still running** - Result pages were read without checking `jobComplete`, so a job that had not finished yet could render as an empty grid. The grid now waits for the job to finish before rendering, by polling the job's metadata (which also reports whether it is a script), and fetches a script's statements in parallel rather than one after another.
+
 ## [2.12.2] - 2026-09-20
 
 ### Fixed

@@ -67,6 +67,7 @@ export interface DmlStats {
 }
 
 export interface JobStatistics {
+    creationTime?: string;
     query?: {
         statementType?: string;
         dmlStats?: DmlStats;
@@ -82,4 +83,14 @@ export interface JobListEntry {
 
 export interface JobListResponse {
     jobs?: JobListEntry[];
+}
+
+export interface JobMetadata {
+    jobReference?: JobReference;
+    statistics?: {
+        numChildJobs?: string;
+        scriptStatistics?: unknown;
+        query?: { statementType?: string; dmlStats?: DmlStats };
+    };
+    status?: { state?: string; errorResult?: { message?: string } };
 }

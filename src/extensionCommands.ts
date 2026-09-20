@@ -10,6 +10,7 @@ import { ResultsGridRender } from './tableResultsPanel/resultsGridRender';
 import { v4 as uuidv4 } from 'uuid';
 import { DownloadCsv } from './tableResultsPanel/downloadCsv';
 import { QueryResultsMappingService } from './services/queryResultsMappingService';
+import { isMultiStatementScript, isTempTableStatement } from './services/sqlStatementUtils';
 import { QueryResultsMapping } from './services/queryResultsMapping';
 // import { JobReference } from "./services/queryResultsMapping";
 // import { TableReference } from './services/tableMetadata';
@@ -399,8 +400,12 @@ const runQuery = async function (globalState: vscode.Memento, queryResultsWebvie
 		const autoPreview = config.get('autoPreviewCreatedTables', false);
 		console.log('[Auto-Preview] Setting enabled:', autoPreview);
 
-		const isCreateTable = isCreateTableStatement(queryText);
-		console.log('[Auto-Preview] Is CREATE TABLE:', isCreateTable);
+		// A temp table only lives inside its own script, and a script's own statements already
+		// render in the grid — previewing either would fail or overwrite the results panel.
+		const isCreateTable = isCreateTableStatement(queryText)
+			&& !isTempTableStatement(queryText)
+			&& !isMultiStatementScript(queryText);
+		console.log('[Auto-Preview] Is previewable CREATE TABLE:', isCreateTable);
 
 		// Don't check job state here - the job may still be running
 		// If we got here without throwing, the query was submitted successfully
