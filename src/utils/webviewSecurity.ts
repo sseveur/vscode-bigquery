@@ -1,16 +1,9 @@
 import * as vscode from 'vscode';
+import { randomBytes } from 'crypto';
 
-/**
- * Generates a cryptographically random nonce for Content Security Policy.
- * Used to allow specific inline scripts while blocking others.
- */
+/** 128-bit random nonce for a Content Security Policy, one per rendered page. */
 export function getNonce(): string {
-    let text = '';
-    const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    for (let i = 0; i < 32; i++) {
-        text += possible.charAt(Math.floor(Math.random() * possible.length));
-    }
-    return text;
+    return randomBytes(16).toString('base64');
 }
 
 /**
@@ -24,25 +17,21 @@ export function getContentSecurityPolicy(
     nonce: string,
     options?: {
         allowUnsafeInlineStyles?: boolean;
-        allowExternalScripts?: string[];
+        /** blob: images, for pages that rasterise their own SVG through an <img> (lineage export). */
+        allowBlobImages?: boolean;
     }
 ): string {
     const stylesSrc = options?.allowUnsafeInlineStyles
         ? `${webview.cspSource} 'unsafe-inline'`
         : webview.cspSource;
 
-    let scriptSrc = `'nonce-${nonce}' ${webview.cspSource} 'wasm-unsafe-eval'`;
-    if (options?.allowExternalScripts) {
-        scriptSrc += ' ' + options.allowExternalScripts.join(' ');
-    }
-
     return `
         default-src 'none';
-        script-src ${scriptSrc};
+        script-src 'nonce-${nonce}' ${webview.cspSource};
         style-src ${stylesSrc};
-        img-src ${webview.cspSource} data: https:;
+        img-src ${webview.cspSource} data:${options?.allowBlobImages ? ' blob:' : ''};
         font-src ${webview.cspSource};
-        connect-src https://bigquery.googleapis.com;
+        connect-src 'none';
     `.replace(/\s+/g, ' ').trim();
 }
 
@@ -52,11 +41,24 @@ export function getContentSecurityPolicy(
 export function getCspMetaTag(
     webview: vscode.Webview,
     nonce: string,
-    options?: {
-        allowUnsafeInlineStyles?: boolean;
-        allowExternalScripts?: string[];
-    }
+    options?: Parameters<typeof getContentSecurityPolicy>[2]
 ): string {
     const csp = getContentSecurityPolicy(webview, nonce, options);
     return `<meta http-equiv="Content-Security-Policy" content="${csp}">`;
+}
+
+const reportedViolations = new Set<string>();
+
+/**
+ * A webview's `securitypolicyviolation` event, forwarded by its page script. Shown once per
+ * view and directive per session so a policy that blocks something on one platform is visible
+ * instead of leaving a blank panel.
+ */
+export function reportCspViolation(view: string, directive: unknown, blocked: unknown): void {
+    const key = `${view}|${directive}`;
+    if (reportedViolations.has(key)) { return; }
+    reportedViolations.add(key);
+    vscode.window.showWarningMessage(
+        `BigQuery Studio: the ${view} view blocked a resource (${String(directive)}: ${String(blocked) || 'inline'}). ` +
+        `If something is missing from the view, please report this message.`);
 }

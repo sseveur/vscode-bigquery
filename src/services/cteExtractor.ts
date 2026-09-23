@@ -22,9 +22,10 @@ export function extractCtes(sql: string): CteDefinition[] {
     const cstCtes = extractCtesWithDependencies(sql);
     if (cstCtes.length > 0) {
         // Convert to CteDefinition format (without range, which isn't needed for lineage)
+        const masked = maskCommentsAndLiterals(sql);
         return cstCtes.map(cte => ({
             name: cte.name,
-            range: [],  // sql-parser-cst doesn't provide range in same format
+            range: locateCteName(masked, cte.name),
             sourceTables: cte.sourceTables,
             referencedCtes: cte.referencedCtes
         }));
@@ -407,35 +408,7 @@ function extractCteColumnsRegex(sql: string, cteName: string): CteColumn[] {
         return columns;
     }
 
-    // Parse individual column expressions
-    // This is simplified - handles: col, col AS alias, table.col, table.col AS alias, func() AS alias
-    const columnParts = splitSelectColumns(selectClause);
-
-    for (const part of columnParts) {
-        const trimmed = part.trim();
-        if (!trimmed) { continue; }
-
-        // Check for AS alias
-        const asMatch = trimmed.match(/\bAS\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*$/i);
-        if (asMatch) {
-            columns.push({ name: asMatch[1] });
-            continue;
-        }
-
-        // Check for table.column or just column
-        const colMatch = trimmed.match(/([a-zA-Z_][a-zA-Z0-9_]*)\s*$/);
-        if (colMatch) {
-            columns.push({ name: colMatch[1] });
-            continue;
-        }
-
-        // Check for * or table.*
-        if (trimmed === '*' || trimmed.endsWith('.*')) {
-            columns.push({ name: trimmed });
-        }
-    }
-
-    return columns;
+    return selectListColumns(selectClause);
 }
 
 /**
@@ -592,4 +565,117 @@ function getCteNamesRegex(sql: string): string[] {
     }
 
     return names;
+}
+
+/**
+ * Output column names of a SELECT list (the text between SELECT and FROM): `expr AS alias`,
+ * `t.col`, `col`, and `*` / `t.*` kept as-is so callers can expand them. `* EXCEPT (...)` and
+ * `* REPLACE (...)` count as `*`.
+ */
+export function selectListColumns(selectList: string): CteColumn[] {
+    const columns: CteColumn[] = [];
+    const push = (name: string) => {
+        if (!columns.some(c => c.name.toLowerCase() === name.toLowerCase())) { columns.push({ name }); }
+    };
+    for (const part of splitSelectColumns(selectList)) {
+        const trimmed = part.trim();
+        if (!trimmed) { continue; }
+
+        const star = /^((?:`[^`]+`|[\w-]+)\.)?\*(?:\s+(?:EXCEPT|REPLACE)\s*\(.*\))?$/is.exec(trimmed);
+        if (star) {
+            push(star[1] ? `${star[1].replace(/`/g, '')}*` : '*');
+            continue;
+        }
+
+        const asMatch = trimmed.match(/\bAS\s+(`[^`]+`|[a-zA-Z_][a-zA-Z0-9_]*)\s*$/i);
+        if (asMatch) {
+            push(asMatch[1].replace(/`/g, ''));
+            continue;
+        }
+
+        const colMatch = trimmed.match(/(`[^`]+`|[a-zA-Z_][a-zA-Z0-9_]*)\s*$/);
+        if (colMatch) {
+            push(colMatch[1].replace(/`/g, ''));
+        }
+    }
+    return columns;
+}
+
+/**
+ * Columns of the statement's main SELECT: the last SELECT outside any parentheses, i.e. what a
+ * query returns or what an INSERT ... SELECT writes. An `INSERT INTO t (a, b)` column list wins.
+ */
+export function finalSelectColumns(sql: string): CteColumn[] {
+    const insert = /\bINSERT\s+(?:INTO\s+)?(?:`[^`]+`|[\w.-])+\s*\(([^()]*)\)/i.exec(sql);
+    if (insert) {
+        return insert[1].split(',').map(c => c.trim().replace(/`/g, '')).filter(Boolean).map(name => ({ name }));
+    }
+    let depth = 0, last = -1;
+    for (let i = 0; i < sql.length; i++) {
+        const ch = sql[i];
+        if (ch === "'" || ch === '"' || ch === '`') {
+            i = sql.indexOf(ch, i + 1);
+            if (i < 0) { break; }
+        } else if ((ch === '-' && sql[i + 1] === '-') || ch === '#') {
+            i = sql.indexOf('\n', i);
+            if (i < 0) { break; }
+        } else if (ch === '/' && sql[i + 1] === '*') {
+            i = sql.indexOf('*/', i + 2);
+            if (i < 0) { break; }
+            i++;
+        } else if (ch === '(') {
+            depth++;
+        } else if (ch === ')') {
+            depth--;
+        } else if (depth === 0 && /^SELECT\b/i.test(sql.substring(i, i + 7)) && !/[\w]/.test(sql[i - 1] ?? ' ')) {
+            last = i;
+        }
+    }
+    if (last < 0) { return []; }
+    const rest = sql.substring(last).replace(/^SELECT\s+(?:(?:DISTINCT|ALL)\s+)?(?:AS\s+(?:STRUCT|VALUE)\s+)?/i, '');
+    const list = extractUntilFrom(rest) ?? rest.replace(/;\s*$/, '');
+    return selectListColumns(list);
+}
+
+/** Blanks comments and quoted literals with spaces, keeping every offset and line break. */
+function maskCommentsAndLiterals(sql: string): string {
+    const out = sql.split('');
+    const blank = (from: number, to: number) => {
+        for (let k = from; k < to && k < out.length; k++) { if (out[k] !== '\n') { out[k] = ' '; } }
+    };
+    for (let i = 0; i < sql.length; i++) {
+        const ch = sql[i];
+        let end = -1;
+        if ((ch === '-' && sql[i + 1] === '-') || ch === '#') {
+            end = sql.indexOf('\n', i);
+        } else if (ch === '/' && sql[i + 1] === '*') {
+            end = sql.indexOf('*/', i + 2);
+            if (end >= 0) { end += 2; }
+        } else if (ch === "'" || ch === '"') {
+            end = sql.indexOf(ch, i + 1);
+            if (end >= 0) { end += 1; }
+        } else {
+            continue;
+        }
+        if (end < 0) { end = sql.length; }
+        blank(i, end);
+        i = end - 1;
+    }
+    return out.join('');
+}
+
+/**
+ * Where a CTE's name is defined, as the parser's 0-based `[line, column]`, so lineage boxes can
+ * navigate to it. `sql` must already have comments and literals masked. Empty when not found.
+ */
+function locateCteName(sql: string, name: string): number[] {
+    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const re = new RegExp(`((?:\\bWITH\\s+(?:RECURSIVE\\s+)?|,\\s*)(\`?))${escaped}\\2\\s+AS\\s*\\(`, 'i');
+    const m = re.exec(sql);
+    if (!m) { return []; }
+    const offset = m.index + m[1].length;
+    const before = sql.slice(0, offset);
+    const line = before.split('\n').length - 1;
+    const column = offset - (before.lastIndexOf('\n') + 1);
+    return [line, column];
 }

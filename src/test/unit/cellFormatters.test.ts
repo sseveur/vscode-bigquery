@@ -1,5 +1,6 @@
 import * as assert from 'assert';
 import {
+    highlightMatch,
     formatScalar,
     flattenSchema,
     decodeBqValue,
@@ -184,3 +185,33 @@ suite('cellFormatters', () => {
         });
     });
 });
+
+suite('highlightMatch (grid find)', () => {
+    const mark = (t: string) => `<mark class="bq-mark">${t}</mark>`;
+
+    test('no needle just escapes', () => {
+        assert.strictEqual(highlightMatch('a<b', ''), 'a&lt;b');
+    });
+
+    test('marks every case-insensitive match, keeping the original casing', () => {
+        assert.strictEqual(highlightMatch('Foo foo FOO', 'foo'), `${mark('Foo')} ${mark('foo')} ${mark('FOO')}`);
+    });
+
+    test('searching an entity name never matches inside the escaped text', () => {
+        assert.strictEqual(highlightMatch('Tom & Jerry', 'amp'), 'Tom &amp; Jerry');
+        assert.strictEqual(highlightMatch('a < b', 'lt'), 'a &lt; b');
+        assert.strictEqual(highlightMatch('say "hi"', 'quot'), 'say &quot;hi&quot;');
+    });
+
+    test('special characters in the needle are matched literally and escaped inside the mark', () => {
+        assert.strictEqual(highlightMatch('a<b>&c', '<b>'), `a${mark('&lt;b&gt;')}&amp;c`);
+        assert.strictEqual(highlightMatch('1.5 * 2', '.5 *'), `1${mark('.5 *')} 2`);
+    });
+
+    test('cell text cannot inject markup', () => {
+        const html = highlightMatch('<img src=x onerror=alert(1)>', 'img');
+        assert.ok(!html.includes('<img'));
+        assert.strictEqual(html, `&lt;${mark('img')} src=x onerror=alert(1)&gt;`);
+    });
+});
+

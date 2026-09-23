@@ -23,8 +23,8 @@ A powerful Visual Studio Code extension for Google BigQuery. Browse datasets and
 - **SQL Formatting** - Format queries with configurable style options (keyword case, indent style, leading commas, logical-operator style, dense operators, expression width)
 - **Query History** - Track all executed queries with re-run and copy capabilities
 - **Cost Estimation** - Real-time cost estimates based on bytes processed (configurable $/TB)
-- **Table Schema Hover** - Hover over table names to see schema details (JOINs, CTEs, backtick-quoted)
-- **Data Lineage** - Visualize data flow with CTE support; PNG / PDF export (individual and bulk); dark/light export theme
+- **Table Schema Hover** - Hover over table names or CTEs for a card with columns, types and descriptions
+- **Data Lineage** - Visualize data flow with CTE support and a per-node Columns view; PNG / PDF export (individual and bulk); dark/light export theme
 - **Export Options** - Download query and preview results as CSV or JSONL, copy to clipboard as Markdown, copy selected rows as TSV/MD
 - **Pub/Sub Integration** - Publish query results directly to Google Cloud Pub/Sub
 - **Automatic Query Location** - Region auto-detected from the first FROM via `datasets.get`; override with `vscode-bigquery.defaultLocation`
@@ -146,62 +146,27 @@ Visualize data flow in your queries. Click the lineage button in the editor titl
 
 <img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/data_lineage.png" alt="data lineage"/>
 
-The lineage graph shows:
-- **Source tables** (blue) - Tables your query reads from
-- **CTEs** (purple) - Common Table Expressions as intermediate nodes
-- **Target tables** (green) - Tables your query writes to (INSERT, CREATE, MERGE, etc.)
-- **Query Result** (orange) - Destination node for SELECT-only queries
+The lineage graph shows each node as a card with a coloured type badge:
+- **SRC** - Tables your query reads from, with their `project.dataset` underneath
+- **CTE** - Common Table Expressions as intermediate nodes
+- **TGT** - Tables your query writes to (INSERT, CREATE, MERGE, etc.)
+- **OUT** - The query result for SELECT-only queries
 
 Features:
+- **Columns View** - The **Columns** button on each diagram lists every node's columns: source and target tables from their BigQuery schema, CTEs and the result from their SELECT lists, with `*` expanded and types carried through CTEs
+- **Highlighted Paths** - Hovering a node highlights everything upstream and downstream of it
 - **Multi-Query Support** - Files with multiple queries show separate lineage diagrams stacked vertically
 - **Collapsible Query Sections** - Each query section has collapse/expand toggles with chevron icons for easier navigation
 - **Lineage for Selection** - Right-click on selected SQL text to generate lineage for just that portion
-- **Click to Navigate** - Click on any node to jump to its location in the SQL source code
-- **Hover Tooltips** - Hover over nodes to see the full qualified table name
-- **CTE Support** - CTEs are shown as intermediate nodes between sources and targets
-- **Layered DAG Layout** - Nodes are arranged left-to-right based on data flow
-- **Curved Connections** - Bezier curves show relationships between nodes (curves around overlapping edges)
-- **Statement Type Badges** - Target nodes show the operation type
+- **Click to Navigate** - Click on any node to jump to its definition in the SQL (CTEs land on their name, also for a selection)
+- **Clean Layered Layout** - Nodes flow left to right; edges that skip layers get their own lanes and crossings are minimised
 - **Zoom Controls** - Zoom in/out and reset buttons, plus Ctrl+scroll wheel support
-
-### Exporting Lineage Charts
-
-Export lineage visualizations to share, document, or print your data pipelines:
-
-- **PNG Export** - Click "↓ PNG" to save as high-quality image (2x resolution)
-  - Ideal for embedding in wikis, documentation, or presentations
-  - Preserves VS Code theme colors and styling
-
-- **PDF Export** - Click "↓ PDF" to save as vector PDF
-  - Perfect for printing or sharing with stakeholders
-  - Maintains quality at any zoom level
-
-- **Multi-Query Files** - Files with multiple queries show additional export options:
-  - **Individual export** - Click PNG/PDF button on each query section
-  - **Bulk export** - Click "↓ All PNG" (separate files) or "↓ All PDF" (multi-page document) in the header
-
-- **File Naming** - Files are automatically named with:
-  - Query number (for multi-query files)
-  - Line range (e.g., `lines1-15`)
-  - Timestamp (e.g., `20260102_143052`)
-  - Example: `lineage_query1_lines1-15_20260102_143052.png`
-
-- **Export Theme** - Switch between dark and light themes for exports:
-  - **Dark theme** (default) - Dark background with light text
-  - **Light theme** - White background with dark text (better for printing)
-  - Toggle via Command Palette: `BigQuery: Toggle Lineage Export Theme`
-  - Or configure in settings: `vscode-bigquery.lineageExportTheme`
-
-Exported files include the complete lineage graph with proper node colors, edges, and layout.
-
-> **Note:** Lineage requires valid SQL. If your query contains syntax errors, the lineage graph may be incomplete or unavailable.
 
 ## Table Schema Hover
 
-Hover over any table name in your SQL query to see schema information:
-- Column names and data types
-- Column descriptions (if available)
-- Partitioning and clustering information
+Hover over any table name in your SQL query to see a card in the same style as the lineage view:
+- A **SRC** badge, the table name and its `project.dataset` (plus partitioning, when set)
+- Every column with a type icon, its description (if any) and its data type right-aligned
 
 <img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/table_hover_schema.png" alt="table_hover_schema" />
 
@@ -221,7 +186,7 @@ This clears all cached schemas. The next time you hover over a table, fresh sche
 Schema hover works for tables in:
 - `FROM` clauses - `FROM project.dataset.table`
 - `JOIN` clauses - `JOIN project.dataset.table`, `LEFT JOIN`, `RIGHT JOIN`, `INNER JOIN`, `CROSS JOIN`, `FULL JOIN`
-- **CTE references** - When you reference a CTE name (e.g., `FROM my_cte`), the hover shows the columns defined in that CTE's SELECT clause
+- **CTE references** - When you reference a CTE name (e.g., `FROM my_cte`), the hover shows a **CTE** card with the columns of its SELECT list, `*` expanded and types filled in from tables whose schema is already cached
 
 ## Results Grid
 

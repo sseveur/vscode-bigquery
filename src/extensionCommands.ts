@@ -1449,7 +1449,8 @@ export const commandShowLineageSelection = function (context: vscode.ExtensionCo
 	}
 
 	try {
-		const result = buildMultiQueryLineage(text);
+		const start = editor.selection.start;
+		const result = buildMultiQueryLineage(text, { line: start.line + 1, column: start.character + 1 });
 		const queriesWithLineage = result.queries.filter(q => q.graph.nodes.length > 0);
 
 		if (queriesWithLineage.length === 0) {

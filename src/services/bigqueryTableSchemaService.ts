@@ -58,6 +58,20 @@ export class BigqueryTableSchemaService {
         return false;
     }
 
+    /** Columns of a table already in the cache, without querying; empty when it is not cached. */
+    public getCachedColumns(projectId: string, datasetName: string, tableName: string): Array<{ name: string; type: string }> {
+        const key = `${projectId}.${datasetName}.${tableName}`.toLowerCase();
+        return this.schemas
+            .filter(s => `${s.project_id}.${s.dataset_name}.${s.table_name}`.toLowerCase() === key)
+            .sort((a, b) => Number(a.ordinal_position) - Number(b.ordinal_position))
+            .map(s => ({ name: s.column_name, type: s.data_type }));
+    }
+
+    /** Default project used to qualify `dataset.table`, once the cache has looked it up. */
+    public getDefaultProjectId(): string | null {
+        return this.defaultProjectId;
+    }
+
     public getSchemaFromCache(bqsql: & string, tableIdentifier: BqsqlDocumentItem): BigqueryTableSchema[] {
 
         let table = this.resolveTableIdentifier(bqsql, tableIdentifier);

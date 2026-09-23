@@ -5,10 +5,24 @@ All notable changes to the BigQuery Studio extension will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.12.4] - 2026-09-20
+## [2.13.0] - 2026-09-23
+
+### Added
+
+- **Columns view in the lineage diagram** - A **Columns** button on each diagram lists every node's columns: source and target tables from their BigQuery schema, CTEs and the query result from their SELECT lists. `*` is expanded from the table it reads and column types are carried through CTEs. The view is built on first click; a table whose schema cannot be read shows why instead of failing the whole diagram.
+- **Modern lineage cards** - Nodes are neutral cards with a coloured type badge (SRC / CTE / TGT / OUT) and a `project.dataset` subtitle on a dot-grid background. Hovering a node highlights its upstream and downstream paths.
+- **Hover cards for tables and CTEs** - Table and CTE hovers match the lineage cards: a coloured badge, the name, a muted subtitle, then each column with a type icon, its description and its type. CTE hovers fill in types from schemas already cached.
+
+### Changed
+
+- **Cleaner lineage edges** - Edges that skip layers get their own lanes, crossings are minimised, straight chains stay straight, and each edge has its own arrow end with a smaller arrowhead.
 
 ### Fixed
 
+- **Lineage clicks land on the right line** - Clicking a CTE now jumps to its definition instead of the first occurrence of its name, and lineage for a selection no longer points at lines relative to the selection.
+- **Hover tooltips can no longer run commands** - Hover text used to be trusted markdown built from unescaped column names and descriptions, so a crafted name or description in a table's schema could plant a clickable command link. Hovers are now untrusted and every name is escaped.
+- **Results grid find no longer breaks cells containing `&`, `<` or `"`** - Matches are found on the raw cell text and each piece escaped, instead of highlighting inside already-escaped HTML.
+- **Content Security Policy on the lineage view** - The lineage page now runs under a nonce-based CSP and loads its icon font from the extension instead of an external host. Webview nonces use a cryptographic random source, and a webview that blocks a resource under its CSP shows a one-time warning instead of a silently blank panel.
 - **Auto-preview rejects a table name it cannot safely inline** - The generated `SELECT * FROM <table> LIMIT 100` took the table name straight from the `CREATE TABLE` statement, so a name ending in `--` commented out the row limit and scanned the whole table. The name must now look like up to three dotted identifier parts.
 - **Cached query results are dropped when a panel closes** - The results panel kept its last payload, including the access token used to fetch rows, for as long as the extension ran. It is now cleared when the panel is disposed, and messages to a closed panel are no longer attempted.
 

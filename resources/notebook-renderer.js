@@ -115,23 +115,6 @@ function compareValues(a, b) {
     }
     return String(a).localeCompare(String(b));
 }
-function highlightMatch(text, needle) {
-    if (!needle) {
-        return escapeHtml(text);
-    }
-    const safe = escapeHtml(text);
-    const safeNeedle = escapeHtml(needle);
-    const re = new RegExp(safeNeedle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-    return safe.replace(re, m => `<mark class="bq-mark">${m}</mark>`);
-}
-function escapeHtml(s) {
-    return s
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
 function prettyPrint(v) {
     if (v === null || v === undefined) {
         return 'NULL';
@@ -442,7 +425,7 @@ function BqTable({ fetchRows, exportRef, schema, totalRows, initialRows, title, 
                                                 ].filter(Boolean).join(' ');
                                                 const display = isNull
                                                     ? 'NULL'
-                                                    : (find ? highlightMatch(typeof v === 'object' ? JSON.stringify(v) : String(v), find) : html);
+                                                    : (find ? (0,_cellFormatters__WEBPACK_IMPORTED_MODULE_2__.highlightMatch)(typeof v === 'object' ? JSON.stringify(v) : String(v), find) : html);
                                                 const canExpand = (typeof v === 'object' && v !== null) || (typeof v === 'string' && tryParseJson(v) !== undefined);
                                                 return ((0,preact_jsx_runtime__WEBPACK_IMPORTED_MODULE_0__.jsx)("td", { class: classes, title: isNull ? 'NULL' : valueToCopyText(v, col), onContextMenu: (e) => onRowContextMenu(i, col, e), onClick: (e) => {
                                                         e.stopPropagation();
@@ -564,6 +547,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   extractRowValue: () => (/* binding */ extractRowValue),
 /* harmony export */   flattenSchema: () => (/* binding */ flattenSchema),
 /* harmony export */   formatScalar: () => (/* binding */ formatScalar),
+/* harmony export */   highlightMatch: () => (/* binding */ highlightMatch),
 /* harmony export */   renderCellValue: () => (/* binding */ renderCellValue)
 /* harmony export */ });
 function formatScalar(raw, type) {
@@ -723,6 +707,24 @@ function renderCellValue(value, col) {
         return { html: 'NULL', isNull: true };
     }
     return { html: escapeHtml(formatted), isNull: false };
+}
+/**
+ * Cell text as HTML with every case-insensitive occurrence of `needle` wrapped in <mark>.
+ * Matches run on the raw text and each piece is escaped afterwards, so a search for "amp"
+ * or "lt" never lands inside an entity like &amp; / &lt;.
+ */
+function highlightMatch(text, needle) {
+    if (!needle) {
+        return escapeHtml(text);
+    }
+    const re = new RegExp(needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+    let html = '';
+    let last = 0;
+    for (const m of text.matchAll(re)) {
+        html += escapeHtml(text.slice(last, m.index)) + `<mark class="bq-mark">${escapeHtml(m[0])}</mark>`;
+        last = m.index + m[0].length;
+    }
+    return html + escapeHtml(text.slice(last));
 }
 function escapeHtml(s) {
     return s

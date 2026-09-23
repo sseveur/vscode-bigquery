@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { getNonce, reportCspViolation } from '../utils/webviewSecurity';
 import { getExtensionUri } from '../extension';
 import { COMMAND_DOWNLOAD_CSV, COMMAND_DOWNLOAD_JSONL, COMMAND_SEND_PUBSUB, COMMAND_COPY_CLIPBOARD } from '../extensionCommands';
 import { ResultsGridRenderRequestV2, ResultsGridRenderRequestV2Type } from './resultsGridRenderRequestV2';
@@ -86,6 +87,7 @@ export class ResultsGridRender {
                 case "download_jsonl": { vscode.commands.executeCommand(COMMAND_DOWNLOAD_JSONL, data); break; }
                 case "send_pubsub": { vscode.commands.executeCommand(COMMAND_SEND_PUBSUB, data); break; }
                 case "copy_to_clipboard": { vscode.commands.executeCommand(COMMAND_COPY_CLIPBOARD, data); break; }
+                case "csp_violation": { reportCspViolation('results', (c as any).directive, (c as any).blocked); break; }
             }
         }
     }
@@ -99,7 +101,7 @@ export class ResultsGridRender {
         const gridJs = this.getUri(webview, extensionUri, ['resources', 'grid-v2.js']);
         const gridCss = this.getUri(webview, extensionUri, ['resources', 'grid-v2.css']);
         const colorOverrides = this.buildGridColorOverrides();
-        const nonce = this.makeNonce();
+        const nonce = getNonce();
         const csp = [
             "default-src 'none'",
             `style-src ${webview.cspSource} 'nonce-${nonce}'`,
@@ -122,13 +124,6 @@ export class ResultsGridRender {
                 <script src="${gridJs}"></script>
             </body>
         </html>`;
-    }
-
-    private makeNonce(): string {
-        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-        let s = '';
-        for (let i = 0; i < 32; i++) { s += chars[Math.floor(Math.random() * chars.length)]; }
-        return s;
     }
 
     /**

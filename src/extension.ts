@@ -3,7 +3,6 @@ import { Uri, StatusBarItem, ExtensionContext } from 'vscode';
 import { BigqueryAuthenticationWebviewViewProvider } from './activitybar/authenticationWebviewViewProvider';
 import { BigQueryTreeDataProvider } from './activitybar/treeDataProvider';
 import * as commands from './extensionCommands';
-import { WebviewViewProvider } from './tableResultsPanel/webviewViewProvider';
 // import TelemetryReporter from '@vscode/extension-telemetry';
 import { BqsqlCompletionItemProvider } from './language/bqsqlCompletionItemProvider';
 import { BqsqlDocumentSemanticTokensProvider } from './language/bqsqlDocumentSemanticTokensProvider';
@@ -30,7 +29,6 @@ import { BqSqlNotebookController } from './notebook/bqSqlNotebookController';
 import { CellRegistry, runCellRegistryMigration } from './notebook/bqSqlNotebookCellRegistry';
 import { registerNotebookPersistence } from './notebook/bqSqlNotebookPersistence';
 
-export const bigqueryWebviewViewProvider = new WebviewViewProvider();
 export const authenticationWebviewProvider = new BigqueryAuthenticationWebviewViewProvider();
 export const gcpAuthenticationTreeDataProvider = new GcpAuthenticationTreeDataProvider();
 export const bigQueryTreeDataProvider = new BigQueryTreeDataProvider();

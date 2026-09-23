@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { BqField, DmlStats, ExportRef, QueryResultsResponse } from './types';
-import { flattenSchema, extractRowValue, renderCellValue, type FlatColumn } from './cellFormatters';
+import { flattenSchema, extractRowValue, renderCellValue, highlightMatch, type FlatColumn } from './cellFormatters';
 import { DEFAULT_PAGE_SIZE } from './pagination';
 import { ChartPane } from './ChartPane';
 
@@ -71,23 +71,6 @@ function compareValues(a: any, b: any): number {
         return an - bn;
     }
     return String(a).localeCompare(String(b));
-}
-
-function highlightMatch(text: string, needle: string): string {
-    if (!needle) { return escapeHtml(text); }
-    const safe = escapeHtml(text);
-    const safeNeedle = escapeHtml(needle);
-    const re = new RegExp(safeNeedle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-    return safe.replace(re, m => `<mark class="bq-mark">${m}</mark>`);
-}
-
-function escapeHtml(s: string): string {
-    return s
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
 }
 
 function prettyPrint(v: any): string {

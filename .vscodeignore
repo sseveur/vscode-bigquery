@@ -18,6 +18,7 @@ bqsql_parser/**
 !LICENSE.txt
 
 # Development files
+tests/**
 claude-transcript/**
 CLAUDE.md
 DEVELOPMENT.md

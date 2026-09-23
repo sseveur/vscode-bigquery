@@ -121,6 +121,15 @@ export interface ResolvedTable {
     tableId: string;
 }
 
+/** Reads a table's columns; the lineage Columns view calls it once per distinct table. */
+export type ColumnLookup = (table: ResolvedTable) => Promise<Array<{ name: string; type: string }>>;
+
+/** ColumnLookup over the table's BigQuery schema. */
+export function bigQueryColumnLookup(bqClient: BigQueryClient): ColumnLookup {
+    return async t => (await bqClient.getTableSchema(t.projectId, t.datasetId, t.tableId))
+        .map(c => ({ name: c.column_name, type: c.data_type }));
+}
+
 /**
  * Resolves the table reference at the cursor to a concrete (project, dataset, table).
  * Handles:

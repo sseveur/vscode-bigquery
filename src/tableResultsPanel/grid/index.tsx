@@ -16,6 +16,13 @@ function showFatal(msg: string) {
 window.addEventListener('error', (ev: ErrorEvent) => showFatal(String((ev as any).error?.stack || (ev as any).error?.message || ev.message)));
 window.addEventListener('unhandledrejection', (ev: PromiseRejectionEvent) => showFatal('unhandledrejection: ' + String((ev as any).reason?.stack || (ev as any).reason)));
 
+// A resource the page's CSP blocked: tell the host, which shows it once instead of a silently blank grid.
+document.addEventListener('securitypolicyviolation', (ev: SecurityPolicyViolationEvent) => {
+    try {
+        (window as any).__bqVscode?.postMessage({ command: 'csp_violation', directive: ev.effectiveDirective, blocked: ev.blockedURI });
+    } catch { /* ignore */ }
+});
+
 try {
     (window as any).__bqVscode = (window as any).__bqVscode || acquireVsCodeApi();
     const mount = document.getElementById('q1');

@@ -1,0 +1,72 @@
+-- Lineage layout samples. Open this file and run "BigQuery: Show Lineage".
+-- These are not meant to be executed; they only exercise the lineage graph.
+
+-- 1. Fan-in: two sources into the result (arrowheads stack on one point)
+SELECT a.associate_id, p.profile_name
+FROM dbo.dimassociate_ref a
+JOIN dbo.mrt_profiles p ON p.associate_id = a.associate_id;
+
+-- 2. Three-step CTE chain where the last CTE also reads a raw source (edge skips two layers)
+WITH stg_orders AS (
+    SELECT order_id, customer_id, amount FROM raw.orders
+),
+int_orders AS (
+    SELECT o.order_id, o.customer_id, o.amount FROM stg_orders o
+),
+fct_orders AS (
+    SELECT i.order_id, i.amount, c.region
+    FROM int_orders i
+    JOIN raw.customers c ON c.customer_id = i.customer_id
+)
+SELECT * FROM fct_orders;
+
+-- 3. Diamond: one CTE feeds two branches that join again, plus a long edge from the first CTE
+WITH base AS (
+    SELECT id, created_at, status FROM app.events
+),
+opened AS (
+    SELECT id, created_at FROM base WHERE status = 'open'
+),
+closed AS (
+    SELECT id, created_at FROM base WHERE status = 'closed'
+),
+paired AS (
+    SELECT o.id, o.created_at AS opened_at, c.created_at AS closed_at
+    FROM opened o JOIN closed c ON c.id = o.id
+),
+summary AS (
+    SELECT p.id, p.opened_at, p.closed_at, b.status
+    FROM paired p JOIN base b ON b.id = p.id
+)
+SELECT * FROM summary;
+
+-- 4. Many sources, several skipping straight to a late CTE, into an INSERT target
+INSERT INTO mart.customer_risk (customer_id, region, segment, score, flag, country)
+WITH customers AS (
+    SELECT customer_id, region FROM crm.customers
+),
+enriched AS (
+    SELECT c.customer_id, c.region, s.segment
+    FROM customers c JOIN crm.segments s ON s.customer_id = c.customer_id
+),
+scored AS (
+    SELECT e.customer_id, e.region, e.segment, r.score
+    FROM enriched e JOIN ml.risk_scores r ON r.customer_id = e.customer_id
+),
+final AS (
+    SELECT sc.customer_id, sc.region, sc.segment, sc.score, f.flag, g.country
+    FROM scored sc
+    JOIN audit.flags f ON f.customer_id = sc.customer_id
+    JOIN ref.geo g ON g.region = sc.region
+)
+SELECT customer_id, region, segment, score, flag, country FROM final;
+
+-- 5. Wide fan-in: five sources into one CTE, then the result
+WITH combined AS (
+    SELECT a.k FROM s.alpha a
+    JOIN s.bravo b ON b.k = a.k
+    JOIN s.charlie c ON c.k = a.k
+    JOIN s.delta d ON d.k = a.k
+    JOIN s.echo e ON e.k = a.k
+)
+SELECT * FROM combined;
