@@ -5,6 +5,13 @@ All notable changes to the BigQuery Studio extension will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.13.1] - 2026-09-23
+
+### Security
+
+- **Dependency updates** - `jspdf` (used for lineage PDF export) moves from 2.5 to 4.2, clearing its critical advisories and the vulnerable `dompurify` it bundled. Patched transitive dependencies include `protobufjs`, `@grpc/grpc-js`, `ws`, `form-data` and `preact`. No critical or high advisories remain in the shipped dependencies; the remaining moderate ones come from the BigQuery and Pub/Sub client libraries and need their next major versions.
+- **Removed the unused `svg2pdf.js` dependency** - Nothing in the extension used it.
+
 ## [2.13.0] - 2026-09-23
 
 ### Added
