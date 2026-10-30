@@ -397,7 +397,11 @@ body { margin: 0; padding: 0; font-family: var(--vscode-font-family, sans-serif)
 .bq-sel-count { padding: 0 6px; font-size: 0.82em; color: var(--bq-accent); font-weight: 600; }
 
 /* Header name + resize */
-.bq-grid thead th { position: relative; padding-right: 10px; }
+/* No position here: the header cells stay sticky (above), and the absolute resize handle
+   anchors to a sticky cell just as well. A `position: relative` here used to unstick them. */
+.bq-grid thead th { padding-right: 10px; }
+/* vscode-bigquery.stickyHeader = false: header scrolls away; the row-number column still sticks left */
+.bq-no-sticky .bq-grid thead th { top: auto; }
 .bq-col-name { margin-right: 4px; }
 .bq-resize {
     position: absolute;

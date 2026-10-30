@@ -351,9 +351,13 @@ export function extractCteColumns(sql: string, cteName: string): CteColumn[] {
                     return;
                 }
 
-                // Otherwise, extract from SELECT clause
+                // Otherwise, extract from the CTE's own SELECT clause: the first one visited. Later ones
+                // belong to subqueries (their `*` would expand to every input) or to UNION branches.
+                let seenSelect = false;
                 const selectVisitor = cstVisitor({
                     select_clause: (selectNode: CstNode) => {
+                        if (seenSelect) { return; }
+                        seenSelect = true;
                         if (!selectNode.columns) { return; }
 
                         const items = selectNode.columns.items || selectNode.columns;
@@ -638,7 +642,7 @@ export function finalSelectColumns(sql: string): CteColumn[] {
 }
 
 /** Blanks comments and quoted literals with spaces, keeping every offset and line break. */
-function maskCommentsAndLiterals(sql: string): string {
+export function maskCommentsAndLiterals(sql: string): string {
     const out = sql.split('');
     const blank = (from: number, to: number) => {
         for (let k = from; k < to && k < out.length; k++) { if (out[k] !== '\n') { out[k] = ' '; } }

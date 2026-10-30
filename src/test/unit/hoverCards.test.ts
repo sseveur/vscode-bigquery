@@ -37,6 +37,21 @@ suite('hoverCards', () => {
         assert.ok(!md.includes(` c${MAX_HOVER_COLUMNS} `));
     });
 
+    test('the limit is configurable and "+ N more" can link to the schema', () => {
+        const cols = Array.from({ length: 12 }, (_, i) => ({ name: `c${i}` }));
+        const link = 'command:vscode-bigquery.view-table-schema?%5B%5D';
+        const md = renderHoverCard({ kind: 'SOURCE', name: 't', columns: cols, moreLink: link }, 10);
+        assert.ok(md.includes(` c9 `) && !md.includes(` c10 `));
+        assert.ok(md.includes(`[+ 2 more · open schema](${link})`));
+        assert.ok(!renderHoverCard({ kind: 'SOURCE', name: 't', columns: cols, moreLink: link }, 12).includes('more'));
+    });
+
+    test('with a schema link present, names still cannot add links of their own', () => {
+        const hostile = '[x](command:vscode-bigquery.view-table-schema)';
+        const md = renderHoverCard({ kind: 'SOURCE', name: hostile, columns: [{ name: hostile, description: hostile }, { name: 'b' }], moreLink: 'command:vscode-bigquery.view-table-schema?%5B%5D' }, 1);
+        assert.strictEqual(md.split('](command:').length - 1, 1, 'only the provider-built link');
+    });
+
     test('names from the catalog or SQL cannot become links, icons, markup or break the table', () => {
         const hostile = '[run](command:workbench.action.terminal.new) $(alert) <img src=x onerror=1> a|b *x* `c`';
         const md = renderHoverCard({ kind: 'SOURCE', name: hostile, subtitle: hostile, columns: [{ name: hostile, type: hostile }] });

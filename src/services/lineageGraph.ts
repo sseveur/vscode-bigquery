@@ -72,11 +72,14 @@ export function buildLineageGraph(sql: string): LineageGraph {
 
     // 1. Add source table nodes (layer 0)
     // One node per unique physical table (deduplicated by table name)
-    const allSourceTables = new Map<string, { line?: number; column?: number }>();
+    // Keyed lower-case for de-duplication; `name` keeps the SQL's own casing, because BigQuery
+    // dataset and table names are case-sensitive (Sales.Orders is not sales.orders).
+    const allSourceTables = new Map<string, { name: string; line?: number; column?: number }>();
     for (const source of basicLineage.sources) {
         const key = source.fullName.toLowerCase();
         if (!allSourceTables.has(key)) {
             allSourceTables.set(key, {
+                name: source.fullName,
                 line: source.line,
                 column: source.column
             });
@@ -87,7 +90,7 @@ export function buildLineageGraph(sql: string): LineageGraph {
     for (const cte of ctes) {
         for (const table of cte.sourceTables) {
             if (!allSourceTables.has(table.toLowerCase())) {
-                allSourceTables.set(table.toLowerCase(), {});
+                allSourceTables.set(table.toLowerCase(), { name: table });
             }
         }
     }
@@ -98,12 +101,12 @@ export function buildLineageGraph(sql: string): LineageGraph {
         if (cteNames.has(tableName)) {continue;}
 
         const id = `source_${tableName}`;
-        const displayName = getDisplayName(tableName);
+        const displayName = getDisplayName(position.name);
 
         const node: LineageNode = {
             id,
             name: displayName,
-            fullName: tableName,
+            fullName: position.name,
             nodeType: 'SOURCE',
             layer: 0,
             sourceLine: position.line,

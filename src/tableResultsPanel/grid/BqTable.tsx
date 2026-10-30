@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { BqField, DmlStats, ExportRef, QueryResultsResponse } from './types';
-import { flattenSchema, extractRowValue, renderCellValue, highlightMatch, type FlatColumn } from './cellFormatters';
+import { flattenSchema, extractRowValue, renderCellValue, highlightMatch, compareCells, type FlatColumn } from './cellFormatters';
 import { DEFAULT_PAGE_SIZE } from './pagination';
 import { ChartPane } from './ChartPane';
 
@@ -59,18 +59,6 @@ function valueToCopyText(v: any, _col: FlatColumn): string {
         try { return JSON.stringify(v); } catch { return String(v); }
     }
     return String(v);
-}
-
-function compareValues(a: any, b: any): number {
-    if (a == null && b == null) { return 0; }
-    if (a == null) { return 1; }
-    if (b == null) { return -1; }
-    const an = parseFloat(String(a));
-    const bn = parseFloat(String(b));
-    if (!isNaN(an) && !isNaN(bn) && String(a).trim() !== '' && String(b).trim() !== '') {
-        return an - bn;
-    }
-    return String(a).localeCompare(String(b));
 }
 
 function prettyPrint(v: any): string {
@@ -181,7 +169,7 @@ export function BqTable({ fetchRows, exportRef, schema, totalRows, initialRows, 
         const idx = filteredIndices.slice();
         idx.sort((a, b) => {
             for (const s of sorts) {
-                const c = compareValues(extracted[a][s.colKey], extracted[b][s.colKey]) * s.dir;
+                const c = compareCells(extracted[a][s.colKey], extracted[b][s.colKey]) * s.dir;
                 if (c !== 0) { return c; }
             }
             return 0;

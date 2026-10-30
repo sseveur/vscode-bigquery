@@ -5,6 +5,24 @@ All notable changes to the BigQuery Studio extension will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.14.0] - 2026-10-30
+
+### Added
+
+- **Lineage: pan, zoom and resize** - Drag the graph to move it in any direction, at any zoom. The mouse wheel zooms around the pointer (no Ctrl needed). The diagram's height follows its resize handle instead of a fixed 500px.
+- **Lineage: full column notes** - A truncated note on a card, such as `columns unavailable: ...`, shows its full text on hover.
+- **Hover column limit** - Table and CTE hovers list up to 50 columns, then "+ N more". Change the limit with **Hover: Max Columns** (`vscode-bigquery.hoverMaxColumns`). On a table hover, "+ N more" opens the table's full schema (VS Code 1.77 or later).
+- **Sticky column headers** - The results grid keeps its header row visible while scrolling. Turn it off with **Grid: Sticky Column Headers** (`vscode-bigquery.stickyHeader`).
+- **Colors per column type** - `vscode-bigquery.gridColors` also takes exact types, e.g. `"INT64": "#FFA500"`, which win over their group (`number`, `timestamp`, ...).
+
+### Fixed
+
+- **Lineage "not found in the catalog" on mixed-case tables** - Source tables lost their casing, so the Columns view looked up `sales.orders` for `Sales.Orders`. BigQuery dataset and table names are case-sensitive; nodes now keep the casing written in the SQL.
+- **Lineage Columns view: `*` over several tables** - `SELECT *` over a JOIN or the branches of a `UNION ALL` subquery stayed `*`. It now lists all their columns, repeated names once. `f.*` on a subquery `( ... ) f` expands to the tables it reads, and a commented-out `-- FROM old_table f` no longer counts.
+- **CTE columns from nested subqueries** - A CTE's column list also picked up the `SELECT` lists of subqueries inside it. Only the CTE's own `SELECT` list counts now.
+- **Sorting by date in the results grid** - `DATE` and `DATETIME` values like `2026-01-26` were compared as the number 2026, so they did not sort.
+- **Sticky headers unstuck** - A `position: relative` on the header cells cancelled their sticky positioning.
+
 ## [2.13.1] - 2026-09-23
 
 ### Security

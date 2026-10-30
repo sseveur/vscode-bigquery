@@ -17,9 +17,11 @@ export interface HoverCard {
     columns: Array<{ name: string; type?: string; description?: string }>;
     /** Shown instead of the column list, e.g. while the schema loads. */
     note?: string;
+    /** Command URI the "+ N more" line links to (a table's full schema). Built by the provider, never from names. */
+    moreLink?: string;
 }
 
-/** Hovers scroll, but a 300-column table should not produce a 300-row tooltip. */
+/** Default for vscode-bigquery.hoverMaxColumns: a 300-column table should not produce a 300-row tooltip. */
 export const MAX_HOVER_COLUMNS = 50;
 
 /** Long column descriptions are cut so the type column stays in view. */
@@ -36,7 +38,7 @@ const ICONS: Record<TypeKind, string> = {
 
 const MUTED = 'color:var(--vscode-descriptionForeground);';
 
-export function renderHoverCard(card: HoverCard): string {
+export function renderHoverCard(card: HoverCard, maxColumns = MAX_HOVER_COLUMNS): string {
     const color = NODE_COLORS[card.kind];
     const icon = card.kind === 'SOURCE' ? 'database' : 'package';
     const tag = `<span style="color:${color};background-color:${color}26;">&nbsp;<strong>${NODE_TAGS[card.kind]}</strong>&nbsp;</span>`;
@@ -53,14 +55,16 @@ export function renderHoverCard(card: HoverCard): string {
 
     const n = card.columns.length;
     lines.push(`| | ${n} column${n === 1 ? '' : 's'} | |`, '|:-:|:--|--:|');
-    for (const c of card.columns.slice(0, MAX_HOVER_COLUMNS)) {
+    for (const c of card.columns.slice(0, maxColumns)) {
         const description = c.description?.trim()
             ? `&nbsp; <span style="${MUTED}">${escapeMarkdown(truncate(c.description.trim(), MAX_DESCRIPTION_CHARS))}</span>`
             : '';
         lines.push(`| $(${ICONS[typeKind(c.type)]}) | ${escapeMarkdown(c.name)}${description} | ${c.type ? `<span style="${MUTED}">${escapeMarkdown(c.type)}</span>` : ''} |`);
     }
-    if (n > MAX_HOVER_COLUMNS) {
-        lines.push(`| | <span style="${MUTED}"><em>+ ${n - MAX_HOVER_COLUMNS} more</em></span> | |`);
+    if (n > maxColumns) {
+        lines.push(card.moreLink
+            ? `| | [+ ${n - maxColumns} more · open schema](${card.moreLink}) | |`
+            : `| | <span style="${MUTED}"><em>+ ${n - maxColumns} more</em></span> | |`);
     }
     return lines.join('\n');
 }

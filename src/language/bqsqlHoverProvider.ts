@@ -1,11 +1,12 @@
-import { CancellationToken, Hover, HoverProvider, MarkdownString, Position, ProviderResult, TextDocument } from "vscode";
+import { CancellationToken, Hover, HoverProvider, MarkdownString, Position, ProviderResult, TextDocument, version, workspace } from "vscode";
 import { parse } from "@bstruct/bqsql-parser";
 import { BqsqlDocument, BqsqlDocumentItem } from "./bqsqlDocument";
 import { isBigQueryLanguage } from "../services/languageUtils";
 import { bigqueryTableSchemaService } from "../extension";
 import { BigqueryTableSchema } from "../services/bigqueryTableSchema";
 import { extractCteColumns, getCteNames } from "../services/cteExtractor";
-import { HoverCard, renderHoverCard } from "./hoverCards";
+import { HoverCard, MAX_HOVER_COLUMNS, renderHoverCard } from "./hoverCards";
+import { COMMAND_VIEW_TABLE_SCHEMA } from "../extensionCommands";
 import { buildMultiQueryLineage } from "../services/lineageGraph";
 import { resolveLineageColumns } from "../lineage/lineageColumns";
 
@@ -156,14 +157,20 @@ export class BqsqlHoverProvider implements HoverProvider {
     private formatSchemaAsMarkdown(schema: BigqueryTableSchema[]): MarkdownString {
         const first = schema[0];
         const partitioned = schema.filter(c => c.is_partitioning_column === 'YES').map(c => c.column_name);
-        return toMarkdown({
+        const card: HoverCard = {
             kind: 'SOURCE',
             name: first.table_name,
             subtitle: `${first.project_id}.${first.dataset_name}` + (partitioned.length ? ` \u00b7 partitioned by ${partitioned.join(', ')}` : ''),
             columns: [...schema]
                 .sort((a, b) => Number(a.ordinal_position) - Number(b.ordinal_position))
                 .map(c => ({ name: c.column_name, type: c.data_type, description: c.description || undefined })),
-        });
+        };
+        // "+ N more" opens the full schema, with the same arguments as the explorer's View Schema
+        if (card.columns.length > hoverMaxColumns() && COMMAND_ALLOWLIST) {
+            const table = { projectId: first.project_id, datasetId: first.dataset_name, tableId: first.table_name };
+            card.moreLink = `command:${COMMAND_VIEW_TABLE_SCHEMA}?${encodeURIComponent(JSON.stringify([table]))}`;
+        }
+        return toMarkdown(card);
     }
 
     /**
@@ -208,14 +215,25 @@ export class BqsqlHoverProvider implements HoverProvider {
     }
 }
 
+/** Before VS Code 1.77 `isTrusted` was a boolean, so an allowlist object would trust every link. */
+const COMMAND_ALLOWLIST = (() => {
+    const [major, minor] = version.split('.').map(Number);
+    return major > 1 || minor >= 77;
+})();
+
+function hoverMaxColumns(): number {
+    return Math.max(1, workspace.getConfiguration('vscode-bigquery').get<number>('hoverMaxColumns', MAX_HOVER_COLUMNS));
+}
+
 /**
  * Hover markdown is untrusted: names and types come from the catalog or the SQL, so they are
- * escaped and command links stay disabled. HTML is limited to VS Code's hover sanitizer.
+ * escaped. HTML is limited to VS Code's hover sanitizer. Only the provider-built schema link may
+ * run, and only that one command, so the catalog or the SQL can't add links of their own.
  */
 function toMarkdown(card: HoverCard): MarkdownString {
-    const md = new MarkdownString(renderHoverCard(card));
+    const md = new MarkdownString(renderHoverCard(card, hoverMaxColumns()));
     md.supportHtml = true;
     md.supportThemeIcons = true;
-    md.isTrusted = false;
+    md.isTrusted = card.moreLink ? { enabledCommands: [COMMAND_VIEW_TABLE_SCHEMA] } : false;
     return md;
 }

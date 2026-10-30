@@ -138,7 +138,6 @@ export function renderLineageHtml(sections: LineageSection[], exportTheme: strin
             overflow: hidden;
             display: flex;
             flex-direction: column;
-            max-height: 500px;
         }
 
         .query-header {
@@ -232,15 +231,24 @@ export function renderLineageHtml(sections: LineageSection[], exportTheme: strin
         }
 
         .graph-container {
-            overflow: auto;
+            /* Moved with a transform (drag to pan, wheel to zoom), so it pans even when the graph fits */
+            overflow: hidden;
             border: 1px solid var(--vscode-panel-border);
             border-radius: 6px;
             background-color: var(--vscode-editor-background);
             /* Dot grid, view only: the export paints a plain background */
             background-image: radial-gradient(circle, var(--vscode-editorWidget-border, rgba(128,128,128,0.35)) 1px, transparent 1.2px);
             background-size: 18px 18px;
-            min-height: 300px;
-            flex: 1;
+            /* Drag the bottom-right corner to change the height; drag the graph to pan */
+            height: 420px;
+            min-height: 150px;
+            resize: vertical;
+            cursor: move;
+        }
+
+        .graph-container.panning {
+            cursor: grabbing;
+            user-select: none;
         }
 
         .graph-wrapper {
@@ -421,6 +429,7 @@ export function renderLineageHtml(sections: LineageSection[], exportTheme: strin
             // Initialize zoom for each section
             document.querySelectorAll('.query-section').forEach((section, index) => {
                 zoomStates[index] = 1;
+                const offset = { x: 0, y: 0 };
 
                 const wrapper = section.querySelector('.graph-wrapper');
                 const levelDisplay = section.querySelector('.zoom-level');
@@ -428,7 +437,7 @@ export function renderLineageHtml(sections: LineageSection[], exportTheme: strin
 
                 function updateZoom() {
                     if (wrapper) {
-                        wrapper.style.transform = 'scale(' + zoomStates[index] + ')';
+                        wrapper.style.transform = 'translate(' + offset.x + 'px, ' + offset.y + 'px) scale(' + zoomStates[index] + ')';
                         levelDisplay.textContent = Math.round(zoomStates[index] * 100) + '%';
                     }
                 }
@@ -452,21 +461,57 @@ export function renderLineageHtml(sections: LineageSection[], exportTheme: strin
                 section.querySelector('.zoom-reset')?.addEventListener('click', function(e) {
                     e.stopPropagation();
                     zoomStates[index] = 1;
+                    offset.x = 0;
+                    offset.y = 0;
                     updateZoom();
                 });
 
-                // Mouse wheel zoom
+                // Drag to pan. A drag that moved suppresses the click that follows, so
+                // releasing over a node doesn't navigate to it.
+                if (container) {
+                    let pan = null;
+                    let panned = false;
+                    container.addEventListener('pointerdown', function(e) {
+                        if (e.button !== 0) return;
+                        const r = container.getBoundingClientRect();
+                        // Leave the native resize handle alone
+                        if (e.clientX > r.right - 18 || e.clientY > r.bottom - 18) return;
+                        pan = { x: e.clientX, y: e.clientY, left: offset.x, top: offset.y, id: e.pointerId };
+                        panned = false;
+                    });
+                    container.addEventListener('pointermove', function(e) {
+                        if (!pan) return;
+                        const dx = e.clientX - pan.x, dy = e.clientY - pan.y;
+                        if (!panned && Math.abs(dx) + Math.abs(dy) < 4) return;
+                        if (!panned) { panned = true; container.classList.add('panning'); container.setPointerCapture(pan.id); }
+                        offset.x = pan.left + dx;
+                        offset.y = pan.top + dy;
+                        updateZoom();
+                    });
+                    const endPan = function() {
+                        pan = null;
+                        container.classList.remove('panning');
+                    };
+                    container.addEventListener('pointerup', endPan);
+                    container.addEventListener('pointercancel', endPan);
+                    container.addEventListener('click', function(e) {
+                        if (panned) { e.stopPropagation(); e.preventDefault(); panned = false; }
+                    }, true);
+                }
+
+                // Wheel zooms around the cursor: the graph point under it stays put
                 if (container) {
                     container.addEventListener('wheel', function(e) {
-                        if (e.ctrlKey) {
-                            e.preventDefault();
-                            if (e.deltaY < 0 && zoomStates[index] < 2) {
-                                zoomStates[index] = Math.min(2, zoomStates[index] + 0.25);
-                            } else if (e.deltaY > 0 && zoomStates[index] > 0.25) {
-                                zoomStates[index] = Math.max(0.25, zoomStates[index] - 0.25);
-                            }
-                            updateZoom();
-                        }
+                        e.preventDefault();
+                        const old = zoomStates[index];
+                        const next = Math.min(2, Math.max(0.25, old * (e.deltaY < 0 ? 1.1 : 1 / 1.1)));
+                        if (next === old) return;
+                        const r = container.getBoundingClientRect();
+                        const cx = e.clientX - r.left, cy = e.clientY - r.top;
+                        offset.x = cx - (cx - offset.x) * next / old;
+                        offset.y = cy - (cy - offset.y) * next / old;
+                        zoomStates[index] = next;
+                        updateZoom();
                     }, { passive: false });
                 }
             });
