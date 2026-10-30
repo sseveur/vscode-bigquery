@@ -5,6 +5,16 @@ All notable changes to the BigQuery Studio extension will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.15.0] - 2026-10-30
+
+### Changed
+
+- **Requires VS Code 1.101 or later** - The BigQuery and Pub/Sub client libraries now need Node.js 22, which VS Code ships from 1.101 onwards.
+
+### Security
+
+- **BigQuery and Pub/Sub client libraries** - `@google-cloud/bigquery` moves to 9.5.0 and `@google-cloud/pubsub` to 6.3.2, clearing the moderate `uuid` advisory they carried. Development tools `mocha` (12.0.3) and `@vscode/vsce` (4.1.0) are updated too. `npm audit` now reports no advisories.
+
 ## [2.14.0] - 2026-10-30
 
 ### Added

@@ -2,7 +2,7 @@
 	"name": "bigquery-studio",
 	"displayName": "BigQuery Studio",
 	"description": "Fork of bstruct/vscode-bigquery. A powerful Google BigQuery extension with offline-ready charting, query execution, data browsing, SQL intellisense, cost estimation, and data lineage visualization.",
-	"version": "2.14.0",
+	"version": "2.15.0",
 	"publisher": "s-seveur",
 	"icon": "logo.png",
 	"repository": {
@@ -14,7 +14,7 @@
 		"url": "https://github.com/sseveur/vscode-bigquery/issues"
 	},
 	"engines": {
-		"vscode": "^1.63.0"
+		"vscode": "^1.101.0"
 	},
 	"categories": [
 		"Other"
@@ -987,17 +987,16 @@
 	"devDependencies": {
 		"@types/glob": "^7.2.0",
 		"@types/jsdom": "^27.0.0",
-		"@types/mocha": "^9.1.1",
+		"@types/mocha": "^10.0.10",
 		"@types/node": "16.x",
-		"@types/uuid": "^9.0.0",
 		"@types/vscode": "^1.63.0",
 		"@typescript-eslint/eslint-plugin": "^5.30.0",
 		"@typescript-eslint/parser": "^5.30.0",
 		"@vscode/test-electron": "^2.1.5",
-		"@vscode/vsce": "^2.18.0",
+		"@vscode/vsce": "^4.1.0",
 		"eslint": "^8.18.0",
 		"glob": "^8.0.3",
-		"mocha": "^10.0.0",
+		"mocha": "^12.0.3",
 		"sql-parser-cst": "^0.36.1",
 		"ts-loader": "^9.3.1",
 		"typescript": "^4.7.4",
@@ -1006,8 +1005,8 @@
 	},
 	"dependencies": {
 		"@bstruct/bqsql-parser": "file://.//bqsql_parser/pkg",
-		"@google-cloud/bigquery": "^7.9.3",
-		"@google-cloud/pubsub": "^4.5.0",
+		"@google-cloud/bigquery": "^9.5.0",
+		"@google-cloud/pubsub": "^6.3.2",
 		"@types/gapi.client.bigquery-v2": "^0.0.2",
 		"@vscode/codicons": "^0.0.32",
 		"@vscode/webview-ui-toolkit": "^1.2.2",

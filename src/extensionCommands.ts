@@ -7,7 +7,7 @@ import { BigqueryTreeItem, BigqueryTreeItemType } from './activitybar/bigqueryTr
 import { SchemaRender } from './tableResultsPanel/schemaRender';
 import { QueryGeneratorService } from './services/queryGeneratorService';
 import { ResultsGridRender } from './tableResultsPanel/resultsGridRender';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID as uuidv4 } from 'crypto';
 import { DownloadCsv } from './tableResultsPanel/downloadCsv';
 import { QueryResultsMappingService } from './services/queryResultsMappingService';
 import { isMultiStatementScript, isSafeTableIdentifier, isTempTableStatement } from './services/sqlStatementUtils';

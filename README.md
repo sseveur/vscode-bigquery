@@ -41,6 +41,7 @@ Or install from the [VS Code Marketplace](https://marketplace.visualstudio.com/i
 
 ## Requirements
 
+- VS Code 1.101 or later
 - [Google Cloud SDK (gcloud CLI)](https://cloud.google.com/sdk/docs/install) must be installed
 - Valid Google Cloud authentication with BigQuery permissions
 
