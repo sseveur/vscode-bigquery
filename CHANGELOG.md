@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Sorting by date in the results grid** - `DATE` and `DATETIME` values like `2026-01-26` were compared as the number 2026, so they did not sort.
 - **Sticky headers unstuck** - A `position: relative` on the header cells cancelled their sticky positioning.
 
+### Security
+
+- **Dependency updates** - `dompurify` (bundled with `jspdf` for lineage PDF export) moves to 3.4.17 and `source-map-js` to 1.2.2, clearing a critical and a high advisory published since 2.13.1. No critical or high advisories remain in the shipped dependencies; the remaining moderate ones come from the BigQuery and Pub/Sub client libraries and need their next major versions.
+
 ## [2.13.1] - 2026-09-23
 
 ### Security
