@@ -153,20 +153,22 @@ The lineage graph shows each node as a card with a coloured type badge:
 - **OUT** - The query result for SELECT-only queries
 
 Features:
-- **Columns View** - The **Columns** button on each diagram lists every node's columns: source and target tables from their BigQuery schema, CTEs and the result from their SELECT lists, with `*` expanded and types carried through CTEs
+- **Columns View** - The **Columns** button on each diagram lists every node's columns: source and target tables from their BigQuery schema, CTEs and the result from their SELECT lists, with `*` expanded (also over a JOIN, a `UNION ALL` subquery or `alias.*` on a subquery) and types carried through CTEs
 - **Highlighted Paths** - Hovering a node highlights everything upstream and downstream of it
 - **Multi-Query Support** - Files with multiple queries show separate lineage diagrams stacked vertically
 - **Collapsible Query Sections** - Each query section has collapse/expand toggles with chevron icons for easier navigation
 - **Lineage for Selection** - Right-click on selected SQL text to generate lineage for just that portion
 - **Click to Navigate** - Click on any node to jump to its definition in the SQL (CTEs land on their name, also for a selection)
 - **Clean Layered Layout** - Nodes flow left to right; edges that skip layers get their own lanes and crossings are minimised
-- **Zoom Controls** - Zoom in/out and reset buttons, plus Ctrl+scroll wheel support
+- **Pan and Zoom** - Drag the graph to move it in any direction; the mouse wheel zooms around the pointer; zoom in/out and reset buttons. Drag the diagram's bottom-right corner to make it taller
+- **Full Notes** - A truncated note on a card, such as `columns unavailable: ...`, shows its full text on hover
 
 ## Table Schema Hover
 
 Hover over any table name in your SQL query to see a card in the same style as the lineage view:
 - A **SRC** badge, the table name and its `project.dataset` (plus partitioning, when set)
 - Every column with a type icon, its description (if any) and its data type right-aligned
+- Wide tables list the first 50 columns (`vscode-bigquery.hoverMaxColumns`), then a **+ N more · open schema** link to the full schema
 
 <img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/table_hover_schema.png" alt="table_hover_schema" />
 
@@ -199,7 +201,8 @@ Query results, table previews, and multi-statement scripts render in a Preact-ba
 | Feature | How it works |
 |---|---|
 | **Tabs** | Switch between **Results** and **Schema** panes. Schema pane lists every column with type and mode (including flattened `parent.child` paths for STRUCT fields). |
-| **Multi-column sort** | Click a column header for single-column sort. Shift-click additional headers to stack secondary sort keys. A rank badge shown next to the arrow when more than one column is active. Click the same header twice to flip direction; three times to clear. |
+| **Multi-column sort** | Click a column header for single-column sort. Shift-click additional headers to stack secondary sort keys. A rank badge shown next to the arrow when more than one column is active. Click the same header twice to flip direction; three times to clear. `DATE`, `DATETIME` and `TIMESTAMP` values sort by date. |
+| **Sticky header** | The column header row stays visible while scrolling. Turn it off with **Grid: Sticky Column Headers** (`vscode-bigquery.stickyHeader`). |
 | **Find-in-table** | Type in the `Find…` box in the toolbar to filter the current page. Matches highlighted inline via `<mark>`; hit count shown next to the input. |
 | **Density toggle** | Three-button group (`≡` compact / `☰` cozy / `⋯` comfy). Adjusts row padding and cell font size live via CSS custom properties. |
 | **Row selection** | Click a row-number cell to select that row. Shift-click a second row-number for range selection. Cmd/Ctrl-click toggles individual rows. Selection count shown in toolbar. |
@@ -243,6 +246,8 @@ Example `settings.json`:
     "null": "#ffa657"
 }
 ```
+
+A key can also be an exact BigQuery type, such as `"INT64": "#FFA500"` or `"DATE": "#d2a8ff"`, which wins over its group.
 
 Any CSS color value works (hex, `rgb()`, `hsl()`, named colors, `var(--vscode-…)`, `color-mix(…)`). Leave a key unset (or empty) to keep the default and let the VS Code theme decide.
 

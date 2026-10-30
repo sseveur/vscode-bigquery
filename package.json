@@ -2,7 +2,7 @@
 	"name": "bigquery-studio",
 	"displayName": "BigQuery Studio",
 	"description": "Fork of bstruct/vscode-bigquery. A powerful Google BigQuery extension with offline-ready charting, query execution, data browsing, SQL intellisense, cost estimation, and data lineage visualization.",
-	"version": "2.13.1",
+	"version": "2.14.0",
 	"publisher": "s-seveur",
 	"icon": "logo.png",
 	"repository": {
@@ -150,12 +150,29 @@
 						"title": "Copy Table Path: Wrap in Backticks",
 						"description": "When copying a table path (right-click → Copy Table Path), wrap it in backticks so it's ready to paste directly into a BigQuery FROM clause."
 					},
+					"vscode-bigquery.stickyHeader": {
+						"type": "boolean",
+						"default": true,
+						"scope": "machine-overridable",
+						"order": 3,
+						"title": "Grid: Sticky Column Headers",
+						"description": "Keep the column header row visible while scrolling through results. Applies to results panels opened after the change."
+					},
+					"vscode-bigquery.hoverMaxColumns": {
+						"type": "number",
+						"default": 50,
+						"minimum": 1,
+						"scope": "machine-overridable",
+						"order": 3,
+						"title": "Hover: Max Columns",
+						"description": "How many columns a table or CTE hover lists. Beyond that it shows \"+ N more\"; for a table that line opens its full schema."
+					},
 					"vscode-bigquery.gridColors": {
 						"type": "object",
 						"scope": "machine-overridable",
 						"order": 3,
 						"title": "Grid: Cell Color Scheme",
-						"description": "Override cell text colors per BigQuery type. Leave empty to inherit from the active VS Code theme. Supports any CSS color (hex, rgb, hsl, named).",
+						"description": "Override cell text colors by type group (number, string, timestamp, ...) or by an exact BigQuery type such as INT64 or DATE, which wins over its group. Leave empty to inherit from the active VS Code theme. Supports any CSS color (hex, rgb, hsl, named).",
 						"properties": {
 							"number": {
 								"type": "string",
