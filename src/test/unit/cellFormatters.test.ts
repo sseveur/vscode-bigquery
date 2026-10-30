@@ -7,9 +7,32 @@ import {
     extractRowValue,
     renderCellValue,
     escapeHtml,
+    compareCells,
+    typeColorRules,
     type FlatColumn,
 } from '../../tableResultsPanel/grid/cellFormatters';
 import type { BqField } from '../../tableResultsPanel/grid/types';
+
+suite('compareCells', () => {
+    test('DATE, DATETIME and ISO TIMESTAMP values sort by date, not as the number 2026', () => {
+        const dates = ['2026-03-01', '2026-01-26', '2026-02-10T08:00:00', '2026-01-26T00:00:00.000Z'];
+        assert.deepStrictEqual(dates.slice().sort(compareCells), ['2026-01-26', '2026-01-26T00:00:00.000Z', '2026-02-10T08:00:00', '2026-03-01']);
+    });
+
+    test('numbers (and numeric strings) numerically, nulls last', () => {
+        assert.deepStrictEqual([10, null, 9, 100].sort(compareCells), [9, 10, 100, null]);
+        assert.deepStrictEqual(['10', '9', '1e3', '-2.5'].sort(compareCells), ['-2.5', '9', '10', '1e3']);
+        assert.ok(compareCells('12abc', '9') < 0, 'partly numeric text compares as text');
+    });
+});
+
+suite('typeColorRules', () => {
+    test('one rule per exact-type var, none for group vars', () => {
+        const vars = Object.fromEntries([['--bq-color-number', '#111'], ['--bq-type-int64', '#222'], ['--bq-type-date', 'red']]);
+        const css = typeColorRules(vars);
+        assert.strictEqual(css, '.bq-grid td.bq-t-int64 { color: var(--bq-type-int64); }\n.bq-grid td.bq-t-date { color: var(--bq-type-date); }');
+    });
+});
 
 suite('cellFormatters', () => {
 

@@ -339,23 +339,6 @@ function valueToCopyText(v, _col) {
     }
     return String(v);
 }
-function compareValues(a, b) {
-    if (a == null && b == null) {
-        return 0;
-    }
-    if (a == null) {
-        return 1;
-    }
-    if (b == null) {
-        return -1;
-    }
-    const an = parseFloat(String(a));
-    const bn = parseFloat(String(b));
-    if (!isNaN(an) && !isNaN(bn) && String(a).trim() !== '' && String(b).trim() !== '') {
-        return an - bn;
-    }
-    return String(a).localeCompare(String(b));
-}
 function prettyPrint(v) {
     if (v === null || v === undefined) {
         return 'NULL';
@@ -488,7 +471,7 @@ function BqTable({ fetchRows, exportRef, schema, totalRows, initialRows, title, 
         const idx = filteredIndices.slice();
         idx.sort((a, b) => {
             for (const s of sorts) {
-                const c = compareValues(extracted[a][s.colKey], extracted[b][s.colKey]) * s.dir;
+                const c = (0,_cellFormatters__WEBPACK_IMPORTED_MODULE_2__.compareCells)(extracted[a][s.colKey], extracted[b][s.colKey]) * s.dir;
                 if (c !== 0) {
                     return c;
                 }
@@ -759,13 +742,16 @@ function postExport(command, ref) {
 
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   TYPE_COLOR_VAR_PREFIX: () => (/* binding */ TYPE_COLOR_VAR_PREFIX),
+/* harmony export */   compareCells: () => (/* binding */ compareCells),
 /* harmony export */   decodeBqValue: () => (/* binding */ decodeBqValue),
 /* harmony export */   escapeHtml: () => (/* binding */ escapeHtml),
 /* harmony export */   extractRowValue: () => (/* binding */ extractRowValue),
 /* harmony export */   flattenSchema: () => (/* binding */ flattenSchema),
 /* harmony export */   formatScalar: () => (/* binding */ formatScalar),
 /* harmony export */   highlightMatch: () => (/* binding */ highlightMatch),
-/* harmony export */   renderCellValue: () => (/* binding */ renderCellValue)
+/* harmony export */   renderCellValue: () => (/* binding */ renderCellValue),
+/* harmony export */   typeColorRules: () => (/* binding */ typeColorRules)
 /* harmony export */ });
 function formatScalar(raw, type) {
     if (raw === null || raw === undefined) {
@@ -942,6 +928,40 @@ function highlightMatch(text, needle) {
         last = m.index + m[0].length;
     }
     return html + escapeHtml(text.slice(last));
+}
+/** vscode-bigquery.gridColors keys that name one column type ("INT64") become `--bq-type-int64`. */
+const TYPE_COLOR_VAR_PREFIX = '--bq-type-';
+/**
+ * CSS for exact-type color keys: `td.bq-t-int64 { color: var(--bq-type-int64) }` per such var.
+ * Emitted after the grid stylesheet, so an exact type beats its group (same specificity).
+ * `vars` is already sanitized, so names are plain alphanumerics.
+ */
+function typeColorRules(vars) {
+    return Object.keys(vars)
+        .filter(k => k.startsWith(TYPE_COLOR_VAR_PREFIX))
+        .map(k => `.bq-grid td.bq-t-${k.slice(TYPE_COLOR_VAR_PREFIX.length)} { color: var(${k}); }`)
+        .join('\n');
+}
+const NUMERIC = /^\s*[-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?\s*$/i;
+/**
+ * Grid sort order: nulls last; numbers numerically only when the WHOLE value is a number
+ * (parseFloat read "2026-01-26" as 2026, so every DATE / DATETIME compared equal); else text.
+ */
+function compareCells(a, b) {
+    if (a === null || a === undefined) {
+        return b === null || b === undefined ? 0 : 1;
+    }
+    if (b === null || b === undefined) {
+        return -1;
+    }
+    if (typeof a === 'number' && typeof b === 'number') {
+        return a - b;
+    }
+    const as = String(a), bs = String(b);
+    if (NUMERIC.test(as) && NUMERIC.test(bs)) {
+        return Number(as) - Number(bs);
+    }
+    return as.localeCompare(bs);
 }
 function escapeHtml(s) {
     return s

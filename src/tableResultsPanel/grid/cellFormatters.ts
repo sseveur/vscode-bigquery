@@ -167,6 +167,36 @@ export function highlightMatch(text: string, needle: string): string {
     return html + escapeHtml(text.slice(last));
 }
 
+/** vscode-bigquery.gridColors keys that name one column type ("INT64") become `--bq-type-int64`. */
+export const TYPE_COLOR_VAR_PREFIX = '--bq-type-';
+
+/**
+ * CSS for exact-type color keys: `td.bq-t-int64 { color: var(--bq-type-int64) }` per such var.
+ * Emitted after the grid stylesheet, so an exact type beats its group (same specificity).
+ * `vars` is already sanitized, so names are plain alphanumerics.
+ */
+export function typeColorRules(vars: Record<string, string>): string {
+    return Object.keys(vars)
+        .filter(k => k.startsWith(TYPE_COLOR_VAR_PREFIX))
+        .map(k => `.bq-grid td.bq-t-${k.slice(TYPE_COLOR_VAR_PREFIX.length)} { color: var(${k}); }`)
+        .join('\n');
+}
+
+const NUMERIC = /^\s*[-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?\s*$/i;
+
+/**
+ * Grid sort order: nulls last; numbers numerically only when the WHOLE value is a number
+ * (parseFloat read "2026-01-26" as 2026, so every DATE / DATETIME compared equal); else text.
+ */
+export function compareCells(a: unknown, b: unknown): number {
+    if (a === null || a === undefined) { return b === null || b === undefined ? 0 : 1; }
+    if (b === null || b === undefined) { return -1; }
+    if (typeof a === 'number' && typeof b === 'number') { return a - b; }
+    const as = String(a), bs = String(b);
+    if (NUMERIC.test(as) && NUMERIC.test(bs)) { return Number(as) - Number(bs); }
+    return as.localeCompare(bs);
+}
+
 export function escapeHtml(s: string): string {
     return s
         .replace(/&/g, '&amp;')

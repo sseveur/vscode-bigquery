@@ -1,6 +1,7 @@
 import { render } from 'preact';
 import { BqTable, type PageFetcher } from '../../tableResultsPanel/grid/BqTable';
 import type { BqField, DmlStats, ExportRef, JobReference } from '../../tableResultsPanel/grid/types';
+import { typeColorRules } from '../../tableResultsPanel/grid/cellFormatters';
 // Bundled as a raw string by webpack (asset/source). Shared stylesheet with the webview grid so
 // the notebook cell renders identically to the results panel.
 // @ts-ignore - no module typings; webpack provides the file contents as a string.
@@ -113,6 +114,14 @@ function NotebookGrid({ payload, requestPage, requestExport }: {
     const applyColors = (node: HTMLElement | null) => {
         if (!node || !payload.colors) { return; }
         for (const [k, v] of Object.entries(payload.colors)) { node.style.setProperty(k, v); }
+        // Exact-type keys need a rule, not just a var; one shared <style> per rule set
+        const rules = typeColorRules(payload.colors);
+        if (rules && !document.querySelector(`style[data-bq-type-colors="${CSS.escape(rules)}"]`)) {
+            const style = document.createElement('style');
+            style.dataset.bqTypeColors = rules;
+            style.textContent = rules;
+            document.head.appendChild(style);
+        }
     };
 
     return (

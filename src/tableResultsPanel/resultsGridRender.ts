@@ -3,6 +3,7 @@ import { getNonce, reportCspViolation } from '../utils/webviewSecurity';
 import { getExtensionUri } from '../extension';
 import { COMMAND_DOWNLOAD_CSV, COMMAND_DOWNLOAD_JSONL, COMMAND_SEND_PUBSUB, COMMAND_COPY_CLIPBOARD } from '../extensionCommands';
 import { ResultsGridRenderRequestV2, ResultsGridRenderRequestV2Type } from './resultsGridRenderRequestV2';
+import { TYPE_COLOR_VAR_PREFIX, typeColorRules } from './grid/cellFormatters';
 
 /** Supplies a fresh OAuth token when a reloaded webview needs to refetch its rows. */
 export type TokenRefresher = () => Promise<string | null>;
@@ -27,7 +28,8 @@ export function sanitizedGridColorVars(): Record<string, string> {
     const out: Record<string, string> = {};
     if (!cfg || typeof cfg !== 'object') { return out; }
     for (const [k, v] of Object.entries(cfg)) {
-        const cssVar = GRID_COLOR_KEY_TO_VAR[k];
+        // A group key (number, string, ...) or an exact BigQuery type (INT64, DATE, ...)
+        const cssVar = GRID_COLOR_KEY_TO_VAR[k] ?? (/^[A-Za-z][A-Za-z0-9]{0,39}$/.test(k) ? TYPE_COLOR_VAR_PREFIX + k.toLowerCase() : undefined);
         if (!cssVar || typeof v !== 'string') { continue; }
         const raw = v.trim();
         if (!raw || raw.length > 80) { continue; }
@@ -93,8 +95,9 @@ export class ResultsGridRender {
     }
 
     private buildGridColorOverrides(): string {
-        const lines = Object.entries(sanitizedGridColorVars()).map(([k, v]) => `${k}: ${v};`);
-        return lines.length ? `:root { ${lines.join(' ')} }` : '';
+        const vars = sanitizedGridColorVars();
+        const lines = Object.entries(vars).map(([k, v]) => `${k}: ${v};`);
+        return lines.length ? `:root { ${lines.join(' ')} }\n${typeColorRules(vars)}` : '';
     }
 
     private buildHtml(webview: vscode.Webview, extensionUri: vscode.Uri): string {
@@ -119,7 +122,7 @@ export class ResultsGridRender {
                 <style nonce="${nonce}">html, body, #q1 { height: 100%; overflow: hidden; }</style>
                 ${colorOverrides ? `<style nonce="${nonce}">${colorOverrides}</style>` : ''}
             </head>
-            <body>
+            <body${vscode.workspace.getConfiguration('vscode-bigquery').get<boolean>('stickyHeader', true) ? '' : ' class="bq-no-sticky"'}>
                 <div id="q1"></div>
                 <script src="${gridJs}"></script>
             </body>
