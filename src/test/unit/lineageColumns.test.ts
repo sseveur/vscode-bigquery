@@ -103,6 +103,52 @@ suite('lineage columns', () => {
         assert.ok(!svg.includes(`>c${MAX_COLUMN_ROWS}<`));
     });
 
+    test('source nodes keep the SQL casing (BigQuery table names are case-sensitive)', () => {
+        const q = buildMultiQueryLineage('SELECT * FROM `my-proj.Sales.Orders` o JOIN sales.orders x ON TRUE').queries[0];
+        const names = q.graph.nodes.filter(n => n.nodeType === 'SOURCE').map(n => n.fullName);
+        assert.ok(names.some(n => n.includes('Sales.Orders')), names.join(', '));
+        assert.deepStrictEqual(tableOf(names.find(n => n.includes('Orders'))!, 'my-proj')?.tableId, 'Orders');
+    });
+
+    test('* over a UNION derived table lists both inputs, f.* on it too', async () => {
+        const sql = `WITH all_orders AS (
+    SELECT * FROM (
+        SELECT * FROM raw.orders
+        UNION ALL
+        SELECT * FROM raw.orders_hist
+    ) f
+)
+SELECT f.*, c.region
+FROM all_orders f
+LEFT JOIN raw.customers c ON f.customer_id = c.customer_id`;
+        const hist = async (t: ResolvedTable) => t.tableId === 'orders_hist' ? CATALOG.get('raw.orders')! : lookup(t);
+        const q = buildMultiQueryLineage(sql).queries[0];
+        await resolveLineageColumns(q.graph, q.sqlText, hist, 'my-proj');
+        assert.deepStrictEqual(node(q.graph, 'all_orders').columns!.map(c => c.name), ['order_id', 'customer_id', 'amount']);
+        assert.deepStrictEqual(node(q.graph, 'Query Result', 'RESULT').columns!.map(c => c.name), ['order_id', 'customer_id', 'amount', 'region']);
+    });
+
+    test('alias.* on a derived table expands to the tables it reads; commented-out FROM ignored', async () => {
+        const sql = `WITH enriched AS (
+    SELECT
+        f.*
+        , c.region AS customer_region
+    FROM
+        -- raw.orders_old f
+        ( -- full history
+            SELECT * FROM \`my-proj.raw.orders\`
+            UNION ALL
+            SELECT * FROM \`my-proj.raw.orders_hist\`
+        ) f
+    LEFT JOIN raw.customers c ON c.customer_id = f.customer_id
+)
+SELECT * FROM enriched`;
+        const hist = async (t: ResolvedTable) => t.tableId === 'orders_hist' ? CATALOG.get('raw.orders')! : lookup(t);
+        const q = buildMultiQueryLineage(sql).queries[0];
+        await resolveLineageColumns(q.graph, q.sqlText, hist, 'my-proj');
+        assert.deepStrictEqual(node(q.graph, 'enriched').columns!.map(c => c.name), ['order_id', 'customer_id', 'amount', 'customer_region']);
+    });
+
     test('section offers the Columns toggle next to the zoom controls', () => {
         const html = renderQuerySection({ queryInfo: samples[0], svg: '<svg></svg>' }, 0);
         assert.ok(/<div class="section-controls">\s*<button class="zoom-btn columns-toggle" aria-pressed="false"/.test(html));

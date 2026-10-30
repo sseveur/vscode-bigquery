@@ -185,7 +185,7 @@ function renderColumnRows(node: LineageNode, w: number, headerHeight: number): s
             <text x="32" y="${rowY(shown.length)}" font-size="10.5" font-style="italic" fill="${muted}" class="node-type">+ ${cols.length - MAX_COLUMN_ROWS} more</text>`);
     } else if (!cols.length && node.columnsNote) {
         rows.push(`
-            <text x="12" y="${rowY(0)}" font-size="10.5" font-style="italic" fill="${muted}" class="node-type">${escapeHtml(fitText(node.columnsNote, w - 22, 5.6))}</text>`);
+            <text x="12" y="${rowY(0)}" font-size="10.5" font-style="italic" fill="${muted}" class="node-type"><title>${escapeHtml(node.columnsNote)}</title>${escapeHtml(fitText(node.columnsNote, w - 22, 5.6))}</text>`);
     }
     return `
             <line x1="0.5" y1="${headerHeight}" x2="${w - 0.5}" y2="${headerHeight}" stroke="var(--vscode-editorWidget-border, #454545)" stroke-width="1"/>${rows.join('')}`;
