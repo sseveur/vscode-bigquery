@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Requires VS Code 1.101 or later** - The BigQuery and Pub/Sub client libraries now need Node.js 22, which VS Code ships from 1.101 onwards.
 
+### Deprecated
+
+- **Send to Pub/Sub** - Will be removed in January 2027. Using it shows a notice once per session with a link to the [GitHub issue](https://github.com/sseveur/vscode-bigquery/issues/17); comment there if you rely on it.
+
 ### Security
 
 - **BigQuery and Pub/Sub client libraries** - `@google-cloud/bigquery` moves to 9.5.0 and `@google-cloud/pubsub` to 6.3.2, clearing the moderate `uuid` advisory they carried. Development tools `mocha` (12.0.3) and `@vscode/vsce` (4.1.0) are updated too. `npm audit` now reports no advisories.

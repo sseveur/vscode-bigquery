@@ -567,7 +567,7 @@
 			},
 			{
 				"command": "vscode-bigquery.send-pubsub",
-				"title": "BigQuery: Send to Pub/Sub",
+				"title": "BigQuery: Send to Pub/Sub (deprecated)",
 				"icon": "$(outline-view-icon)"
 			},
 			{

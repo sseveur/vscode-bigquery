@@ -4,9 +4,31 @@ import { BigQueryClient } from '../services/bigqueryClient';
 import { QueryRowsResponse, Table, TableSchema } from '@google-cloud/bigquery';
 import { PubSub } from '@google-cloud/pubsub';
 
+const DEPRECATION_ISSUE_URL = 'https://github.com/sseveur/vscode-bigquery/issues/17';
+
 export class SendToPubsub {
 
+    // shown once per VS Code session, so regular users still see it again before removal
+    private static deprecationNoticeShown = false;
+
+    private static showDeprecationNotice() {
+        if (SendToPubsub.deprecationNoticeShown) { return; }
+        SendToPubsub.deprecationNoticeShown = true;
+
+        // not awaited: the notice must not block the send
+        vscode.window.showWarningMessage(
+            'Send to Pub/Sub is deprecated and will be removed in January 2027. If you use it, please comment on the GitHub issue.',
+            'Open Issue'
+        ).then(choice => {
+            if (choice === 'Open Issue') {
+                vscode.env.openExternal(vscode.Uri.parse(DEPRECATION_ISSUE_URL));
+            }
+        });
+    }
+
     public static async sendJobResult(bigqueryClient: BigQueryClient, jobReference: JobReference) {
+
+        SendToPubsub.showDeprecationNotice();
 
         try {
 

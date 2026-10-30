@@ -26,7 +26,7 @@ A powerful Visual Studio Code extension for Google BigQuery. Browse datasets and
 - **Table Schema Hover** - Hover over table names or CTEs for a card with columns, types and descriptions
 - **Data Lineage** - Visualize data flow with CTE support and a per-node Columns view; PNG / PDF export (individual and bulk); dark/light export theme
 - **Export Options** - Download query and preview results as CSV or JSONL, copy to clipboard as Markdown, copy selected rows as TSV/MD
-- **Pub/Sub Integration** - Publish query results directly to Google Cloud Pub/Sub
+- **Pub/Sub Integration** (deprecated, removed in January 2027) - Publish query results directly to Google Cloud Pub/Sub
 - **Automatic Query Location** - Region auto-detected from the first FROM via `datasets.get`; override with `vscode-bigquery.defaultLocation`
 - **Persistent Panels** - Results and preview panels restore across VS Code restarts
 
@@ -276,7 +276,9 @@ Download results in [JSONL](https://jsonlines.org/) format from the result grid 
 
 <img src="https://raw.githubusercontent.com/sseveur/vscode-bigquery/main/documentation/download_jsonl.png" alt="download jsonl" width="200"/>
 
-### Send to Pub/Sub
+### Send to Pub/Sub (deprecated)
+
+> **Deprecated:** Send to Pub/Sub will be removed in January 2027. If you use it, please comment on the [GitHub issue](https://github.com/sseveur/vscode-bigquery/issues/17).
 
 Publish query results to Google Cloud Pub/Sub (one message per row).
 
@@ -436,7 +438,7 @@ All commands are available via the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+
 | BigQuery: Download CSV | Export the active result set as CSV |
 | BigQuery: Download JSONL | Export the active result set as JSONL |
 | BigQuery: Copy to Clipboard | Copy the active result set as Markdown |
-| BigQuery: Send to Pub/Sub | Publish the active result set to a Pub/Sub topic |
+| BigQuery: Send to Pub/Sub (deprecated) | Publish the active result set to a Pub/Sub topic. Removed in January 2027 |
 | **Other** | |
 | BigQuery: Troubleshoot | Open troubleshooting guide |
 | BigQuery: Open Settings - Projects | Open project settings |

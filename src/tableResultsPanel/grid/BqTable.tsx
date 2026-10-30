@@ -406,7 +406,7 @@ export function BqTable({ fetchRows, exportRef, schema, totalRows, initialRows, 
                             {onExport && <>
                                 <button class="bq-pg-btn" onClick={() => onExport('download_csv', exportRef)} title="Download all as CSV">CSV</button>
                                 <button class="bq-pg-btn" onClick={() => onExport('download_jsonl', exportRef)} title="Download all as JSONL">JSONL</button>
-                                <button class="bq-pg-btn" onClick={() => onExport('send_pubsub', exportRef)} title="Send to Pub/Sub">Pub/Sub</button>
+                                <button class="bq-pg-btn" onClick={() => onExport('send_pubsub', exportRef)} title="Send to Pub/Sub (deprecated, removed in January 2027)">Pub/Sub</button>
                                 <button class="bq-pg-btn" onClick={() => onExport('copy_to_clipboard', exportRef)} title="Copy all as Markdown">Copy</button>
                             </>}
                         </div>
